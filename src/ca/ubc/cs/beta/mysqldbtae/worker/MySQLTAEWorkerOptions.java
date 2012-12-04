@@ -25,6 +25,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 	@Parameter(names="--delayBetweenRequests", description="Minimum amount of time (in seconds) required between fetching requests from the MySQL DB", validateWith=PositiveInteger.class)
 	public long delayBetweenRequests = 10;
+
+	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
+	public String pool;
 	
 	
 }

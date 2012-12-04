@@ -95,7 +95,7 @@ public class MySQLTAEWorker {
 	public static void processRuns(MySQLTAEWorkerOptions options)
 	{
 		
-			MySQLPersistence mysqlPersistence = new MySQLPersistence(options.mysqlOptions);
+			MySQLPersistence mysqlPersistence = new MySQLPersistence(options.mysqlOptions,options.pool);
 		
 			Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
 			

@@ -1,6 +1,10 @@
 package ca.ubc.cs.beta.mysqldbtae.persistence;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.sql.Connection;
@@ -15,6 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,6 +27,8 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
@@ -32,6 +39,8 @@ import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
+import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
+import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
@@ -42,10 +51,10 @@ public class MySQLPersistence {
 
 	private final Connection conn;
 	
-	private static final String TABLE_COMMAND = "commandTable";
-	private static final String TABLE_EXECCONFIG = "execConfig";
-	private static final String TABLE_RUNCONFIG = "runConfigs";
-	private static final String TABLE_ALGORITHMRUNS = "algorithmRuns";
+	private final String TABLE_COMMAND;
+	private  final String TABLE_EXECCONFIG;
+	private  final String TABLE_RUNCONFIG;
+	private  final String TABLE_ALGORITHMRUNS;
 	
 	/**
 	 * Used to tie all the run requests with a specific execution
@@ -88,19 +97,21 @@ public class MySQLPersistence {
 
 	private AlgorithmExecutionConfig execConfig;
 	
-	public MySQLPersistence(MySQLConfig mysqlOptions)
+	public MySQLPersistence(MySQLConfig mysqlOptions, String pool)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool);
 	}
 	
-	public MySQLPersistence(String host, String port, String databaseName, String username, String password)
+	public MySQLPersistence(String host, String port, String databaseName, String username, String password, String pool)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password);
+		this(host, Integer.valueOf(port), databaseName, username, password,pool);
 	}
 	
-	public MySQLPersistence(String host, int port, String databaseName, String username, String password)
+	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool)
 	{
 		
+		if(pool == null) throw new ParameterException("Must specify a pool name ");
+		if(pool.length() > 15) throw new ParameterException("Pool name must be at most 15 characters");
 		
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
 		
@@ -108,7 +119,41 @@ public class MySQLPersistence {
 			Class.forName("com.mysql.jdbc.Driver").newInstance();
 			conn = DriverManager.getConnection(url,username, password);
 			
+			
+			BufferedReader br = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("tables.sql")));
+			
+			StringBuilder sb = new StringBuilder();
+			
+			String line;
+			boolean nothingFound = true;
+	    	while ((line = br.readLine()) != null) {
+	    		sb.append(line).append("\n");
+	    		nothingFound = false;
+	    	} 
+	    	
+	    	if(nothingFound) throw new IllegalStateException("Couldn't load tables.sql");
+			String sql = sb.toString();
+			sql = sql.replace("ACLIB_POOL_NAME", pool).trim();
+			
+			
+			String[] chunks = sql.split(";");
+			
+			for(String sqlStatement : chunks)
+			{
+				if(sqlStatement.trim().length() == 0) continue;
+				
+				PreparedStatement stmt = conn.prepareStatement(sqlStatement);
+				stmt.execute();
+			}
+			
+			log.info("Pool Created");
+			 TABLE_COMMAND = "commandTable_" + pool;
+			 TABLE_EXECCONFIG = "execConfig_"+ pool;
+			 TABLE_RUNCONFIG = "runConfigs_"+ pool;
+			 TABLE_ALGORITHMRUNS = "algorithmRuns_"+ pool ;
+			
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new RuntimeException(e);
 			
 		}
@@ -199,7 +244,22 @@ public class MySQLPersistence {
 		if(runConfigs == null || runConfigs.size() == 0) throw new IllegalArgumentException("Must supply atleast one run");
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE lastModified = NOW()");
+		sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES (?,?,?,?,?,?,?,?)");
+		
+		/**
+		 * 	
+		*StringBuilder sb = new StringBuilder();*/
+		//sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
+		
+		/*
+		for(RunConfig rc : runConfigs)
+		{
+			 sb.append(" (?,?,?,?,?,?,?,?),");
+		}
+		*/
+		//sb.setCharAt(sb.length()-1, ' ');
+		
+         //sb.append(" ON DUPLICATE KEY UPDATE noop=1");
 		
 	
 		try {
@@ -208,29 +268,40 @@ public class MySQLPersistence {
 			
 			log.info("Preparing for insertion of {} rows into DB", runConfigs.size());
 			int rowsInserted = 0;
+			
+			
+			
+			
+			
 			for(RunConfig rc : runConfigs)
 			{
-				
+				int i=1;
 					
 				String uuid = getHash(rc, execConfig);
 				
-				stmt.setInt(1, execConfigID);
-				stmt.setString(2, rc.getProblemInstanceSeedPair().getInstance().getInstanceName());
-				stmt.setLong(3, rc.getProblemInstanceSeedPair().getSeed());
-				stmt.setDouble(4, rc.getCutoffTime());
-				stmt.setString(5, rc.getParamConfiguration().getFormattedParamString(StringFormat.NODB_SYNTAX));
-				stmt.setString(6, hasher.getHash(rc.getParamConfiguration()));
-				stmt.setBoolean(7, rc.hasCutoffLessThanMax());
-				stmt.setString(8,uuid);
+				stmt.setInt(i++, execConfigID);
+				stmt.setString(i++, rc.getProblemInstanceSeedPair().getInstance().getInstanceName());
+				stmt.setLong(i++, rc.getProblemInstanceSeedPair().getSeed());
+				stmt.setDouble(i++, rc.getCutoffTime());
+				stmt.setString(i++, rc.getParamConfiguration().getFormattedParamString(StringFormat.NODB_SYNTAX));
+				stmt.setString(i++, hasher.getHash(rc.getParamConfiguration()));
+				stmt.setBoolean(i++, rc.hasCutoffLessThanMax());
+				stmt.setString(i++,uuid);
 				stmt.addBatch();
 				
 				runKeys.add(uuid);
 				this.runConfigIDToRunConfig.put(uuid, rc);
 			}
 			
-			log.info("Inserting Rows");
-				stmt.executeBatch();
+			StopWatch stopWatch = new AutoStartStopWatch();
 			
+			log.info("Inserting Rows");
+			stmt.executeBatch();
+				//stmt.execute();
+			
+				double timePerRow = (runConfigs.size() / (stopWatch.stop() / 1000.0));
+				Object[] args = { runConfigs.size(), stopWatch.time()/1000.0, timePerRow};
+				log.info("Insertion of {} rows took {} seconds {} seconds / row", args);
 				RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
 				this.runToIntegerMap.put(runToken, runKeys);
 				return runToken;

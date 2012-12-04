@@ -35,8 +35,9 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		String databaseName = getEnvVariable("MYSQL_DATABASE_NAME", "mysql_db_tae");
 		String username = getEnvVariable("MYSQL_USERNAME");
 		String password = getEnvVariable("MYSQL_PASSWORD", "");
+		String pool = getEnvVariable("MYSQL_POOL","default");
 		
-		MySQLPersistence mysqlPersistence = new MySQLPersistence(hostname, port, databaseName, username, password);
+		MySQLPersistence mysqlPersistence = new MySQLPersistence(hostname, port, databaseName, username, password,pool);
 		
 		
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
