@@ -1,6 +1,8 @@
 package ca.ubc.cs.beta.mysqldbtae.persistence;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -16,10 +18,14 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
@@ -39,6 +45,7 @@ public class MySQLPersistence {
 	private static final String TABLE_COMMAND = "commandTable";
 	private static final String TABLE_EXECCONFIG = "execConfig";
 	private static final String TABLE_RUNCONFIG = "runConfigs";
+	private static final String TABLE_ALGORITHMRUNS = "algorithmRuns";
 	
 	/**
 	 * Used to tie all the run requests with a specific execution
@@ -55,18 +62,21 @@ public class MySQLPersistence {
 	/**
 	 * Stores a mapping of tokens to client, to the actual runConfigIDs in the database.
 	 */
-	private final Map<RunToken, List<Integer>> runToIntegerMap = new HashMap<RunToken, List<Integer>>();
+	private final Map<RunToken, List<String>> runToIntegerMap = new HashMap<RunToken, List<String>>();
 	
+	private final Map<String, RunConfig> runConfigIDToRunConfig = new HashMap<String, RunConfig>();
 	
 	/**
 	 * Stores a mapping of RunConfigs to the actual runConfigIDs in the database.
 	 */
-	private final Map<RunConfig, Integer> runConfigIDMap = new HashMap<RunConfig, Integer>();
+	private final Map<RunConfig, String> runConfigIDMap = new HashMap<RunConfig, String>();
 	
 	
 	AtomicInteger runTokenKeys = new AtomicInteger();
 	
 	private static final ACLibHasher hasher = new ACLibHasher();
+
+	
 	
 	
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -75,6 +85,8 @@ public class MySQLPersistence {
 	 * Worker ID 
 	 */
 	private final UUID workerUUID = UUID.randomUUID();
+
+	private AlgorithmExecutionConfig execConfig;
 	
 	public MySQLPersistence(MySQLConfig mysqlOptions)
 	{
@@ -142,7 +154,8 @@ public class MySQLPersistence {
 		
 		if (execConfigID != -1 ) throw new IllegalStateException("execConfigID is already set");
 		
-			
+		this.execConfig = execConfig;
+		
 			File f = new File(execConfig.getParamFile().getParamFileName());
 			
 			if(!f.isAbsolute() || !f.exists())
@@ -186,17 +199,20 @@ public class MySQLPersistence {
 		if(runConfigs == null || runConfigs.size() == 0) throw new IllegalArgumentException("Must supply atleast one run");
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE lastModified = NOW()");
+		sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE lastModified = NOW()");
 		
 	
 		try {
-			PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
-			List<Integer> runKeys = new ArrayList<Integer>(runConfigs.size());
+			PreparedStatement stmt = conn.prepareStatement(sb.toString());
+			List<String> runKeys = new ArrayList<String>(runConfigs.size());
 			
+			log.info("Preparing for insertion of {} rows into DB", runConfigs.size());
+			int rowsInserted = 0;
 			for(RunConfig rc : runConfigs)
 			{
 				
 					
+				String uuid = getHash(rc, execConfig);
 				
 				stmt.setInt(1, execConfigID);
 				stmt.setString(2, rc.getProblemInstanceSeedPair().getInstance().getInstanceName());
@@ -205,18 +221,19 @@ public class MySQLPersistence {
 				stmt.setString(5, rc.getParamConfiguration().getFormattedParamString(StringFormat.NODB_SYNTAX));
 				stmt.setString(6, hasher.getHash(rc.getParamConfiguration()));
 				stmt.setBoolean(7, rc.hasCutoffLessThanMax());
-				stmt.execute();
+				stmt.setString(8,uuid);
+				stmt.addBatch();
 				
-				ResultSet rs = stmt.getGeneratedKeys();
-				rs.next();
-				runKeys.add(rs.getInt(1));
-				rs.close();
+				runKeys.add(uuid);
+				this.runConfigIDToRunConfig.put(uuid, rc);
 			}
 			
+			log.info("Inserting Rows");
+				stmt.executeBatch();
 			
-			RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
-			this.runToIntegerMap.put(runToken, runKeys);
-			return runToken;
+				RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
+				this.runToIntegerMap.put(runToken, runKeys);
+				return runToken;
 		} catch (SQLException e) {
 			throw new IllegalStateException("SQL Error", e);
 		}
@@ -237,24 +254,15 @@ public class MySQLPersistence {
 		StringBuffer sb = new StringBuffer();
 		
 		
-		
-		
-		
-		
-		
-		
-		
-	
-		
 		try {
-			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() +"\"  WHERE status=\"NEW\" ORDER BY priority DESC, runConfigID ASC LIMIT " + n);
+			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() +"\"  WHERE status=\"NEW\" ORDER BY priority DESC, runConfigUUID ASC LIMIT " + n);
 			System.out.println(sb.toString());
 			PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
 			stmt.executeUpdate();
 			
 			
 			sb = new StringBuffer();
-			sb.append("SELECT runConfigID, execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
+			sb.append("SELECT runConfigUUID, execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
 			sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
 			
 			
@@ -266,7 +274,7 @@ public class MySQLPersistence {
 			
 			while(rs.next())
 			{
-				int runConfigID = rs.getInt(1);
+				String uuid = rs.getString(1);
 				AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
 				String problemInstance = rs.getString(3);
 				long seed = rs.getLong(4);
@@ -280,7 +288,7 @@ public class MySQLPersistence {
 				ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.NODB_SYNTAX);
 				
 				RunConfig rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
-				runConfigIDMap.put(rc, runConfigID);
+				runConfigIDMap.put(rc, uuid);
 				if(myMap.get(execConfig) == null)
 				{
 					myMap.put(execConfig, new ArrayList<RunConfig>(n));
@@ -314,7 +322,7 @@ public class MySQLPersistence {
 		if(!execConfigMap.containsKey(execConfigID)) 
 		{
 		 StringBuilder sb = new StringBuilder();
-		 sb.append("SELECT algorithmExecutable, algorithmExecutableDIrectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM execConfig WHERE algorithmExecutionConfigID = " + execConfigID);
+		 sb.append("SELECT algorithmExecutable, algorithmExecutableDIrectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
 		 PreparedStatement stmt = conn.prepareStatement(sb.toString());
 		 ResultSet rs = stmt.executeQuery();
 		 
@@ -347,18 +355,18 @@ public class MySQLPersistence {
 
 	public void setRunResults(List<AlgorithmRun> runResult)
 	{
-		StringBuilder sb = new StringBuilder("INSERT INTO algorithmRuns (runConfigID, runResult, runLength, quality, result_seed, result_line, runtime, additional_run_data) VALUES (?,?,?,?,?,?,?,?)");
+		StringBuilder sb = new StringBuilder("INSERT INTO ").append(TABLE_ALGORITHMRUNS).append(" ( runConfigUUID, runResult, runLength, quality, result_seed, result_line, runtime, additional_run_data) VALUES (?,?,?,?,?,?,?,?)");
 		
 		try {
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());
 			
 			for(AlgorithmRun run : runResult)
 			{	
-				int runConfigID = runConfigIDMap.get(run.getRunConfig());
+				String runConfigUUID = runConfigIDMap.get(run.getRunConfig());
 				try {
 					
 					
-					stmt.setInt(1,runConfigID);
+					stmt.setString(1,runConfigUUID);
 					stmt.setString(2,run.getRunResult().name());
 					stmt.setDouble(3, run.getRunLength());
 					stmt.setDouble(4, run.getQuality());
@@ -373,9 +381,9 @@ public class MySQLPersistence {
 					log.error("SQL Exception while saving run {}", run);
 					log.error("Error occured", e);
 					log.error("Saving ABORT Manually");
-					setAbortRun(runConfigID);
+					setAbortRun(runConfigUUID);
 				}
-				setRunCompleted(runConfigID);
+				setRunCompleted(runConfigUUID);
 				
 			} 
 			
@@ -387,9 +395,9 @@ public class MySQLPersistence {
 		
 	}
 
-	private void setAbortRun(int runConfigID)
+	private void setAbortRun(String runConfigUUID)
 	{
-		StringBuilder sb = new StringBuilder("INSERT INTO algorithmRuns (runConfigID) VALUES (" + runConfigID +")");
+		StringBuilder sb = new StringBuilder("INSERT INTO ").append(TABLE_ALGORITHMRUNS).append(" (runConfigUUID) VALUES (\"" + runConfigUUID +"\")");
 		
 		try {
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());
@@ -404,9 +412,9 @@ public class MySQLPersistence {
 			
 	}
 	
-	private void setRunCompleted(int runConfigID)
+	private void setRunCompleted(String runConfigUUID)
 	{
-		StringBuilder sb = new StringBuilder("UPDATE runConfigs SET status=\"COMPLETE\" WHERE runConfigID=" + runConfigID );
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"COMPLETE\" WHERE runConfigUUID=\"" + runConfigUUID + "\"");
 		
 		try {
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());
@@ -430,14 +438,14 @@ public class MySQLPersistence {
 		}
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("SELECT COUNT(*) FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigID IN (");
+		sb.append("SELECT COUNT(*) FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 		
 		int runs = runToIntegerMap.get(token).size(); 
 		
-		for(Integer key : runToIntegerMap.get(token))
+		for(String key : runToIntegerMap.get(token))
 		{
 		
-			sb.append(key + ",");
+			sb.append("\""+key + "\",");
 		}
 		
 		//Get rid of the last comma
@@ -482,14 +490,71 @@ public class MySQLPersistence {
 		}
 			
 		
+		sb = new StringBuilder();
+		sb.append("SELECT runConfigUUID, result_line FROM ").append(TABLE_ALGORITHMRUNS).append(" WHERE runConfigUUID IN (");
 		
-		return null;
+		runs = runToIntegerMap.get(token).size(); 
+		
+		for(String key : runToIntegerMap.get(token))
+		{
+		
+			sb.append("\"" + key + "\",");
+		}
+		
+		//Get rid of the last comma
+		sb.setCharAt(sb.length()-1, ' ');
+		//Ensures that the order is correct
+		sb.append(") ORDER BY runConfigUUID");
+		List<AlgorithmRun> userRuns = new ArrayList<AlgorithmRun>(runs);
+		
+		try {
+			PreparedStatement stmt = conn.prepareStatement(sb.toString());
+			ResultSet rs = stmt.executeQuery();
+			
+			
+			while(rs.next())
+			{				
+				String resultLine = rs.getString(2);
+				RunConfig runConfig = this.runConfigIDToRunConfig.get(rs.getString(1));
+				/**
+				 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
+				 */
+				
+				AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
+				userRuns.add(run);
+			}
+		 
+		 
+		
+		
+			
+			
+		} catch(SQLException e)
+		{
+			throw new IllegalStateException("SQL Error",e);
+		}
+		
+		return userRuns;
 		
 		
 		
 	}
 
 	 
+	
+	public String getHash(RunConfig rc, AlgorithmExecutionConfig execConfig )
+	{
+		MessageDigest digest = DigestUtils.getSha1Digest();
+		
+		try {
+			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(execConfig)).getBytes("UTF-8"));
+			return new String(Hex.encodeHex(result));
+
+		} catch (UnsupportedEncodingException e) {
+			throw new IllegalStateException("Couldn't get Hash for RunConfig and ExecConfig");
+		}
+	}
+	
 	
 	
 }
