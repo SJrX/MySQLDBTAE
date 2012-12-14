@@ -151,6 +151,8 @@ public class MySQLPersistence {
 			 TABLE_EXECCONFIG = "execConfig_"+ pool;
 			 TABLE_RUNCONFIG = "runConfigs_"+ pool;
 			 TABLE_ALGORITHMRUNS = "algorithmRuns_"+ pool ;
+			 
+			 log.info("My Worker ID is " + workerUUID.toString());
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -326,26 +328,37 @@ public class MySQLPersistence {
 		
 		
 		try {
-			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() +"\"  WHERE status=\"NEW\" ORDER BY priority DESC, runConfigUUID ASC LIMIT " + n);
+			
+			
+		
+			//Pull workers off the queue in order of priority, do not take workers where we already tried
+			//This isn't a perfect heuristic. I'm hoping it's good enough.
+			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN ( SELECT runConfigUUID FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND (workerUUID IS NULL OR workerUUID <> \""+ workerUUID.toString() +"\") ORDER BY priority DESC, runConfigUUID DESC LIMIT " + n +  "  FOR UPDATE) B ON B.runConfigUUID=A.runConfigUUID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\"");
+					
+					
 			System.out.println(sb.toString());
+			
 			PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
 			stmt.executeUpdate();
-			
+		
 			
 			sb = new StringBuffer();
 			sb.append("SELECT runConfigUUID, execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
 			sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
 			
-			
+	
 			stmt = conn.prepareStatement(sb.toString());
 			ResultSet rs = stmt.executeQuery();
 			
 			Map<AlgorithmExecutionConfig, List<RunConfig>> myMap = new LinkedHashMap<AlgorithmExecutionConfig, List<RunConfig>>();
 			
-			
+		
 			while(rs.next())
 			{
+				
 				String uuid = rs.getString(1);
+				log.debug("Assigned Run {} ", uuid);
+				
 				AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
 				String problemInstance = rs.getString(3);
 				long seed = rs.getLong(4);
@@ -366,7 +379,7 @@ public class MySQLPersistence {
 				}
 				
 				myMap.get(execConfig).add(rc);
-				
+			
 				
 				
 				
@@ -500,6 +513,26 @@ public class MySQLPersistence {
 		
 
 	}
+	
+	public void resetUnfinishedRuns()
+	{
+		log.info("Resetting Unfinished Runs");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"NEW\" WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\"");
+		
+		try {
+			PreparedStatement stmt = conn.prepareStatement(sb.toString());
+			stmt.execute();
+			
+		}catch(SQLException e)
+		{
+			log.error("Failed writing abort to database, something very bad is happening");
+			
+			throw new IllegalStateException(e);
+		}
+		
+
+	}
+	
 
 	
 	public List<AlgorithmRun> getRunResults(RunToken token) {

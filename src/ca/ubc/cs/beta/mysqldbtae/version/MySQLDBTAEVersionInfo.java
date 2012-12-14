@@ -14,7 +14,7 @@ public class MySQLDBTAEVersionInfo implements VersionInfo{
 
 	@Override
 	public String getVersion() {	
-		return "v0.10b";
+		return "v0.11b";
 	}
 
 

@@ -5,17 +5,19 @@ import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
+import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.options.TargetAlgorithmEvaluatorOptions;
 
+@UsageTextField(title="MySQL TAE Worker Options", description="Options that describe and control the MySQL TAE Worker Process ")
 public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 
 	@ParametersDelegate
-	MySQLConfig mysqlOptions = new MySQLConfig();
+	public MySQLConfig mysqlOptions = new MySQLConfig();
 	
 	@ParametersDelegate
-	TargetAlgorithmEvaluatorOptions taeOptions = new TargetAlgorithmEvaluatorOptions();
+	public TargetAlgorithmEvaluatorOptions taeOptions = new TargetAlgorithmEvaluatorOptions();
 
 	@Parameter(names={"--runsToBatch"}, description="Number of runs to batch at a single time", validateWith=PositiveInteger.class)
 	public int runsToBatch = 1;
@@ -28,6 +30,13 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
 	public String pool;
+	
+	@Parameter(names="--timeLimit", description="Amount of time to work for", required = true, validateWith=PositiveInteger.class)
+	public int timeLimit;
+	
+	@Parameter(names="--shutdownBuffer", description="Amount of time to budget for shutdown tasks", validateWith=PositiveInteger.class)
+	public int shutdownBuffer = 60;
+	
 	
 	
 }

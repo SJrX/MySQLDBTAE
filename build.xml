@@ -44,9 +44,14 @@
 		<javac srcdir="src" destdir="build/classes" debug="true" target="1.6">
 		<classpath refid="compile.classpath"/>
 		</javac>
+		<copy todir="build/classes">
+			<fileset dir="src/">
+				<include name="tables.sql"/>
+			</fileset>
+		</copy>
 	</target>
 	<target name="archive" depends="compile">
-		<jar destfile="dist/rundispatcher.jar" basedir="build/classes"/>
+		<jar destfile="dist/mysqldbtae.jar" basedir="build/classes"/>
 		<buildnumber file="/ubc/cs/project/arrow/seramage/software/build-numbers/buildnumber-${ant.project.name}"/>
 		<!-- <echo file="build/classes/${version.file}">vDEV-${build.number}</echo> -->
 		

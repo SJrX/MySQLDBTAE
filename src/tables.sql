@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS `runConfigs_ACLIB_POOL_NAME` (
  PRIMARY KEY (`runConfigUUID`),
  KEY `execConfigID` (`execConfigID`),
  KEY `status` (`status`,`workerUUID`),
+ KEY `runConfigUUID_sort` (`priority`,`runConfigUUID`),
  CONSTRAINT `runConfigs_ACLIB_POOL_NAME_ibfk_1` FOREIGN KEY (`execConfigID`) REFERENCES `execConfig_ACLIB_POOL_NAME` (`algorithmExecutionConfigID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
