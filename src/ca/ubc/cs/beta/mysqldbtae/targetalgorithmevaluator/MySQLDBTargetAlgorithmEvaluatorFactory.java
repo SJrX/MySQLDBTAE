@@ -37,7 +37,22 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		String password = getEnvVariable("MYSQL_PASSWORD", "");
 		String pool = getEnvVariable("MYSQL_POOL","default");
 		
-		MySQLPersistence mysqlPersistence = new MySQLPersistence(hostname, port, databaseName, username, password,pool);
+		
+		String illegalPathPrefixToken = "\\=2421@%!%@!!@4"; //Can't use null because that means it's required
+		
+		String pathStrip = getEnvVariable("MYSQL_PATH_STRIP",illegalPathPrefixToken);
+		
+		if(pathStrip.equals(illegalPathPrefixToken))
+		{
+			pathStrip = null;
+		}
+		
+		if(pathStrip != null && pathStrip.trim().endsWith("/"))
+		{
+			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
+		}
+		
+		MySQLPersistence mysqlPersistence = new MySQLPersistence(hostname, port, databaseName, username, password,pool,pathStrip);
 		
 		
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));

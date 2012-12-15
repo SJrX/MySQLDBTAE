@@ -45,6 +45,7 @@ import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
+import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
 
 
 public class MySQLPersistence {
@@ -97,17 +98,24 @@ public class MySQLPersistence {
 
 	private AlgorithmExecutionConfig execConfig;
 	
+	
+	private final PathStripper pathStrip;
 	public MySQLPersistence(MySQLConfig mysqlOptions, String pool)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null);
 	}
 	
-	public MySQLPersistence(String host, String port, String databaseName, String username, String password, String pool)
+	public MySQLPersistence(MySQLConfig mysqlOptions, String pool, String pathStrip)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, pathStrip);
 	}
 	
-	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool)
+	public MySQLPersistence(String host, String port, String databaseName, String username, String password, String pool, String pathStrip)
+	{
+		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip);
+	}
+	
+	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, String pathStrip)
 	{
 		
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
@@ -154,11 +162,16 @@ public class MySQLPersistence {
 			 
 			 log.info("My Worker ID is " + workerUUID.toString());
 			
+			
+			 this.pathStrip = new PathStripper(pathStrip);
+			
+			 
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
 			
 		}
+		
 		
 	}
 	
@@ -194,6 +207,8 @@ public class MySQLPersistence {
 		
 	}
 	
+
+	
 	
 	public void setAlgorithmExecutionConfig(AlgorithmExecutionConfig execConfig)
 	{
@@ -216,13 +231,13 @@ public class MySQLPersistence {
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
 	
-				stmt.setString(1, execConfig.getAlgorithmExecutable());
-				stmt.setString(2, execConfig.getAlgorithmExecutionDirectory());
-				stmt.setString(3, execConfig.getParamFile().getParamFileName());
+				stmt.setString(1, pathStrip.stripPath(execConfig.getAlgorithmExecutable()));
+				stmt.setString(2, pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()));
+				stmt.setString(3, pathStrip.stripPath(execConfig.getParamFile().getParamFileName()));
 				stmt.setBoolean(4, execConfig.isExecuteOnCluster());
 				stmt.setBoolean(5, execConfig.isDeterministicAlgorithm());
 				stmt.setDouble(6,execConfig.getAlgorithmCutoffTime());
-				stmt.setString(7, this.hasher.getHash(execConfig));
+				stmt.setString(7, hasher.getHash(execConfig,pathStrip));
 				stmt.execute();
 				ResultSet rs = stmt.getGeneratedKeys();
 				rs.next();
@@ -246,8 +261,10 @@ public class MySQLPersistence {
 		if(runConfigs == null || runConfigs.size() == 0) throw new IllegalArgumentException("Must supply atleast one run");
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES (?,?,?,?,?,?,?,?)");
+		sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
 		
+		
+	
 		/**
 		 * 	
 		*StringBuilder sb = new StringBuilder();*/
@@ -261,7 +278,7 @@ public class MySQLPersistence {
 		*/
 		//sb.setCharAt(sb.length()-1, ' ');
 		
-         //sb.append(" ON DUPLICATE KEY UPDATE noop=1");
+     
 		
 	
 		try {
@@ -282,7 +299,7 @@ public class MySQLPersistence {
 				String uuid = getHash(rc, execConfig);
 				
 				stmt.setInt(i++, execConfigID);
-				stmt.setString(i++, rc.getProblemInstanceSeedPair().getInstance().getInstanceName());
+				stmt.setString(i++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
 				stmt.setLong(i++, rc.getProblemInstanceSeedPair().getSeed());
 				stmt.setDouble(i++, rc.getCutoffTime());
 				stmt.setString(i++, rc.getParamConfiguration().getFormattedParamString(StringFormat.NODB_SYNTAX));
@@ -542,9 +559,14 @@ public class MySQLPersistence {
 		}
 		
 		StringBuilder sb = new StringBuilder();
+		
+		
 		sb.append("SELECT COUNT(*) FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 		
 		int runs = runToIntegerMap.get(token).size(); 
+		
+		
+		
 		
 		for(String key : runToIntegerMap.get(token))
 		{
@@ -651,7 +673,7 @@ public class MySQLPersistence {
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
 		try {
-			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(execConfig)).getBytes("UTF-8"));
+			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(execConfig,pathStrip)).getBytes("UTF-8"));
 			return new String(Hex.encodeHex(result));
 
 		} catch (UnsupportedEncodingException e) {

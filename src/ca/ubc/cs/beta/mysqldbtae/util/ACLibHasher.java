@@ -25,12 +25,12 @@ public class ACLibHasher {
 		}
 	}
 	
-	public String getHash(AlgorithmExecutionConfig execConfig)
+	public String getHash(AlgorithmExecutionConfig execConfig, PathStripper pathStrip)
 	{
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
 		try {
-			byte[] result = digest.digest( (execConfig.getAlgorithmExecutable() + execConfig.getAlgorithmExecutionDirectory() + execConfig.getAlgorithmCutoffTime() + execConfig.isDeterministicAlgorithm() + execConfig.isExecuteOnCluster() + execConfig.getParamFile().getParamFileName()).getBytes("UTF-8"));
+			byte[] result = digest.digest( (pathStrip.stripPath(execConfig.getAlgorithmExecutable()) + pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()) + execConfig.getAlgorithmCutoffTime() + execConfig.isDeterministicAlgorithm() + execConfig.isExecuteOnCluster() + pathStrip.stripPath(execConfig.getParamFile().getParamFileName())).getBytes("UTF-8"));
 			return new String(Hex.encodeHex(result));
 
 		} catch (UnsupportedEncodingException e) {
