@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.ParameterException;
+import com.mysql.jdbc.PacketTooBigException;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
@@ -100,22 +101,26 @@ public class MySQLPersistence {
 	
 	
 	private final PathStripper pathStrip;
-	public MySQLPersistence(MySQLConfig mysqlOptions, String pool)
+	
+	private final int batchInsertSize;
+	
+	
+	public MySQLPersistence(MySQLConfig mysqlOptions, String pool, int batchInsertSize)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize);
 	}
 	
-	public MySQLPersistence(MySQLConfig mysqlOptions, String pool, String pathStrip)
+	public MySQLPersistence(MySQLConfig mysqlOptions, String pool, String pathStrip, int batchInsertSize)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, pathStrip);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, pathStrip, batchInsertSize);
 	}
 	
-	public MySQLPersistence(String host, String port, String databaseName, String username, String password, String pool, String pathStrip)
+	public MySQLPersistence(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip);
+		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize);
 	}
 	
-	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, String pathStrip)
+	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize)
 	{
 		
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
@@ -164,7 +169,7 @@ public class MySQLPersistence {
 			
 			
 			 this.pathStrip = new PathStripper(pathStrip);
-			
+			this.batchInsertSize = batchInsertSize;
 			 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -253,81 +258,109 @@ public class MySQLPersistence {
 
 	}
 	
+	
 	public RunToken enqueueRunConfigs(List<RunConfig> runConfigs)
 	{
+		
+		AutoStartStopWatch completeInsertionTime = new AutoStartStopWatch();
 		
 		if(execConfigID == -1) throw new IllegalStateException("execConfigID must be set");
 	
 		if(runConfigs == null || runConfigs.size() == 0) throw new IllegalArgumentException("Must supply atleast one run");
+
 		
-		StringBuilder sb = new StringBuilder();
-		sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
+		List<String> runKeys = new ArrayList<String>(runConfigs.size());
+		
+		RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
 		
 		
-	
-		/**
-		 * 	
-		*StringBuilder sb = new StringBuilder();*/
-		//sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
-		
-		/*
-		for(RunConfig rc : runConfigs)
+		for(int i=0; (i < Math.ceil((runConfigs.size()/(double) batchInsertSize)));i++)
 		{
-			 sb.append(" (?,?,?,?,?,?,?,?),");
-		}
-		*/
-		//sb.setCharAt(sb.length()-1, ' ');
-		
-     
-		
-	
-		try {
-			PreparedStatement stmt = conn.prepareStatement(sb.toString());
-			List<String> runKeys = new ArrayList<String>(runConfigs.size());
+			int listLowerBound = i*batchInsertSize;
+			int listUpperBound = Math.min((i+1)*batchInsertSize,runConfigs.size());
 			
-			log.info("Preparing for insertion of {} rows into DB", runConfigs.size());
-			int rowsInserted = 0;
+			Object[] args2 =  { i, listLowerBound, listUpperBound, runConfigs.size()};
+			log.trace("Lower and Upper Bound {}: ({}-{})  (size: {})",args2);
 			
 			
+			StringBuilder sb = new StringBuilder();
+			sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
+
 			
+			for(int j = listLowerBound; j < listUpperBound; j++ )
+			{				
+					 sb.append(" (?,?,?,?,?,?,?,?),");
 			
-			
-			for(RunConfig rc : runConfigs)
-			{
-				int i=1;
-					
-				String uuid = getHash(rc, execConfig);
-				
-				stmt.setInt(i++, execConfigID);
-				stmt.setString(i++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
-				stmt.setLong(i++, rc.getProblemInstanceSeedPair().getSeed());
-				stmt.setDouble(i++, rc.getCutoffTime());
-				stmt.setString(i++, rc.getParamConfiguration().getFormattedParamString(StringFormat.NODB_SYNTAX));
-				stmt.setString(i++, hasher.getHash(rc.getParamConfiguration()));
-				stmt.setBoolean(i++, rc.hasCutoffLessThanMax());
-				stmt.setString(i++,uuid);
-				stmt.addBatch();
-				
-				runKeys.add(uuid);
-				this.runConfigIDToRunConfig.put(uuid, rc);
 			}
+	
+			sb.setCharAt(sb.length()-1, ' ');
 			
-			StopWatch stopWatch = new AutoStartStopWatch();
 			
-			log.info("Inserting Rows");
-			stmt.executeBatch();
-				//stmt.execute();
+			try {
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				
+				
+				log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
+
+				int k=1;
+				for(int j =listLowerBound; j < listUpperBound; j++ )
+				{				
+					RunConfig rc = runConfigs.get(j);
+					
+					String uuid = getHash(rc, execConfig);
+					
+					stmt.setInt(k++, execConfigID);
+					stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
+					stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
+					stmt.setDouble(k++, rc.getCutoffTime());
+					String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.NODB_SYNTAX);
+					
+					
+					if(configString.length() > 2000)
+					{
+						log.warn("If you get an exception when inserting this row, it is probably because the configuration space string is too long for the table");
+					}
+					stmt.setString(k++, configString);
+					
+					
+					stmt.setString(k++, hasher.getHash(rc.getParamConfiguration()));
+					stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
+					stmt.setString(k++,uuid);
+				
+					runKeys.add(uuid);
+					this.runConfigIDToRunConfig.put(uuid, rc);
+				}
+				
+				
+				StopWatch stopWatch = new AutoStartStopWatch();
+				
+				log.debug("Inserting Rows");
+				stmt.execute();
+				
+				double timePerRow = ((listUpperBound - listLowerBound) / (stopWatch.stop() / 1000.0));
+				
+				Object[] args = { listUpperBound - listLowerBound, stopWatch.time()/1000.0, timePerRow};
+				log.debug("Insertion of {} rows took {} seconds {} row / second", args);
+				
+				
+				
+				
+				
+				
 			
-				double timePerRow = (runConfigs.size() / (stopWatch.stop() / 1000.0));
-				Object[] args = { runConfigs.size(), stopWatch.time()/1000.0, timePerRow};
-				log.info("Insertion of {} rows took {} seconds {} seconds / row", args);
-				RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
-				this.runToIntegerMap.put(runToken, runKeys);
-				return runToken;
-		} catch (SQLException e) {
-			throw new IllegalStateException("SQL Error", e);
+				//return runToken;
+			} catch(PacketTooBigException e)
+			{
+				throw new IllegalStateException("SQL Error Occured, Try lowering the Batch Size (probably MYSQL_BATCH_INSERT_SIZE or a CLI option)", e);
+			} catch (SQLException e) {
+				throw new IllegalStateException("SQL Error", e);
+			}
 		}
 		
+		this.runToIntegerMap.put(runToken, runKeys);
+		Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
+		log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);
+		return runToken;
 		
 	}
 	

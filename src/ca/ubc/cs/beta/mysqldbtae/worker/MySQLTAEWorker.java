@@ -131,7 +131,7 @@ public class MySQLTAEWorker {
 	public static void processRuns(MySQLTAEWorkerOptions options)
 	{
 		
-			final MySQLPersistence mysqlPersistence = new MySQLPersistence(options.mysqlOptions,options.pool);
+			final MySQLPersistence mysqlPersistence = new MySQLPersistence(options.mysqlOptions,options.pool,100);
 		
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 				

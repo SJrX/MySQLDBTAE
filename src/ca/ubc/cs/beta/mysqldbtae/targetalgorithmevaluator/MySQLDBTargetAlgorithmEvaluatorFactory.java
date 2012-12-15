@@ -4,6 +4,8 @@ import org.mangosdk.spi.ProviderFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.beust.jcommander.ParameterException;
+
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.factory.TargetAlgorithmEvaluatorFactory;
@@ -36,6 +38,18 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		String username = getEnvVariable("MYSQL_USERNAME");
 		String password = getEnvVariable("MYSQL_PASSWORD", "");
 		String pool = getEnvVariable("MYSQL_POOL","default");
+		int batchInsertSize;
+		try {
+			 batchInsertSize = Integer.valueOf(getEnvVariable("MYSQL_BATCH_INSERT_SIZE", "500"));
+		} catch(NumberFormatException e)
+		{
+			throw new ParameterException("MYSQL_BATCH_INSERT_SIZE enviroment variable must be an Integer not " + getEnvVariable("MYSQL_BATCH_INSERT_SIZE"));
+		}
+		
+		
+		
+		
+		
 		
 		
 		String illegalPathPrefixToken = "\\=2421@%!%@!!@4"; //Can't use null because that means it's required
@@ -52,7 +66,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
 		}
 		
-		MySQLPersistence mysqlPersistence = new MySQLPersistence(hostname, port, databaseName, username, password,pool,pathStrip);
+		MySQLPersistence mysqlPersistence = new MySQLPersistence(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize);
 		
 		
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
