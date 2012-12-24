@@ -2,6 +2,9 @@ package ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aclib.exceptions.TargetAlgorithmAbortException;
@@ -15,7 +18,7 @@ public class MySQLDBTAE extends AbstractTargetAlgorithmEvaluator {
 
 
 	private final MySQLPersistence persistence;
-
+	private final Logger log = LoggerFactory.getLogger(MySQLDBTAE.class);
 	
 	
 
@@ -38,6 +41,8 @@ public class MySQLDBTAE extends AbstractTargetAlgorithmEvaluator {
 		{
 			if(run.getRunResult().equals(RunResult.ABORT))
 			{
+				log.info("Um this was an abort {} : {} ", run.getRunConfig(), run);
+				
 				throw new TargetAlgorithmAbortException(run);
 			}
 		}

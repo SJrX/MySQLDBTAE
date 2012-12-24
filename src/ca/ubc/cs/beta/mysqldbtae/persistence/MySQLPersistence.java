@@ -2,8 +2,11 @@ package ca.ubc.cs.beta.mysqldbtae.persistence;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectOutputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
@@ -16,10 +19,12 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.ParameterException;
 import com.mysql.jdbc.PacketTooBigException;
+import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
@@ -75,6 +81,13 @@ public class MySQLPersistence {
 	 */
 	private final Map<RunToken, List<String>> runToIntegerMap = new HashMap<RunToken, List<String>>();
 	
+	private final Map<RunToken, Set<String>> runTokenToIncompleteRunsSet = new HashMap<RunToken, Set<String>>();
+	
+	private final Map<RunToken, List<RunConfig>> runTokenToRunConfigMap = new HashMap<RunToken, List<RunConfig>>();
+	
+	private final Set<RunToken> completedRunTokens = new HashSet<RunToken>();
+	
+	
 	private final Map<String, RunConfig> runConfigIDToRunConfig = new HashMap<String, RunConfig>();
 	
 	/**
@@ -86,6 +99,8 @@ public class MySQLPersistence {
 	AtomicInteger runTokenKeys = new AtomicInteger();
 	
 	private static final ACLibHasher hasher = new ACLibHasher();
+
+	private static final int QUERY_SIZE_LIMIT = 1000;
 
 	
 	
@@ -103,6 +118,7 @@ public class MySQLPersistence {
 	private final PathStripper pathStrip;
 	
 	private final int batchInsertSize;
+
 	
 	
 	public MySQLPersistence(MySQLConfig mysqlOptions, String pool, int batchInsertSize)
@@ -133,6 +149,7 @@ public class MySQLPersistence {
 			conn = DriverManager.getConnection(url,username, password);
 			
 			
+			
 			BufferedReader br = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("tables.sql")));
 			
 			StringBuilder sb = new StringBuilder();
@@ -159,6 +176,7 @@ public class MySQLPersistence {
 				stmt.execute();
 			}
 			
+			
 			log.info("Pool Created");
 			 TABLE_COMMAND = "commandTable_" + pool;
 			 TABLE_EXECCONFIG = "execConfig_"+ pool;
@@ -170,7 +188,7 @@ public class MySQLPersistence {
 			
 			 this.pathStrip = new PathStripper(pathStrip);
 			this.batchInsertSize = batchInsertSize;
-			 
+			//conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED); 
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
@@ -274,8 +292,25 @@ public class MySQLPersistence {
 		RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
 		
 		
+
+		boolean firstRun = true;
+		long startTime = System.currentTimeMillis();
+		
+		
 		for(int i=0; (i < Math.ceil((runConfigs.size()/(double) batchInsertSize)));i++)
 		{
+			
+			if(!firstRun)
+			{
+				/*
+				try {
+					Thread.currentThread().sleep(1000);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+				*/
+				
+			}
 			int listLowerBound = i*batchInsertSize;
 			int listUpperBound = Math.min((i+1)*batchInsertSize,runConfigs.size());
 			
@@ -299,6 +334,7 @@ public class MySQLPersistence {
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				
+				log.debug("SQL INSERT: {} ", sb.toString());
 				
 				log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
 
@@ -313,7 +349,9 @@ public class MySQLPersistence {
 					stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
 					stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
 					stmt.setDouble(k++, rc.getCutoffTime());
-					String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.NODB_SYNTAX);
+					String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
+					
+					
 					
 					
 					if(configString.length() > 2000)
@@ -335,7 +373,19 @@ public class MySQLPersistence {
 				StopWatch stopWatch = new AutoStartStopWatch();
 				
 				log.debug("Inserting Rows");
-				stmt.execute();
+				
+				boolean insertFailed = true;
+				while(insertFailed)
+				{
+					try {
+						stmt.execute();
+						insertFailed = false;
+					} catch(MySQLTransactionRollbackException e)
+					{
+						log.info("Deadlock");
+					}
+				}
+					
 				
 				double timePerRow = ((listUpperBound - listLowerBound) / (stopWatch.stop() / 1000.0));
 				
@@ -357,7 +407,16 @@ public class MySQLPersistence {
 			}
 		}
 		
+		this.runTokenToRunConfigMap.put(runToken, runConfigs);
 		this.runToIntegerMap.put(runToken, runKeys);
+		
+		
+		Set<String> unfinishedRunConfigs = new HashSet<String>();
+		
+		unfinishedRunConfigs.addAll(runKeys);
+		this.runTokenToIncompleteRunsSet.put(runToken, unfinishedRunConfigs);
+		
+		
 		Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
 		log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);
 		return runToken;
@@ -371,9 +430,7 @@ public class MySQLPersistence {
 	 */
 	public Map<AlgorithmExecutionConfig, List<RunConfig>> getRuns(int n)
 	{
-		
-		
-		
+	
 		StringBuffer sb = new StringBuffer();
 		
 		
@@ -383,21 +440,30 @@ public class MySQLPersistence {
 		
 			//Pull workers off the queue in order of priority, do not take workers where we already tried
 			//This isn't a perfect heuristic. I'm hoping it's good enough.
-			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN ( SELECT runConfigUUID FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND (workerUUID IS NULL OR workerUUID <> \""+ workerUUID.toString() +"\") ORDER BY priority DESC, runConfigUUID DESC LIMIT " + n +  "  FOR UPDATE) B ON B.runConfigUUID=A.runConfigUUID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\"");
+			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN ( SELECT runConfigUUID FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND (workerUUID IS NULL OR workerUUID <> \""+ workerUUID.toString() +"\") LIMIT " + n +  "  FOR UPDATE) B ON B.runConfigUUID=A.runConfigUUID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\";");
 					
 					
 			System.out.println(sb.toString());
 			
 			PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
-			stmt.executeUpdate();
-		
+			try {
+				stmt.execute();
+			} catch(MySQLTransactionRollbackException e)
+			{
+				log.info("Deadlock detected, trying again");
+				return getRuns(n);
+			}
+			//if(true) return Collections.emptyMap();
 			
 			sb = new StringBuffer();
-			sb.append("SELECT runConfigUUID, execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
+			//
+			sb.append("SELECT runConfigUUID , execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
 			sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
 			
 	
 			stmt = conn.prepareStatement(sb.toString());
+			
+			
 			ResultSet rs = stmt.executeQuery();
 			
 			Map<AlgorithmExecutionConfig, List<RunConfig>> myMap = new LinkedHashMap<AlgorithmExecutionConfig, List<RunConfig>>();
@@ -408,18 +474,18 @@ public class MySQLPersistence {
 				
 				String uuid = rs.getString(1);
 				log.debug("Assigned Run {} ", uuid);
-				
+				//if(true) continue;
 				AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
 				String problemInstance = rs.getString(3);
 				long seed = rs.getLong(4);
 				double cutoffTime = rs.getDouble(5);
 				String paramConfiguration = rs.getString(6);
 				boolean cutoffLessThanMax = rs.getBoolean(7);
-				
+								
 				
 				ProblemInstance pi = new ProblemInstance(problemInstance);
 				ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
-				ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.NODB_SYNTAX);
+				ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
 				
 				RunConfig rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
 				runConfigIDMap.put(rc, uuid);
@@ -486,10 +552,14 @@ public class MySQLPersistence {
 		
 		
 	}
+	
 
+	
 	public void setRunResults(List<AlgorithmRun> runResult)
 	{
-		StringBuilder sb = new StringBuilder("INSERT INTO ").append(TABLE_ALGORITHMRUNS).append(" ( runConfigUUID, runResult, runLength, quality, result_seed, result_line, runtime, additional_run_data) VALUES (?,?,?,?,?,?,?,?)");
+	
+		
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, result_seed=?, result_line=?, runtime=?, additional_run_data=?, status='COMPLETE'  WHERE runConfigUUID=?");
 		
 		try {
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());
@@ -497,18 +567,18 @@ public class MySQLPersistence {
 			for(AlgorithmRun run : runResult)
 			{	
 				String runConfigUUID = runConfigIDMap.get(run.getRunConfig());
+					
 				try {
 					
+					stmt.setString(1,run.getRunResult().name());
+					stmt.setDouble(2, run.getRunLength());
+					stmt.setDouble(3, run.getQuality());
+					stmt.setLong(4,run.getResultSeed());
+					stmt.setString(5, run.getResultLine());
+					stmt.setDouble(6, run.getRuntime());
+					stmt.setString(7, run.getAdditionalRunData());
 					
-					stmt.setString(1,runConfigUUID);
-					stmt.setString(2,run.getRunResult().name());
-					stmt.setDouble(3, run.getRunLength());
-					stmt.setDouble(4, run.getQuality());
-					stmt.setLong(5,run.getResultSeed());
-					stmt.setString(6, run.getResultLine());
-					stmt.setDouble(7, run.getRuntime());
-					stmt.setString(8, run.getAdditionalRunData());
-					
+					stmt.setString(8,runConfigUUID);
 					stmt.execute();
 				} catch(SQLException e)
 				{
@@ -517,7 +587,6 @@ public class MySQLPersistence {
 					log.error("Saving ABORT Manually");
 					setAbortRun(runConfigUUID);
 				}
-				setRunCompleted(runConfigUUID);
 				
 			} 
 			
@@ -531,10 +600,11 @@ public class MySQLPersistence {
 
 	private void setAbortRun(String runConfigUUID)
 	{
-		StringBuilder sb = new StringBuilder("INSERT INTO ").append(TABLE_ALGORITHMRUNS).append(" (runConfigUUID) VALUES (\"" + runConfigUUID +"\")");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult='ABORT', status='COMPLETE'  WHERE runConfigUUID=?");
 		
 		try {
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());
+			stmt.setString(1, runConfigUUID);
 			stmt.execute();
 			
 		}catch(SQLException e)
@@ -545,24 +615,7 @@ public class MySQLPersistence {
 		
 			
 	}
-	
-	private void setRunCompleted(String runConfigUUID)
-	{
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"COMPLETE\" WHERE runConfigUUID=\"" + runConfigUUID + "\"");
-		
-		try {
-			PreparedStatement stmt = conn.prepareStatement(sb.toString());
-			stmt.execute();
-			
-		}catch(SQLException e)
-		{
-			log.error("Failed writing abort to database, something very bad is happening");
-			
-			throw new IllegalStateException(e);
-		}
-		
 
-	}
 	
 	public void resetUnfinishedRuns()
 	{
@@ -591,50 +644,86 @@ public class MySQLPersistence {
 			throw new IllegalStateException("RunToken cannot be null"); 
 		}
 		
-		StringBuilder sb = new StringBuilder();
 		
+		if(completedRunTokens.contains(token))
+		{
+			throw new IllegalStateException("RunToken is no longer valid");
+		}
 		
-		sb.append("SELECT COUNT(*) FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+		if(runToIntegerMap.get(token) == null)
+		{
+			throw new IllegalStateException("RunToken doesn't exist in mapping");
+		}
+	
 		
 		int runs = runToIntegerMap.get(token).size(); 
 		
 		
 		
 		
-		for(String key : runToIntegerMap.get(token))
-		{
-		
-			sb.append("\""+key + "\",");
-		}
-		
-		//Get rid of the last comma
-		sb.setCharAt(sb.length()-1, ' ');
-		
-		sb.append(") AND status=\"COMPLETE\"");
+		Map<RunConfig, AlgorithmRun> userRuns = new HashMap<RunConfig, AlgorithmRun>();
 		
 		try {
-			PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+		
+		
 			
-			boolean done=false;
-			while(!done)
+			Set<String> incompleteRuns = runTokenToIncompleteRunsSet.get(token);
+			
+			while(userRuns.size() < runs)
 			{
+				StringBuilder sb = new StringBuilder();	
+				sb.append("SELECT runConfigUUID, result_line,status FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+				
+				
+				int querySize = 0;
+				for(String key : incompleteRuns)
+				{
+					if(querySize >= QUERY_SIZE_LIMIT)
+					{
+						break;
+					}
+					sb.append("\""+key + "\",");
+				}
+				
+				
+				//Get rid of the last comma
+				sb.setCharAt(sb.length()-1, ' ');
+				
+				sb.append(") AND status=\"COMPLETE\"");
+				
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				//log.info("Query: {} ", sb);
 				ResultSet rs = stmt.executeQuery();
 				
 				
-				rs.next();
-				int completedRuns = rs.getInt(1);
-				
-				if(completedRuns == runs) 
-				{
-					log.info("All runs completed for RunToken {}", token);
-					done = true;
+		
+				while(rs.next())
+				{				
+					String resultLine = rs.getString(2);
+					RunConfig runConfig = this.runConfigIDToRunConfig.get(rs.getString(1));
+					incompleteRuns.remove(rs.getString(1));
+					/**
+					 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
+					 */
+						
+					AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
 					
-				} else
-				{
-					Object[] args = { token, completedRuns, runs };
-					log.info("RunToken {} currently has {} out of {} runs completed ",args);
-					Thread.sleep(2500);
-				}
+					if(run.getRunResult().equals(RunResult.ABORT))
+					{
+						Object[] args = {rs.getString(1), rs.getString(2), rs.getString(3) } ;
+						log.info("ABORT DETECTED: {} : {} : {}",args );
+					}
+					userRuns.put(runConfig, run);
+				}	
+				
+				
+				Object args[] =  { token, userRuns.size(), runs };
+				log.info("RunToken {} has {} out of {} runs complete ",args);
+				Thread.sleep(1000);
+				
+				
+				
 			}
 			
 			
@@ -649,53 +738,22 @@ public class MySQLPersistence {
 		}
 			
 		
-		sb = new StringBuilder();
-		sb.append("SELECT runConfigUUID, result_line FROM ").append(TABLE_ALGORITHMRUNS).append(" WHERE runConfigUUID IN (");
+		List<AlgorithmRun> runResults = new ArrayList<AlgorithmRun>(this.runTokenToRunConfigMap.get(token).size());
 		
-		runs = runToIntegerMap.get(token).size(); 
-		
-		for(String key : runToIntegerMap.get(token))
+		for(RunConfig rc : this.runTokenToRunConfigMap.get(token))
 		{
-		
-			sb.append("\"" + key + "\",");
+			runResults.add(userRuns.get(rc));
 		}
-		
-		//Get rid of the last comma
-		sb.setCharAt(sb.length()-1, ' ');
-		//Ensures that the order is correct
-		sb.append(") ORDER BY runConfigUUID");
-		List<AlgorithmRun> userRuns = new ArrayList<AlgorithmRun>(runs);
-		
-		try {
-			PreparedStatement stmt = conn.prepareStatement(sb.toString());
-			ResultSet rs = stmt.executeQuery();
-			
-			
-			while(rs.next())
-			{				
-				String resultLine = rs.getString(2);
-				RunConfig runConfig = this.runConfigIDToRunConfig.get(rs.getString(1));
-				/**
-				 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
-				 */
-				
-				AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
-				userRuns.add(run);
-			}
-		 
-		 
+	
+
+		completedRunTokens.add(token);
+		runToIntegerMap.remove(token);
+		runTokenToIncompleteRunsSet.remove(token);
+		runTokenToRunConfigMap.remove(token);
 		
 		
-			
-			
-		} catch(SQLException e)
-		{
-			throw new IllegalStateException("SQL Error",e);
-		}
 		
-		return userRuns;
-		
-		
+		return runResults;
 		
 	}
 
@@ -714,6 +772,27 @@ public class MySQLPersistence {
 		}
 	}
 	
+	public void startTransaction()
+	{
+		
+		try {
+			conn.setAutoCommit(false);
+		} catch (SQLException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+	
+	public void commitTransaction()
+	{
+		
+		try {
+			conn.commit();
+			conn.setAutoCommit(true);
+		} catch (SQLException e) {
+			throw new IllegalStateException(e);
+		}
+		
+	}
 	
 	
 }
