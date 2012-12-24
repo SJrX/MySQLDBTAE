@@ -9,7 +9,7 @@ import com.beust.jcommander.ParameterException;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.factory.TargetAlgorithmEvaluatorFactory;
-import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 
 @ProviderFor(TargetAlgorithmEvaluatorFactory.class)
 public class MySQLDBTargetAlgorithmEvaluatorFactory implements
@@ -66,7 +66,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
 		}
 		
-		MySQLPersistence mysqlPersistence = new MySQLPersistence(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize);
 		
 		
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));

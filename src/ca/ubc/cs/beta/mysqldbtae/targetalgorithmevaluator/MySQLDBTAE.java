@@ -11,18 +11,18 @@ import ca.ubc.cs.beta.aclib.exceptions.TargetAlgorithmAbortException;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractTargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
-import ca.ubc.cs.beta.mysqldbtae.persistence.RunToken;
+import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 
 public class MySQLDBTAE extends AbstractTargetAlgorithmEvaluator {
 
 
-	private final MySQLPersistence persistence;
+	private final MySQLPersistenceClient persistence;
 	private final Logger log = LoggerFactory.getLogger(MySQLDBTAE.class);
 	
 	
 
-	public MySQLDBTAE(AlgorithmExecutionConfig execConfig, MySQLPersistence persistence) {
+	public MySQLDBTAE(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence) {
 		super(execConfig);
 		this.persistence = persistence;
 	}

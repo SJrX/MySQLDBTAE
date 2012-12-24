@@ -20,6 +20,7 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
@@ -131,7 +132,7 @@ public class MySQLTAEWorker {
 	public static void processRuns(MySQLTAEWorkerOptions options)
 	{
 		
-			final MySQLPersistence mysqlPersistence = new MySQLPersistence(options.mysqlOptions,options.pool,100);
+			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool);
 		
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 				

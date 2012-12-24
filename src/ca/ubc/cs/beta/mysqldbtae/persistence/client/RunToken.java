@@ -1,4 +1,4 @@
-package ca.ubc.cs.beta.mysqldbtae.persistence;
+package ca.ubc.cs.beta.mysqldbtae.persistence.client;
 
 /**
  * Token class that is returned for a set of runs

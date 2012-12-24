@@ -5,7 +5,6 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import org.junit.AfterClass;
@@ -24,10 +23,11 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTAE;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.EchoTargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.targetalgorithmevaluator.TAETestSet;
+
 import ec.util.MersenneTwister;
 
 
@@ -93,7 +93,7 @@ public class MySQLDBTAETester {
 	{
 		
 			
-			MySQLPersistence  mysqlPersistence = new MySQLPersistence(mysqlConfig, MYSQL_POOL, 25);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
