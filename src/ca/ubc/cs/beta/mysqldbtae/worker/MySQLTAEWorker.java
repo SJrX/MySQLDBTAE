@@ -1,6 +1,10 @@
 package ca.ubc.cs.beta.mysqldbtae.worker;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +62,11 @@ public class MySQLTAEWorker {
 			VersionTracker.setClassLoader(TargetAlgorithmEvaluatorBuilder.getClassLoader(options.taeOptions));
 			VersionTracker.logVersions();
 		
+			
+			log.info("Abort on Crash and abort on First Run Crash are disabled");
+			options.taeOptions.abortOnCrash = false;
+			options.taeOptions.abortOnFirstRunCrash = false;
+			options.taeOptions.verifySAT = false;
 			
 			for(String name : names)
 			{
@@ -132,135 +141,166 @@ public class MySQLTAEWorker {
 	public static void processRuns(MySQLTAEWorkerOptions options)
 	{
 		
-			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool);
+		
+			long endTime = (startTimeSecs + getSecondsLeft(options)) * 1000;
+			
+			Calendar calendar = Calendar.getInstance();
+			calendar.setTimeInMillis(endTime);
+			
+			
+			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime() );
 		
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 				
 				@Override
 				public void run()
 				{
+					//
 					mysqlPersistence.resetUnfinishedRuns();
+					try {
+						mysqlPersistence.markWorkerCompleted("Triggered By Shutdown Hook");
+					} catch(RuntimeException e)
+					{
+						e.printStackTrace();
+						System.err.println("WHAT?");
+					}
+					System.out.println("Shutdown hook fired");
 				}
 				
 			});
 			try {
 				
+				
+				try {
 			
-				Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
-				
-				log.info("Waiting for Work");
-				
-				while(true)
-				{
+					Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
 					
+					log.info("Waiting for Work");
 					
-					Map<AlgorithmExecutionConfig, List<RunConfig>> runs = mysqlPersistence.getRuns(options.runsToBatch);
-					
-					StopWatch loopStart = new AutoStartStopWatch();
-					
-				
-					List<AlgorithmRun> algorithmRuns = new ArrayList<AlgorithmRun>(options.runsToBatch);
-					boolean zeroJobs = true;
-					for(Entry<AlgorithmExecutionConfig, List<RunConfig>> ent : runs.entrySet())
+					while(true)
 					{
-						zeroJobs = false;
-						AlgorithmExecutionConfig execConfig = ent.getKey();
 						
-						log.info("Have {} jobs to do ", ent.getValue().size());
-						if(taeMap.get(execConfig) == null)
+						
+						Map<AlgorithmExecutionConfig, List<RunConfig>> runs = mysqlPersistence.getRuns(options.runsToBatch);
+						
+						StopWatch loopStart = new AutoStartStopWatch();
+						
+					
+						List<AlgorithmRun> algorithmRuns = new ArrayList<AlgorithmRun>(options.runsToBatch);
+						boolean zeroJobs = true;
+						for(Entry<AlgorithmExecutionConfig, List<RunConfig>> ent : runs.entrySet())
 						{
-							TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions, execConfig, false);
-							taeMap.put(execConfig, tae);
-						}
+							zeroJobs = false;
+							AlgorithmExecutionConfig execConfig = ent.getKey();
 							
-						TargetAlgorithmEvaluator tae = taeMap.get(execConfig);
-						
-						
-						for(RunConfig runConfig : ent.getValue())
-						{ //===Process the requests one by one, in case we get an Exception
-							AutoStartStopWatch runWatch = new AutoStartStopWatch();
-							
-							try {
-								
-								
-								
-								
-								if(runConfig.getCutoffTime() < getSecondsLeft(options))
-								{
-									algorithmRuns.addAll(tae.evaluateRun(runConfig));
-								} else
-								{
-									log.info("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft(options) );
-								}
-								
-															
-							} catch(Exception e)
+							log.info("Have {} jobs to do ", ent.getValue().size());
+							if(taeMap.get(execConfig) == null)
 							{
-								log.error("Exception occured while running algorithm" ,e);
-								StringBuilder sb = new StringBuilder();
-								sb.append(e.getClass()).append(":").append(e.getMessage()).append(":");
+								TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions, execConfig, false);
+								taeMap.put(execConfig, tae);
+							}
 								
+							TargetAlgorithmEvaluator tae = taeMap.get(execConfig);
+							
+							
+							for(RunConfig runConfig : ent.getValue())
+							{ //===Process the requests one by one, in case we get an Exception
+								AutoStartStopWatch runWatch = new AutoStartStopWatch();
 								
-								int i=0;
-								//2048 is the length of the field in the DB, 2000 is buffer
-								while(sb.length() < 2000 && i < e.getStackTrace().length)
+								try {
+									
+									
+									
+									
+									if(runConfig.getCutoffTime() < getSecondsLeft(options))
+									{
+										algorithmRuns.addAll(tae.evaluateRun(runConfig));
+									} else
+									{
+										log.info("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft(options) );
+									}
+									
+																
+								} catch(Exception e)
 								{
-									sb.append(e.getStackTrace()[i]).append(":");
-									i++;
+									log.error("Exception occured while running algorithm" ,e);
+									StringBuilder sb = new StringBuilder();
+									sb.append(e.getClass()).append(":").append(e.getMessage()).append(":");
+									
+									
+									int i=0;
+									//2048 is the length of the field in the DB, 2000 is buffer
+									while(sb.length() < 2000 && i < e.getStackTrace().length)
+									{
+										sb.append(e.getStackTrace()[i]).append(":");
+										i++;
+									}
+									
+									String addlRunData = sb.substring(0, Math.min(2000,sb.length()));
+									
+									algorithmRuns.add(new ExistingAlgorithmRun(execConfig,runConfig,"ABORT, 0.0 ,0 ,0, " + runConfig.getProblemInstanceSeedPair().getSeed() + "," + addlRunData , runWatch.stop()));
 								}
 								
-								String addlRunData = sb.substring(0, Math.min(2000,sb.length()));
 								
-								algorithmRuns.add(new ExistingAlgorithmRun(execConfig,runConfig,"ABORT, 0.0 ,0 ,0, " + runConfig.getProblemInstanceSeedPair().getSeed() + "," + addlRunData , runWatch.stop()));
 							}
 							
+						}
+						
+						if(zeroJobs)
+						{
+							log.info("No jobs in database");
+						}
+						
+						log.info("Saving results");
+						mysqlPersistence.setRunResults(algorithmRuns);
+						mysqlPersistence.resetUnfinishedRuns();
+						
+						long loopStop = loopStart.stop();
+						
+						
+						double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
+						
+						
+						log.info("Seconds left for worker is {} seconds",getSecondsLeft(options));
+						
+						if(waitTime > getSecondsLeft(options))
+						{
+							
+							return;
+						} else if(getSecondsLeft(options) < 0)
+						{
 							
 						}
+						 
+						log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
 						
-					}
-					
-					if(zeroJobs)
-					{
-						log.info("No jobs in database");
-					}
-					
-					log.info("Saving results");
-					mysqlPersistence.setRunResults(algorithmRuns);
-					mysqlPersistence.resetUnfinishedRuns();
-					
-					long loopStop = loopStart.stop();
-					
-					double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
-					
-					
-					log.info("Seconds left for worker is {} seconds",getSecondsLeft(options));
-					
-					if(waitTime > getSecondsLeft(options))
-					{
-						
-						return;
-					} else if(getSecondsLeft(options) < 0)
-					{
-						
-					}
-					 
-					log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
-					
-					try {
-						if(waitTime > 0.0)
-						{
-							Thread.sleep((int) waitTime * 1000);
+						try {
+							if(waitTime > 0.0)
+							{
+								Thread.sleep((int) waitTime * 1000);
+							}
+							
+						} catch (InterruptedException e) {
+							Thread.currentThread().interrupt();
+							return;
 						}
 						
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						return;
 					}
+				} catch(RuntimeException t)
+				{
+					ByteArrayOutputStream bout = new ByteArrayOutputStream();
+					
+					PrintStream pout = new PrintStream(bout);
+					
+					t.printStackTrace(pout);
+					mysqlPersistence.markWorkerCompleted(bout.toString());
+					throw t;
 					
 				}
 				
 			} finally
 			{
+				mysqlPersistence.markWorkerCompleted("Normal Shutdown");
 				mysqlPersistence.resetUnfinishedRuns();
 			}
 			

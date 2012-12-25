@@ -57,3 +57,17 @@ utf8_unicode_ci NOT NULL DEFAULT 'ABORT',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 
+CREATE TABLE IF NOT EXISTS `workers_ACLIB_POOL_NAME` (
+`workerUUID` char(40) COLLATE utf8_unicode_ci NOT NULL,
+`hostname` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+`jobID` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
+`status` enum('RUNNING','DONE') COLLATE utf8_unicode_ci NOT NULL
+DEFAULT 'RUNNING',
+`endTime` datetime NOT NULL,
+`crashInfo` text COLLATE utf8_unicode_ci,
+`startTime` datetime NOT NULL,
+`lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE
+CURRENT_TIMESTAMP,
+PRIMARY KEY (`workerUUID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+

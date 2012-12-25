@@ -57,6 +57,8 @@ public class MySQLPersistence {
 	protected final String TABLE_EXECCONFIG;
 	protected final String TABLE_RUNCONFIG;
 	
+	protected final String TABLE_WORKERS;
+	
 	
 	
 	
@@ -146,6 +148,7 @@ public class MySQLPersistence {
 			 TABLE_COMMAND = "commandTable_" + pool;
 			 TABLE_EXECCONFIG = "execConfig_"+ pool;
 			 TABLE_RUNCONFIG = "runConfigs_"+ pool;
+			 TABLE_WORKERS = "workers_" + pool;
 			 
 		} catch (Throwable e) {
 			e.printStackTrace();

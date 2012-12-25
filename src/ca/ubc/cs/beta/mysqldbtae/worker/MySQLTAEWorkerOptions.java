@@ -37,6 +37,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--shutdownBuffer", description="Amount of time to budget for shutdown tasks", validateWith=PositiveInteger.class)
 	public int shutdownBuffer = 60;
 	
+	@Parameter(names="--jobID", description="Job Identifier for worker (logged to database)")
+	public String jobID = "CLI";
+	
 	/*
 	@Parameter(names="--numberOfInsertsForTest")
 	public int numberOfInserts = 1000;
