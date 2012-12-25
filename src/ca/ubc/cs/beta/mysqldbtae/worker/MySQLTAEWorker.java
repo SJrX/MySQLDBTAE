@@ -63,7 +63,7 @@ public class MySQLTAEWorker {
 			VersionTracker.logVersions();
 		
 			
-			log.info("Abort on Crash and abort on First Run Crash are disabled");
+			log.info("Abort on Crash and abort on First Run Crash are disabled, as is verifySAT");
 			options.taeOptions.abortOnCrash = false;
 			options.taeOptions.abortOnFirstRunCrash = false;
 			options.taeOptions.verifySAT = false;

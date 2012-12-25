@@ -159,107 +159,122 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			
 			int runs = runToIntegerMap.get(token).size(); 
 			
-			
-			
-			
-			Map<RunConfig, AlgorithmRun> userRuns = new HashMap<RunConfig, AlgorithmRun>();
-			
+			Connection conn = null;
 			try {
-			
-			
-			
 				
-				Set<String> incompleteRuns = runTokenToIncompleteRunsSet.get(token);
+				conn = getConnection();
+			
+			
+				Map<RunConfig, AlgorithmRun> userRuns = new HashMap<RunConfig, AlgorithmRun>();
 				
-				while(userRuns.size() < runs)
-				{
-					StringBuilder sb = new StringBuilder();	
-					sb.append("SELECT runConfigUUID, result_line,status FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+				try {
+				
+				
+				
 					
+					Set<String> incompleteRuns = runTokenToIncompleteRunsSet.get(token);
 					
-					int querySize = 0;
-					for(String key : incompleteRuns)
+					while(userRuns.size() < runs)
 					{
-						if(querySize >= QUERY_SIZE_LIMIT)
+						StringBuilder sb = new StringBuilder();	
+						sb.append("SELECT runConfigUUID, result_line,status FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+						
+						
+						int querySize = 0;
+						for(String key : incompleteRuns)
 						{
-							break;
+							if(querySize >= QUERY_SIZE_LIMIT)
+							{
+								break;
+							}
+							sb.append("\""+key + "\",");
 						}
-						sb.append("\""+key + "\",");
+						
+						
+						//Get rid of the last comma
+						sb.setCharAt(sb.length()-1, ' ');
+						
+						sb.append(") AND status=\"COMPLETE\"");
+						
+						PreparedStatement stmt = conn.prepareStatement(sb.toString());
+						//log.info("Query: {} ", sb);
+						ResultSet rs = stmt.executeQuery();
+						
+						
+				
+						while(rs.next())
+						{				
+							String resultLine = rs.getString(2);
+							RunConfig runConfig = this.runConfigIDToRunConfig.get(rs.getString(1));
+							incompleteRuns.remove(rs.getString(1));
+							/**
+							 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
+							 */
+								
+							AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
+							
+							if(run.getRunResult().equals(RunResult.ABORT))
+							{
+								Object[] args = {rs.getString(1), rs.getString(2), rs.getString(3) } ;
+								log.info("ABORT DETECTED: {} : {} : {}",args );
+							}
+							userRuns.put(runConfig, run);
+						}	
+						
+						
+						Object args[] =  { token, userRuns.size(), runs };
+						log.info("RunToken {} has {} out of {} runs complete ",args);
+						Thread.sleep(1000);
+						
+						
+						
 					}
 					
 					
-					//Get rid of the last comma
-					sb.setCharAt(sb.length()-1, ' ');
-					
-					sb.append(") AND status=\"COMPLETE\"");
-					
-					PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
-					//log.info("Query: {} ", sb);
-					ResultSet rs = stmt.executeQuery();
 					
 					
-			
-					while(rs.next())
-					{				
-						String resultLine = rs.getString(2);
-						RunConfig runConfig = this.runConfigIDToRunConfig.get(rs.getString(1));
-						incompleteRuns.remove(rs.getString(1));
-						/**
-						 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
-						 */
-							
-						AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
-						
-						if(run.getRunResult().equals(RunResult.ABORT))
-						{
-							Object[] args = {rs.getString(1), rs.getString(2), rs.getString(3) } ;
-							log.info("ABORT DETECTED: {} : {} : {}",args );
-						}
-						userRuns.put(runConfig, run);
-					}	
-					
-					
-					Object args[] =  { token, userRuns.size(), runs };
-					log.info("RunToken {} has {} out of {} runs complete ",args);
-					Thread.sleep(1000);
-					
-					
-					
+				} catch(SQLException e)
+				{
+					throw new IllegalStateException("SQL Error", e);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return Collections.emptyList();
 				}
+					
 				
+				List<AlgorithmRun> runResults = new ArrayList<AlgorithmRun>(this.runTokenToRunConfigMap.get(token).size());
 				
-				
-				
-			} catch(SQLException e)
-			{
-				throw new IllegalStateException("SQL Error", e);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				return Collections.emptyList();
-			}
-				
+				for(RunConfig rc : this.runTokenToRunConfigMap.get(token))
+				{
+					runResults.add(userRuns.get(rc));
+				}
 			
-			List<AlgorithmRun> runResults = new ArrayList<AlgorithmRun>(this.runTokenToRunConfigMap.get(token).size());
-			
-			for(RunConfig rc : this.runTokenToRunConfigMap.get(token))
-			{
-				runResults.add(userRuns.get(rc));
-			}
 		
-	
-			completedRunTokens.add(token);
-			runToIntegerMap.remove(token);
-			runTokenToIncompleteRunsSet.remove(token);
-			runTokenToRunConfigMap.remove(token);
-			
-			
-			
-			return runResults;
-			
+				completedRunTokens.add(token);
+				runToIntegerMap.remove(token);
+				runTokenToIncompleteRunsSet.remove(token);
+				runTokenToRunConfigMap.remove(token);
+				
+				
+				
+				return runResults;
+			} finally
+			{
+				if(conn != null)
+				{
+					try {
+						conn.close();
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+				
 		}
 
 	public RunToken enqueueRunConfigs(List<RunConfig> runConfigs)
 	{
+	
 		
 		AutoStartStopWatch completeInsertionTime = new AutoStartStopWatch();
 		
@@ -275,129 +290,143 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 	
 		boolean firstRun = true;
-		
-		
-		
-		for(int i=0; (i < Math.ceil((runConfigs.size()/(double) batchInsertSize)));i++)
-		{
+		Connection conn = null;
+		try {
 			
-			if(!firstRun)
+		
+			conn = getConnection();
+			
+			for(int i=0; (i < Math.ceil((runConfigs.size()/(double) batchInsertSize)));i++)
 			{
-				/*
-				try {
-					Thread.currentThread().sleep(1000);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-				}
-				*/
 				
-			}
-			int listLowerBound = i*batchInsertSize;
-			int listUpperBound = Math.min((i+1)*batchInsertSize,runConfigs.size());
-			
-			Object[] args2 =  { i, listLowerBound, listUpperBound, runConfigs.size()};
-			log.trace("Lower and Upper Bound {}: ({}-{})  (size: {})",args2);
-			
-			
-			StringBuilder sb = new StringBuilder();
-			sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
-	
-			
-			for(int j = listLowerBound; j < listUpperBound; j++ )
-			{				
-					 sb.append(" (?,?,?,?,?,?,?,?),");
-			
-			}
-	
-			sb.setCharAt(sb.length()-1, ' ');
-			
-			
-			try {
-				PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
-				
-				log.debug("SQL INSERT: {} ", sb.toString());
-				
-				log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
-	
-				int k=1;
-				for(int j =listLowerBound; j < listUpperBound; j++ )
-				{				
-					RunConfig rc = runConfigs.get(j);
-					
-					String uuid = getHash(rc, execConfig);
-					
-					stmt.setInt(k++, execConfigID);
-					stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
-					stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
-					stmt.setDouble(k++, rc.getCutoffTime());
-					String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
-					
-					
-					
-					
-					if(configString.length() > 2000)
-					{
-						log.warn("If you get an exception when inserting this row, it is probably because the configuration space string is too long for the table");
-					}
-					stmt.setString(k++, configString);
-					
-					
-					stmt.setString(k++, hasher.getHash(rc.getParamConfiguration()));
-					stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
-					stmt.setString(k++,uuid);
-				
-					runKeys.add(uuid);
-					this.runConfigIDToRunConfig.put(uuid, rc);
-				}
-				
-				
-				StopWatch stopWatch = new AutoStartStopWatch();
-				
-				log.debug("Inserting Rows");
-				
-				boolean insertFailed = true;
-				while(insertFailed)
+				if(!firstRun)
 				{
+					/*
 					try {
-						stmt.execute();
-						insertFailed = false;
-					} catch(MySQLTransactionRollbackException e)
-					{
-						log.info("Deadlock");
+						Thread.currentThread().sleep(1000);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
 					}
-				}
+					*/
 					
+				}
+				int listLowerBound = i*batchInsertSize;
+				int listUpperBound = Math.min((i+1)*batchInsertSize,runConfigs.size());
 				
-				double timePerRow = ((listUpperBound - listLowerBound) / (stopWatch.stop() / 1000.0));
+				Object[] args2 =  { i, listLowerBound, listUpperBound, runConfigs.size()};
+				log.trace("Lower and Upper Bound {}: ({}-{})  (size: {})",args2);
 				
-				Object[] args = { listUpperBound - listLowerBound, stopWatch.time()/1000.0, timePerRow};
-				log.debug("Insertion of {} rows took {} seconds {} row / second", args);
+				
+				StringBuilder sb = new StringBuilder();
+				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
+		
+				
+				for(int j = listLowerBound; j < listUpperBound; j++ )
+				{				
+						 sb.append(" (?,?,?,?,?,?,?,?),");
+				
+				}
+		
+				sb.setCharAt(sb.length()-1, ' ');
+				
+				
+				try {
+					PreparedStatement stmt = conn.prepareStatement(sb.toString());
+					
+					log.debug("SQL INSERT: {} ", sb.toString());
+					
+					log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
+		
+					int k=1;
+					for(int j =listLowerBound; j < listUpperBound; j++ )
+					{				
+						RunConfig rc = runConfigs.get(j);
 						
+						String uuid = getHash(rc, execConfig);
+						
+						stmt.setInt(k++, execConfigID);
+						stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
+						stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
+						stmt.setDouble(k++, rc.getCutoffTime());
+						String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
+						
+						
+						
+						
+						if(configString.length() > 2000)
+						{
+							log.warn("If you get an exception when inserting this row, it is probably because the configuration space string is too long for the table");
+						}
+						stmt.setString(k++, configString);
+						
+						
+						stmt.setString(k++, hasher.getHash(rc.getParamConfiguration()));
+						stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
+						stmt.setString(k++,uuid);
+					
+						runKeys.add(uuid);
+						this.runConfigIDToRunConfig.put(uuid, rc);
+					}
+					
+					
+					StopWatch stopWatch = new AutoStartStopWatch();
+					
+					log.debug("Inserting Rows");
+					
+					boolean insertFailed = true;
+					while(insertFailed)
+					{
+						try {
+							stmt.execute();
+							insertFailed = false;
+						} catch(MySQLTransactionRollbackException e)
+						{
+							log.info("Deadlock");
+						}
+					}
+						
+					
+					double timePerRow = ((listUpperBound - listLowerBound) / (stopWatch.stop() / 1000.0));
+					
+					Object[] args = { listUpperBound - listLowerBound, stopWatch.time()/1000.0, timePerRow};
+					log.debug("Insertion of {} rows took {} seconds {} row / second", args);
+							
+				
+				} catch(PacketTooBigException e)
+				{
+					throw new IllegalStateException("SQL Error Occured, Try lowering the Batch Size (probably MYSQL_BATCH_INSERT_SIZE or a CLI option)", e);
+				} catch (SQLException e) {
+					throw new IllegalStateException("SQL Error", e);
+				}
+			}
 			
-			} catch(PacketTooBigException e)
+			this.runTokenToRunConfigMap.put(runToken, runConfigs);
+			this.runToIntegerMap.put(runToken, runKeys);
+			
+			
+			Set<String> unfinishedRunConfigs = new HashSet<String>();
+			
+			unfinishedRunConfigs.addAll(runKeys);
+			this.runTokenToIncompleteRunsSet.put(runToken, unfinishedRunConfigs);
+			
+			
+			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
+			log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);
+			return runToken;
+		} finally
+		{
+			if(conn != null)
 			{
-				throw new IllegalStateException("SQL Error Occured, Try lowering the Batch Size (probably MYSQL_BATCH_INSERT_SIZE or a CLI option)", e);
-			} catch (SQLException e) {
-				throw new IllegalStateException("SQL Error", e);
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 		
-		this.runTokenToRunConfigMap.put(runToken, runConfigs);
-		this.runToIntegerMap.put(runToken, runKeys);
-		
-		
-		Set<String> unfinishedRunConfigs = new HashSet<String>();
-		
-		unfinishedRunConfigs.addAll(runKeys);
-		this.runTokenToIncompleteRunsSet.put(runToken, unfinishedRunConfigs);
-		
-		
-		Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
-		log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);
-		return runToken;
 		
 	}
-
 
 	public void setAlgorithmExecutionConfig(AlgorithmExecutionConfig execConfig)
 	{
@@ -411,8 +440,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		}
 		this.execConfig = execConfig;
 		
-			File f = new File(execConfig.getParamFile().getParamFileName());
-			
+		File f = new File(execConfig.getParamFile().getParamFileName());
+		Connection conn = null; 
+		try {
+			conn = getConnection();
 			if(!f.isAbsolute() || !f.exists())
 			{
 				throw new IllegalStateException("Param File must be created with an absolute file name not the following: " + execConfig.getParamFile().getParamFileName());
@@ -422,7 +453,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE lastModified = NOW()");
 			
 			try {
-				PreparedStatement stmt = getConnection().prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
 	
 				stmt.setString(1, pathStrip.stripPath(execConfig.getAlgorithmExecutable()));
 				stmt.setString(2, pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()));
@@ -437,10 +468,23 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				execConfigID = rs.getInt(1);
 				
 				rs.close();
+				stmt.close();
 			} catch (SQLException e) {
 				log.error("Problem processing {}",sb.toString());
 				throw new IllegalStateException(e);
 			}
+		} finally
+		{
+			if(conn != null)
+			{
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
 	
 			
 	
@@ -452,27 +496,42 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	public void setCommand(String command)
 	{
-		if(commandID != -1) throw new IllegalStateException("ID has already been set for this Command");
-		
-		StringBuffer sb = new StringBuffer();
-		
-		sb.append("INSERT INTO ").append(TABLE_COMMAND).append(" (CommandString) VALUES (?)");
-		
-	
+		Connection conn = null;
 		
 		try {
-			PreparedStatement stmt = getConnection().prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
-			stmt.setString(1, command);
-			stmt.execute();
-			ResultSet rs = stmt.getGeneratedKeys();
-			rs.next();
-			this.commandID = rs.getInt(1);
+			conn = getConnection();
+			if(commandID != -1) throw new IllegalStateException("ID has already been set for this Command");
 			
+			StringBuffer sb = new StringBuffer();
 			
+			sb.append("INSERT INTO ").append(TABLE_COMMAND).append(" (CommandString) VALUES (?)");
 			
+		
 			
-		} catch (SQLException e) {
-			throw new RuntimeException(e);
+			try {
+				PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				stmt.setString(1, command);
+				stmt.execute();
+				ResultSet rs = stmt.getGeneratedKeys();
+				rs.next();
+				this.commandID = rs.getInt(1);
+				
+				
+				
+				
+			} catch (SQLException e) {
+				throw new RuntimeException(e);
+			}
+		}  finally
+		{
+			if(conn != null)
+			{
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		
@@ -490,16 +549,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			throw new IllegalStateException("Couldn't get Hash for RunConfig and ExecConfig");
 		}
 	}
-	
-	Connection connSQL  = null;
-	protected Connection getConnection()
-	{
-		if(connSQL == null)
-		{
-			connSQL = super.getConnection();
-		}
-		return connSQL;
-	}
-	
+
 
 }

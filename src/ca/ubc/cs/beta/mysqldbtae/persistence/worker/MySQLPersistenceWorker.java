@@ -354,7 +354,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	boolean workerCompleted = false;
 	public void markWorkerCompleted(String crashInfo) {
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET endTime=NOW(), status='DONE', crashInfo=? WHERE status='RUNNING' AND workerUUID=\""+workerUUID.toString()+"\" ");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='DONE', crashInfo=? WHERE status='RUNNING' AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {

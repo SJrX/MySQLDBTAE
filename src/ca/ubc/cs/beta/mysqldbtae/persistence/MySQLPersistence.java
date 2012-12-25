@@ -8,46 +8,16 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.codec.digest.DigestUtils;
+import java.sql.SQLException;
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.ParameterException;
-import com.mysql.jdbc.PacketTooBigException;
-import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException;
-
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
-import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
-import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
-import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
-import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
-
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+import com.mchange.v2.c3p0.DataSources;
 
 public class MySQLPersistence {
 
@@ -85,9 +55,11 @@ public class MySQLPersistence {
 	
 	protected Connection getConnection()
 	{
+
 		try {
-			return DriverManager.getConnection(url,username, password);
+			return cpds.getConnection();
 		} catch (SQLException e) {
+			// TODO Auto-generated catch block
 			throw new IllegalStateException("Couldn't get connection");
 		}
 	}
@@ -98,6 +70,7 @@ public class MySQLPersistence {
 	private final String url;
 	private final String username;
 	private final String password;
+	ComboPooledDataSource cpds = new ComboPooledDataSource();
 	
 	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool)
 	{
@@ -108,11 +81,22 @@ public class MySQLPersistence {
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
 		
 		try {
-			Class.forName("com.mysql.jdbc.Driver").newInstance();
+			//Class.forName("com.mysql.jdbc.Driver").newInstance();
 			this.url = url; 
 			this.username = username;
 			this.password = password;
 			conn = DriverManager.getConnection(url,username, password);
+			
+			
+			cpds.setDriverClass( "com.mysql.jdbc.Driver" ); //loads the jdbc driver            
+			cpds.setJdbcUrl( url );
+			cpds.setUser(username);                                  
+			cpds.setPassword(password);                                  
+				
+			// the settings below are optional -- c3p0 can work with defaults
+			cpds.setMinPoolSize(5);                                     
+			cpds.setAcquireIncrement(5);
+			cpds.setMaxPoolSize(20);
 			
 			
 			
@@ -182,5 +166,14 @@ public class MySQLPersistence {
 		
 	}
 	
-	
+
+	public void shutdown()
+	{
+		try {
+			DataSources.destroy(cpds);
+		} catch (SQLException e) {
+			log.error("Unknown exception occurred {}",e );
+		}
+	}
+
 }
