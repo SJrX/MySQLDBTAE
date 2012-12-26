@@ -21,7 +21,7 @@ import com.mchange.v2.c3p0.DataSources;
 
 public class MySQLPersistence {
 
-	private final Connection conn;
+	//private final Connection conn;
 	
 	protected final String TABLE_COMMAND;
 	protected final String TABLE_EXECCONFIG;
@@ -30,29 +30,8 @@ public class MySQLPersistence {
 	protected final String TABLE_WORKERS;
 	
 	
-	
-	
-	
-	
-	
-
-	
-	
-	
-	
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
-	
-	/**
-	 * Worker ID 
-	 */
-	
-
-	
-	
-	
-
-
-	
+		
 	protected Connection getConnection()
 	{
 
@@ -85,7 +64,7 @@ public class MySQLPersistence {
 			this.url = url; 
 			this.username = username;
 			this.password = password;
-			conn = DriverManager.getConnection(url,username, password);
+			//conn = DriverManager.getConnection(url,username, password);
 			
 			
 			cpds.setDriverClass( "com.mysql.jdbc.Driver" ); //loads the jdbc driver            
@@ -97,7 +76,7 @@ public class MySQLPersistence {
 			cpds.setMinPoolSize(5);                                     
 			cpds.setAcquireIncrement(5);
 			cpds.setMaxPoolSize(20);
-			
+			cpds.setAutoCommitOnClose(true);
 			
 			
 			BufferedReader br = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("tables.sql")));
@@ -117,7 +96,7 @@ public class MySQLPersistence {
 			
 			
 			String[] chunks = sql.split(";");
-			
+			Connection conn = cpds.getConnection();
 			for(String sqlStatement : chunks)
 			{
 				if(sqlStatement.trim().length() == 0) continue;
@@ -127,6 +106,7 @@ public class MySQLPersistence {
 				stmt.close();
 			}
 			
+			conn.close();
 			br.close();
 			log.info("Pool Created");
 			 TABLE_COMMAND = "commandTable_" + pool;
@@ -143,7 +123,7 @@ public class MySQLPersistence {
 		
 	}
 	
-		
+		/*
 	public void startTransaction()
 	{
 		
@@ -165,7 +145,7 @@ public class MySQLPersistence {
 		}
 		
 	}
-	
+	*/
 
 	public void shutdown()
 	{

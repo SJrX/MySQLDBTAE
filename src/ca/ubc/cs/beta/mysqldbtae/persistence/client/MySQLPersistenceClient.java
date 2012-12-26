@@ -15,6 +15,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.codec.binary.Hex;
@@ -38,34 +40,59 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
 import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
 
+/**
+ * Handles dispatching runs to a MySQL Database to be retrieved later.
+ * 
+ * This class is presumed to be thread safe, but may not be currently,
+ * if you encounter any thread safety bugs in this, you will need to fix them.
+ * 
+ * The developer should have done another pass on the code to make sure it is threadsafe.
+ * 
+ * The thread safety of this class is meant to work as follows.
+ * 
+ * When you create a run token, the only other operations you can do on it
+ * are poll for results. This will involve synchronizing on the runtoken in question.
+ * 
+ * All shared datastructures, are meant to be thread safe, and the actual per-runtoken do not need to be 
+ * because they will be synchronized on the run token.
+ * 
+ * 
+ * 
+ * @author sjr
+ *
+ */
 public class MySQLPersistenceClient extends MySQLPersistence {
 
 	
 	/**
 	 * Stores a mapping of tokens to client, to the actual runConfigUUIDs in the database.
 	 */
-	private final Map<RunToken, List<String>> runToIntegerMap = new HashMap<RunToken, List<String>>();
+	private final Map<RunToken, List<String>> runToIntegerMap = new ConcurrentHashMap<RunToken, List<String>>();
 	
 	/**
 	 * Stores a mapping of tokens to the set of RunConfigUUIDs that are incomplete.
 	 */
-	private final Map<RunToken, Set<String>> runTokenToIncompleteRunsSet = new HashMap<RunToken, Set<String>>();
+	private final Map<RunToken, Set<String>> runTokenToIncompleteRunsSet = new ConcurrentHashMap<RunToken, Set<String>>();
 	
 	/**
 	 * Stores a mapping of tokens to RunConfigs that are associated with it.
 	 */
-	private final Map<RunToken, List<RunConfig>> runTokenToRunConfigMap = new HashMap<RunToken, List<RunConfig>>();
+	private final Map<RunToken, List<RunConfig>> runTokenToRunConfigMap = new ConcurrentHashMap<RunToken, List<RunConfig>>();
 	
 	/**
 	 * Stores a set of completed RunTokens (they can no longer be queried)
 	 */
-	private final Set<RunToken> completedRunTokens = new HashSet<RunToken>();
-	
+	private final Set<RunToken> completedRunTokens = Collections.newSetFromMap(new ConcurrentHashMap<RunToken,Boolean>());
 	
 	/**
 	 * Stores a mapping from RunConfigUUID to RunConfig
 	 */
-	private final Map<String, RunConfig> runConfigIDToRunConfig = new HashMap<String, RunConfig>();
+	private final Map<String, RunConfig> runConfigIDToRunConfig = new ConcurrentHashMap<String, RunConfig>();
+	
+	/**
+	 * Stores a mapping from runTokenToCompletedRuns 
+	 */
+	private final Map<RunToken, Map<RunConfig, AlgorithmRun>> runTokenToCompletedRuns = new ConcurrentHashMap<RunToken, Map<RunConfig, AlgorithmRun>>();
 	
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 	
@@ -78,19 +105,19 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Execution Config associated with this Persistence Client
 	 */
-	private AlgorithmExecutionConfig execConfig;
+	private volatile AlgorithmExecutionConfig execConfig;
 	
 	/**
 	 * Used to tie all the run requests with a specific execution
 	 * Do not change after initialization
 	 */
-	private int commandID = -1;
+	private volatile int commandID = -1;
 	
 	/**
 	 * Used to tie all the runConfigs to a specific executionConfig
 	 * Do not change after initilaziation
 	 */
-	private int execConfigID = -1;
+	private volatile int execConfigID = -1;
 	
 	
 	/**
@@ -139,133 +166,152 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	
 	}
 
-	public List<AlgorithmRun> getRunResults(RunToken token) {
+	/**
+	 * Returns the runs if completed, null otherwise 
+	 * @param token - previously issued Run Token
+	 * @return <code>null</code> if the results aren't available yet, the in order sequence of runs if they are
+	 */
+	public  List<AlgorithmRun> pollRunResults(RunToken token) {
 			
 			if(token == null) { 
 				throw new IllegalStateException("RunToken cannot be null"); 
 			}
 			
-			
-			if(completedRunTokens.contains(token))
+			//=== Lock on the run token
+			synchronized(token)
 			{
-				throw new IllegalStateException("RunToken is no longer valid");
-			}
-			
-			if(runToIntegerMap.get(token) == null)
-			{
-				throw new IllegalStateException("RunToken doesn't exist in mapping");
-			}
-		
-			
-			int runs = runToIntegerMap.get(token).size(); 
-			
-			Connection conn = null;
-			try {
+
+				if(completedRunTokens.contains(token))
+				{
+					throw new IllegalStateException("RunToken is no longer valid");
+				}
 				
-				conn = getConnection();
+				if(runToIntegerMap.get(token) == null)
+				{
+					throw new IllegalStateException("RunToken doesn't exist in mapping");
+				}
 			
-			
-				Map<RunConfig, AlgorithmRun> userRuns = new HashMap<RunConfig, AlgorithmRun>();
 				
+				
+				int runs = runToIntegerMap.get(token).size(); 
+				
+				Connection conn = null;
 				try {
-				
-				
-				
 					
-					Set<String> incompleteRuns = runTokenToIncompleteRunsSet.get(token);
+					conn = getConnection();
+				
+				
+					Map<RunConfig, AlgorithmRun> userRuns = runTokenToCompletedRuns.get(token);
 					
-					while(userRuns.size() < runs)
-					{
-						StringBuilder sb = new StringBuilder();	
-						sb.append("SELECT runConfigUUID, result_line,status FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+					try {
+					
+						Set<String> incompleteRuns = runTokenToIncompleteRunsSet.get(token);
 						
-						
-						int querySize = 0;
-						for(String key : incompleteRuns)
+						while(userRuns.size() < runs)
 						{
-							if(querySize >= QUERY_SIZE_LIMIT)
+							StringBuilder sb = new StringBuilder();	
+							sb.append("SELECT runConfigUUID, result_line,status FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+							
+							
+							int querySize = 0;
+							for(String key : incompleteRuns)
 							{
-								break;
+								if(querySize >= QUERY_SIZE_LIMIT)
+								{
+									break;
+								}
+								querySize++;
+								sb.append("\""+key + "\",");
 							}
-							sb.append("\""+key + "\",");
+							
+							
+							//Get rid of the last comma
+							sb.setCharAt(sb.length()-1, ' ');
+							
+							sb.append(") AND status=\"COMPLETE\"");
+							log.info("Query was {} ", sb.toString());
+							PreparedStatement stmt = null;
+							int returnedResults = 0;
+							try 
+							{
+								stmt = conn.prepareStatement(sb.toString());
+							
+							
+								ResultSet rs = stmt.executeQuery();
+								
+								
+								
+								while(rs.next())
+								{				
+									String resultLine = rs.getString(2);
+									RunConfig runConfig = this.runConfigIDToRunConfig.get(rs.getString(1));
+									incompleteRuns.remove(rs.getString(1));
+									/**
+									 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
+									 */
+										
+									AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
+									
+									if(run.getRunResult().equals(RunResult.ABORT))
+									{
+										Object[] args = {rs.getString(1), rs.getString(2), rs.getString(3) } ;
+										log.info("ABORT DETECTED: {} : {} : {}",args );
+									}
+									userRuns.put(runConfig, run);
+									returnedResults++;
+								}	
+							} finally
+							{
+								if(stmt != null) stmt.close();
+							}
+							
+							Object args[] =  { token, userRuns.size(), runs };
+							log.info("RunToken {} has {} out of {} runs complete ",args);
+							
+					
+							//Thread.sleep(1000);
+							log.debug("Queried for {} got {} results back", querySize, returnedResults);
+							
+							if(querySize > returnedResults)
+							{
+								return null;
+							}
 						}
 						
 						
-						//Get rid of the last comma
-						sb.setCharAt(sb.length()-1, ' ');
-						
-						sb.append(") AND status=\"COMPLETE\"");
-						
-						PreparedStatement stmt = conn.prepareStatement(sb.toString());
-						//log.info("Query: {} ", sb);
-						ResultSet rs = stmt.executeQuery();
 						
 						
-				
-						while(rs.next())
-						{				
-							String resultLine = rs.getString(2);
-							RunConfig runConfig = this.runConfigIDToRunConfig.get(rs.getString(1));
-							incompleteRuns.remove(rs.getString(1));
-							/**
-							 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
-							 */
-								
-							AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
-							
-							if(run.getRunResult().equals(RunResult.ABORT))
-							{
-								Object[] args = {rs.getString(1), rs.getString(2), rs.getString(3) } ;
-								log.info("ABORT DETECTED: {} : {} : {}",args );
-							}
-							userRuns.put(runConfig, run);
-						}	
-						
-						
-						Object args[] =  { token, userRuns.size(), runs };
-						log.info("RunToken {} has {} out of {} runs complete ",args);
-						Thread.sleep(1000);
-						
-						
-						
+					} catch(SQLException e)
+					{
+						throw new IllegalStateException("SQL Error", e);
 					}
 					
+					List<AlgorithmRun> runResults = new ArrayList<AlgorithmRun>(this.runTokenToRunConfigMap.get(token).size());
 					
-					
-					
-				} catch(SQLException e)
-				{
-					throw new IllegalStateException("SQL Error", e);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					return Collections.emptyList();
-				}
-					
+					for(RunConfig rc : this.runTokenToRunConfigMap.get(token))
+					{
+						runResults.add(userRuns.get(rc));
+					}
 				
-				List<AlgorithmRun> runResults = new ArrayList<AlgorithmRun>(this.runTokenToRunConfigMap.get(token).size());
-				
-				for(RunConfig rc : this.runTokenToRunConfigMap.get(token))
-				{
-					runResults.add(userRuns.get(rc));
-				}
 			
-		
-				completedRunTokens.add(token);
-				runToIntegerMap.remove(token);
-				runTokenToIncompleteRunsSet.remove(token);
-				runTokenToRunConfigMap.remove(token);
-				
-				
-				
-				return runResults;
-			} finally
-			{
-				if(conn != null)
+					completedRunTokens.add(token);
+					runTokenToCompletedRuns.remove(token);
+					runToIntegerMap.remove(token);
+					runTokenToIncompleteRunsSet.remove(token);
+					runTokenToRunConfigMap.remove(token);
+					
+					
+					
+					return runResults;
+				} finally
 				{
-					try {
-						conn.close();
-					} catch (SQLException e) {
-						e.printStackTrace();
+					if(conn != null)
+					{
+						try {
+							conn.close();
+						} catch (SQLException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 			}
@@ -280,7 +326,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 		if(execConfigID == -1) throw new IllegalStateException("execConfigID must be set");
 	
-		if(runConfigs == null || runConfigs.size() == 0) throw new IllegalArgumentException("Must supply atleast one run");
+		if(runConfigs == null || runConfigs.size() == 0) 
+		{
+			throw new IllegalArgumentException("Must supply atleast one run " + runConfigs);
+		}
 	
 		
 		List<String> runKeys = new ArrayList<String>(runConfigs.size());
@@ -331,60 +380,68 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				try {
-					PreparedStatement stmt = conn.prepareStatement(sb.toString());
+					PreparedStatement stmt = null;
+					StopWatch stopWatch = new StopWatch();
+					try {
+						stmt = conn.prepareStatement(sb.toString());
 					
-					log.debug("SQL INSERT: {} ", sb.toString());
 					
-					log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
-		
-					int k=1;
-					for(int j =listLowerBound; j < listUpperBound; j++ )
-					{				
-						RunConfig rc = runConfigs.get(j);
+						log.debug("SQL INSERT: {} ", sb.toString());
 						
-						String uuid = getHash(rc, execConfig);
+						log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
+			
+						int k=1;
+						for(int j =listLowerBound; j < listUpperBound; j++ )
+						{				
+							RunConfig rc = runConfigs.get(j);
+							
+							String uuid = getHash(rc, execConfig);
+							
+							stmt.setInt(k++, execConfigID);
+							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
+							stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
+							stmt.setDouble(k++, rc.getCutoffTime());
+							String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
+							
+							
+							
+							
+							if(configString.length() > 2000)
+							{
+								log.warn("If you get an exception when inserting this row, it is probably because the configuration space string is too long for the table");
+							}
+							stmt.setString(k++, configString);
+							
+							
+							stmt.setString(k++, hasher.getHash(rc.getParamConfiguration()));
+							stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
+							stmt.setString(k++,uuid);
 						
-						stmt.setInt(k++, execConfigID);
-						stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
-						stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
-						stmt.setDouble(k++, rc.getCutoffTime());
-						String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
-						
-						
-						
-						
-						if(configString.length() > 2000)
-						{
-							log.warn("If you get an exception when inserting this row, it is probably because the configuration space string is too long for the table");
+							runKeys.add(uuid);
+							this.runConfigIDToRunConfig.put(uuid, rc);
 						}
-						stmt.setString(k++, configString);
+					
+					
+					
 						
 						
-						stmt.setString(k++, hasher.getHash(rc.getParamConfiguration()));
-						stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
-						stmt.setString(k++,uuid);
-					
-						runKeys.add(uuid);
-						this.runConfigIDToRunConfig.put(uuid, rc);
-					}
-					
-					
-					StopWatch stopWatch = new AutoStartStopWatch();
-					
-					log.debug("Inserting Rows");
-					
-					boolean insertFailed = true;
-					while(insertFailed)
+						log.debug("Inserting Rows");
+						stopWatch.start();
+						boolean insertFailed = true;
+						while(insertFailed)
+						{
+							try {
+								stmt.execute();
+								insertFailed = false;
+							} catch(MySQLTransactionRollbackException e)
+							{
+								log.info("Deadlock");
+							}
+						}
+					} finally 
 					{
-						try {
-							stmt.execute();
-							insertFailed = false;
-						} catch(MySQLTransactionRollbackException e)
-						{
-							log.info("Deadlock");
-						}
+						if(stmt != null) stmt.close();
 					}
-						
 					
 					double timePerRow = ((listUpperBound - listLowerBound) / (stopWatch.stop() / 1000.0));
 					
@@ -409,10 +466,14 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			unfinishedRunConfigs.addAll(runKeys);
 			this.runTokenToIncompleteRunsSet.put(runToken, unfinishedRunConfigs);
 			
+			this.runTokenToCompletedRuns.put(runToken, new HashMap<RunConfig, AlgorithmRun>());
 			
 			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
 			log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);
-			return runToken;
+			synchronized(runToken)
+			{
+				return runToken;
+			}
 		} finally
 		{
 			if(conn != null)
@@ -509,13 +570,20 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 			
 			try {
-				PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
-				stmt.setString(1, command);
-				stmt.execute();
-				ResultSet rs = stmt.getGeneratedKeys();
-				rs.next();
-				this.commandID = rs.getInt(1);
+				PreparedStatement stmt = null;
 				
+				try {
+					stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				
+					stmt.setString(1, command);
+					stmt.execute();
+					ResultSet rs = stmt.getGeneratedKeys();
+					rs.next();
+					this.commandID = rs.getInt(1);
+				} finally
+				{
+					if(stmt != null) stmt.close();
+				}
 				
 				
 				

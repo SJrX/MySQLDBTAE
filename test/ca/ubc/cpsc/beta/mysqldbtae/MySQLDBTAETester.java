@@ -6,6 +6,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -22,6 +26,7 @@ import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTAE;
@@ -71,7 +76,7 @@ public class MySQLDBTAETester {
 			b.append(" --tae PARAMECHO --runsToBatch 20 --delayBetweenRequests 1 " );
 			proc = Runtime.getRuntime().exec(b.toString());
 			
-			InputReader.createReadersForProcess(proc);
+			//InputReader.createReadersForProcess(proc);
 			
 			
 			
@@ -144,6 +149,116 @@ public class MySQLDBTAETester {
 			
 		
 	}
+	
+	
+
+	@Test
+	public void testAsyncRetrieval()
+	{
+		
+			final AtomicReference<RuntimeException> myRef = new AtomicReference<RuntimeException>();
+			final int TEST_COUNT = 100;
+			
+			final CountDownLatch latch = new CountDownLatch(TEST_COUNT);
+			
+			final AtomicInteger runsCompleted = new AtomicInteger(0);
+			
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25);
+			try {
+			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+			} catch(RuntimeException e)
+			{
+				e.printStackTrace();
+				throw e;
+			}
+			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			
+			MySQLDBTAE mysqlDBTae = new MySQLDBTAE(execConfig, mysqlPersistence);
+			
+			configSpace.setPRNG(new MersenneTwister());
+			
+			for(int i=0; i < TEST_COUNT; i++)
+			{
+				final List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+				
+				for(int j=0; j <= i; j++)
+				{
+					ParamConfiguration config = configSpace.getRandomConfiguration();
+					if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
+					{
+						//Only want good configurations
+						j--;
+						continue;
+					} else
+					{
+						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+						runConfigs.add(rc);
+					}
+				}
+				
+				mysqlDBTae.evaluateRunsAsync(runConfigs, new TAECallback() {
+
+					@Override
+					public void onSuccess(List<AlgorithmRun> runs) {
+						// TODO Auto-generated method stub
+						
+						try {
+							try {
+								Thread.sleep(1000);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						for(AlgorithmRun run : runs)
+						{
+							ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+							assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
+							assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
+							assertDEquals(config.get("quality"), run.getQuality(), 0.1);
+							assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
+							assertEquals(config.get("solved"), run.getRunResult().name());
+							//This executor should not have any additional run data
+							assertEquals("",run.getAdditionalRunData());
+							runsCompleted.incrementAndGet();
+
+						}
+						} catch(RuntimeException e)
+						{
+							myRef.set(e);
+						}
+						latch.countDown();
+					}
+
+					@Override
+					public void onFailure(RuntimeException t) {
+						myRef.set(t);
+						latch.countDown();
+					}
+					
+					
+				});
+				
+			}
+			
+			try {
+				latch.await();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				e.printStackTrace();
+			}
+			
+			RuntimeException e = myRef.get();
+			
+			if(e != null)
+			{
+				throw e;
+			}
+			assertEquals((TEST_COUNT*(TEST_COUNT+1))/2,runsCompleted.get());
+			System.out.println("Um I really did " + runsCompleted.get());
+		
+	}
+	
+	
 	
 	@AfterClass
 	public static void afterClass()

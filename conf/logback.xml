@@ -6,15 +6,15 @@
   
   
   
-  <!-- 
-  <appender name="FILE-RAW" class="ch.qos.logback.core.FileAppender">
-  <file>${OUTPUTDIR}/${RUNGROUPDIR}/raw-run${NUMRUN}.txt</file>
-  <append>false</append>
+ 
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+  <file>/tmp/worker.log</file>
+  <append>true</append>
   <encoder>
-      <pattern>%msg%n</pattern>
+      <pattern>%d{HH:mm:ss.SSS} [%thread]  %logger{36} - %msg%n</pattern>
     </encoder>
   </appender>
-   -->
+  
  
  
 
@@ -48,6 +48,7 @@
   <root level="DEBUG">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="STDERR" />
+    <appender-ref ref="FILE" />
   </root>
     
 </configuration>

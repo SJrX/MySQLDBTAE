@@ -90,15 +90,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		logWorker();
 	}
 
-	Connection connSQL  = null;
-	protected Connection getConnection()
-	{
-		if(connSQL == null)
-		{
-			connSQL = super.getConnection();
-		}
-		return connSQL;
-	}
+	
 	
 	private AlgorithmExecutionConfig getAlgorithmExecutionConfig(int execConfigID) throws SQLException {
 		
@@ -106,7 +98,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		{
 		 StringBuilder sb = new StringBuilder();
 		 sb.append("SELECT algorithmExecutable, algorithmExecutableDIrectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
-		 PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
+		 Connection conn = getConnection();
+		 PreparedStatement stmt = conn.prepareStatement(sb.toString());
 		 ResultSet rs = stmt.executeQuery();
 		 
 		 rs.next();
@@ -126,7 +119,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		 
 		 execConfigMap.put(execConfigID, execConfig);
 			
-		rs.close();
+		 conn.close();
+		 rs.close();
+		 stmt.close();
 		}
 		
 		
@@ -159,65 +154,71 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					
 			System.out.println(sb.toString());
 			
-			PreparedStatement stmt = getConnection().prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+			PreparedStatement stmt = null;
 			try {
-				stmt.execute();
-			} catch(MySQLTransactionRollbackException e)
-			{
-				log.info("Deadlock detected, trying again");
-				return getRuns(n);
-			}
-			//if(true) return Collections.emptyMap();
-			
-			sb = new StringBuffer();
-			//
-			sb.append("SELECT runConfigUUID , execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
-			sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
-			
-	
-			stmt = getConnection().prepareStatement(sb.toString());
-			
-			
-			ResultSet rs = stmt.executeQuery();
-			
-			Map<AlgorithmExecutionConfig, List<RunConfig>> myMap = new LinkedHashMap<AlgorithmExecutionConfig, List<RunConfig>>();
-			
-		
-			while(rs.next())
-			{
-				
-				String uuid = rs.getString(1);
-				log.debug("Assigned Run {} ", uuid);
-				//if(true) continue;
-				AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
-				String problemInstance = rs.getString(3);
-				long seed = rs.getLong(4);
-				double cutoffTime = rs.getDouble(5);
-				String paramConfiguration = rs.getString(6);
-				boolean cutoffLessThanMax = rs.getBoolean(7);
-								
-				
-				ProblemInstance pi = new ProblemInstance(problemInstance);
-				ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
-				ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
-				
-				RunConfig rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
-				runConfigIDMap.put(rc, uuid);
-				if(myMap.get(execConfig) == null)
+				Connection conn = getConnection();
+				stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				try {
+					stmt.execute();
+				} catch(MySQLTransactionRollbackException e)
 				{
-					myMap.put(execConfig, new ArrayList<RunConfig>(n));
+					log.info("Deadlock detected, trying again");
+					return getRuns(n);
 				}
+				//if(true) return Collections.emptyMap();
+				conn.commit();
 				
-				myMap.get(execConfig).add(rc);
+				sb = new StringBuffer();
+				//
+				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
+				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
+				
+		
+				stmt.close();
+				
+				stmt = conn.prepareStatement(sb.toString());
+				
+				
+				ResultSet rs = stmt.executeQuery();
+				
+				Map<AlgorithmExecutionConfig, List<RunConfig>> myMap = new LinkedHashMap<AlgorithmExecutionConfig, List<RunConfig>>();
+				
 			
-				
-				
-				
-				
+				while(rs.next())
+				{
+					
+					String uuid = rs.getString(1);
+					log.debug("Assigned Run {} ", uuid);
+					//if(true) continue;
+					AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
+					String problemInstance = rs.getString(3);
+					long seed = rs.getLong(4);
+					double cutoffTime = rs.getDouble(5);
+					String paramConfiguration = rs.getString(6);
+					boolean cutoffLessThanMax = rs.getBoolean(7);
+									
+					
+					ProblemInstance pi = new ProblemInstance(problemInstance);
+					ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
+					ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
+					
+					RunConfig rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
+					runConfigIDMap.put(rc, uuid);
+					if(myMap.get(execConfig) == null)
+					{
+						myMap.put(execConfig, new ArrayList<RunConfig>(n));
+					}
+					
+					myMap.get(execConfig).add(rc);
+				}
+				rs.close();
+				conn.close();
+				return myMap;
+			} finally
+			{
+				if(stmt != null) stmt.close();
 			}
-			rs.close();
 			
-			return myMap;
 			
 			
 			
@@ -237,34 +238,46 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, result_seed=?, result_line=?, runtime=?, additional_run_data=?, status='COMPLETE'  WHERE runConfigUUID=?");
 		
 		try {
-			PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
 			
-			for(AlgorithmRun run : runResult)
-			{	
-				String runConfigUUID = runConfigIDMap.get(run.getRunConfig());
-					
-				try {
-					
-					stmt.setString(1,run.getRunResult().name());
-					stmt.setDouble(2, run.getRunLength());
-					stmt.setDouble(3, run.getQuality());
-					stmt.setLong(4,run.getResultSeed());
-					stmt.setString(5, run.getResultLine());
-					stmt.setDouble(6, run.getRuntime());
-					stmt.setString(7, run.getAdditionalRunData());
-					
-					stmt.setString(8,runConfigUUID);
-					stmt.execute();
-				} catch(SQLException e)
-				{
-					log.error("SQL Exception while saving run {}", run);
-					log.error("Error occured", e);
-					log.error("Saving ABORT Manually");
-					setAbortRun(runConfigUUID);
-				}
-				
-			} 
+			PreparedStatement stmt = null;
+			Connection conn = null;
+			try {
+			conn = getConnection();
+			stmt = conn.prepareStatement(sb.toString());
 			
+				for(AlgorithmRun run : runResult)
+				{	
+					String runConfigUUID = runConfigIDMap.get(run.getRunConfig());
+						
+					try {
+						
+						stmt.setString(1,run.getRunResult().name());
+						stmt.setDouble(2, run.getRunLength());
+						stmt.setDouble(3, run.getQuality());
+						stmt.setLong(4,run.getResultSeed());
+						stmt.setString(5, run.getResultLine());
+						stmt.setDouble(6, run.getRuntime());
+						stmt.setString(7, run.getAdditionalRunData());
+						
+						stmt.setString(8,runConfigUUID);
+						stmt.execute();
+						
+					} catch(SQLException e)
+					{
+						log.error("SQL Exception while saving run {}", run);
+						log.error("Error occured", e);
+						log.error("Saving ABORT Manually");
+						setAbortRun(runConfigUUID);
+					}
+					
+				} 
+				conn.commit();
+			} finally
+			{
+				if(stmt != null) stmt.close();
+				if(conn != null) conn.close();
+				conn.close();
+			}
 			
 		}catch(SQLException e)
 		{
@@ -278,10 +291,19 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult='ABORT', status='COMPLETE'  WHERE runConfigUUID=?");
 		
 		try {
-			PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
-			stmt.setString(1, runConfigUUID);
-			stmt.execute();
 			
+			PreparedStatement stmt = null;
+			try {
+				Connection conn = getConnection();
+				stmt = conn.prepareStatement(sb.toString());
+				stmt.setString(1, runConfigUUID);
+				stmt.execute();
+				conn.commit();
+				conn.close();
+			} finally
+			{
+				if(stmt != null) stmt.close();
+			}
 		}catch(SQLException e)
 		{
 			log.error("Failed writing abort to database, something very bad is happening");
@@ -298,9 +320,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"NEW\" WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\"");
 		
 		try {
-			PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
-			stmt.execute();
-			stmt.close();
+			Connection conn = getConnection();
+			
+			try {
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				stmt.execute();
+				conn.commit();
+				stmt.close();
+			} finally
+			{
+				conn.close();
+			}
 			
 		}catch(SQLException e)
 		{
@@ -319,14 +349,15 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 		
 		try {
-			PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
+			Connection conn = getConnection();
+			PreparedStatement stmt = conn.prepareStatement(sb.toString());
 			
 	
 			String hostname = null;
 			
 			try {
 				  InetAddress addr = InetAddress.getLocalHost();
-				  byte[] ipAddr = addr.getAddress();
+				  
 				  hostname = addr.getHostName();
 				  
 			  } catch (UnknownHostException e) {
@@ -345,6 +376,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			stmt.execute();
 			stmt.close();
+			conn.commit();
+			conn.close();
+			
 		} catch(SQLException e)
 		{
 			log.error("Failed writing worker Information to database, something very bad is happening");
@@ -352,19 +386,22 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		}
 	}
 
-	boolean workerCompleted = false;
+
 	public void markWorkerCompleted(String crashInfo) {
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='DONE', crashInfo=? WHERE status='RUNNING' AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
-			PreparedStatement stmt = getConnection().prepareStatement(sb.toString());
+			Connection conn = getConnection();
+			PreparedStatement stmt = conn.prepareStatement(sb.toString());
 	
 			
 			stmt.setString(1, crashInfo);
 			
 			stmt.execute();
 			stmt.close();
+			conn.commit();
+			conn.close();
 		} catch(SQLException e)
 		{
 			log.error("Failed writing worker Information to database, something very bad is happening");
