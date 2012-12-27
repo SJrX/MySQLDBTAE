@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS `runConfigs_ACLIB_POOL_NAME` (
  `runConfigUUID` char(48) COLLATE utf8_unicode_ci NOT NULL,
  `execConfigID` int(11) NOT NULL,
  `problemInstance` varchar(128) COLLATE utf8_unicode_ci NOT NULL,
+ `instanceSpecificInformation` varchar(2048) COLLATE utf8_unicode_ci NOT
+NULL DEFAULT '0',
  `seed` bigint(20) NOT NULL,
  `cutoffTime` double NOT NULL,
  `paramConfiguration` varchar(2048) COLLATE utf8_unicode_ci NOT NULL,
