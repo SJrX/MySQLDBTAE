@@ -102,7 +102,7 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 	}
 
 	@Override
-	public boolean areRunsPersisteted() {
+	public boolean areRunsPersisted() {
 		return true;
 	}
 
