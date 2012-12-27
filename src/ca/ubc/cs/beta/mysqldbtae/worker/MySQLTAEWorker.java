@@ -25,6 +25,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
+import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
@@ -143,12 +144,13 @@ public class MySQLTAEWorker {
 		
 		
 			long endTime = (startTimeSecs + getSecondsLeft(options)) * 1000;
+			long lastUpdateTime = System.currentTimeMillis();
 			
 			Calendar calendar = Calendar.getInstance();
 			calendar.setTimeInMillis(endTime);
 			
 			
-			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime() );
+			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests );
 		
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 				
@@ -258,6 +260,23 @@ public class MySQLTAEWorker {
 						long loopStop = loopStart.stop();
 						
 						
+						
+						if(System.currentTimeMillis() - lastUpdateTime > (options.updateFrequency * 1000))
+						{
+							
+							log.info("Checking for new parameters");
+							UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters();
+							if(params != null)
+							{
+								options.delayBetweenRequests = params.getDelayBetweenRequests();
+								options.runsToBatch = params.getBatchSize();
+								
+								log.info("New Delay {} and Batch Size {}", options.delayBetweenRequests, options.runsToBatch);
+							}
+							lastUpdateTime = System.currentTimeMillis();
+							
+						}
+						
 						double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
 						
 						
@@ -269,15 +288,19 @@ public class MySQLTAEWorker {
 							return;
 						} else if(getSecondsLeft(options) < 0)
 						{
-							
+							//Not sure why this isn't a dead branch 
 						}
+						
+						
+						
+				
 						 
 						log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
 						
 						try {
 							if(waitTime > 0.0)
 							{
-								Thread.sleep((int) waitTime * 1000);
+								Thread.sleep((int) (waitTime * 1000));
 							}
 							
 						} catch (InterruptedException e) {

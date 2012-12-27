@@ -57,15 +57,15 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 	
 	
-	public MySQLPersistenceWorker(MySQLConfig mysqlOptions, String pool, String jobID, Date endDateTime)
+	public MySQLPersistenceWorker(MySQLConfig mysqlOptions, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest);
 	}
 	
 	
-	public MySQLPersistenceWorker(String host, String port, String databaseName, String username, String password, String pool, String jobID, Date endDateTime)
+	public MySQLPersistenceWorker(String host, String port, String databaseName, String username, String password, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool, jobID, endDateTime);
+		this(host, Integer.valueOf(port), databaseName, username, password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest);
 	}
 	
 	
@@ -80,14 +80,14 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Date endDateTime;
 	
 	public MySQLPersistenceWorker(String host, int port,
-			String databaseName, String username, String password, String pool,String jobID, Date endDateTime) {
+			String databaseName, String username, String password, String pool,String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest) {
 		super(host, port, databaseName, username, password, pool);
 
 		log.info("My Worker ID is " + workerUUID.toString());
 		this.jobID = jobID;
 		this.endDateTime = endDateTime;
 		
-		logWorker();
+		logWorker(runsToBatch, delayBetweenRequest, pool);
 	}
 
 	
@@ -166,11 +166,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					return getRuns(n);
 				}
 				//if(true) return Collections.emptyMap();
-				conn.commit();
+				//conn.commit();
 				
 				sb = new StringBuffer();
 				//
-				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
+				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
 				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
 				
 		
@@ -192,13 +192,14 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					//if(true) continue;
 					AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
 					String problemInstance = rs.getString(3);
-					long seed = rs.getLong(4);
-					double cutoffTime = rs.getDouble(5);
-					String paramConfiguration = rs.getString(6);
-					boolean cutoffLessThanMax = rs.getBoolean(7);
+					String instanceSpecificInformation = rs.getString(4);
+					long seed = rs.getLong(5);
+					double cutoffTime = rs.getDouble(6);
+					String paramConfiguration = rs.getString(7);
+					boolean cutoffLessThanMax = rs.getBoolean(8);
 									
 					
-					ProblemInstance pi = new ProblemInstance(problemInstance);
+					ProblemInstance pi = new ProblemInstance(problemInstance, instanceSpecificInformation);
 					ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
 					ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
 					
@@ -271,7 +272,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					}
 					
 				} 
-				conn.commit();
+				//conn.commit();
 			} finally
 			{
 				if(stmt != null) stmt.close();
@@ -298,7 +299,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				stmt = conn.prepareStatement(sb.toString());
 				stmt.setString(1, runConfigUUID);
 				stmt.execute();
-				conn.commit();
+				//conn.commit();
 				conn.close();
 			} finally
 			{
@@ -325,7 +326,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				stmt.execute();
-				conn.commit();
+
 				stmt.close();
 			} finally
 			{
@@ -342,10 +343,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	}
 
-	private void logWorker()
+	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime)  VALUES (?,?,?,?,NOW())");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime, runsToBatch, delayBetweenRequests, pool,upToDate)  VALUES (?,?,?,?,NOW(),?,?,?,1)");
 		
 		
 		try {
@@ -372,11 +373,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			stmt.setTimestamp(4, new java.sql.Timestamp(endDateTime.getTime()));
 			
-			
+			stmt.setInt(5,runsToBatch);
+			stmt.setInt(6, delayBetweenRequests);
+			stmt.setString(7, pool);
 			
 			stmt.execute();
 			stmt.close();
-			conn.commit();
 			conn.close();
 			
 		} catch(SQLException e)
@@ -400,7 +402,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			stmt.execute();
 			stmt.close();
-			conn.commit();
+			//conn.commit();
 			conn.close();
 		} catch(SQLException e)
 		{
@@ -410,4 +412,48 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 		
 	}
+	
+	public UpdatedWorkerParameters getUpdatedParameters() {
+		StringBuilder sb = new StringBuilder("SELECT runsToBatch, delayBetweenRequests FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+		
+		
+		try {
+			Connection conn = null;
+			try {
+				conn = getConnection();
+			
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+				ResultSet rs = stmt.executeQuery();
+				
+				if(!rs.next())
+				{
+					return null;
+				}
+				
+				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(rs.getInt(1), rs.getInt(2));
+				stmt.close();
+				
+				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET upToDate=1 WHERE workerUUID=\""+workerUUID.toString()+"\" ");
+				
+				stmt = conn.prepareStatement(sb.toString());
+				stmt.execute();
+				
+				//conn.commit();
+				return newParameters;
+			} finally
+			{
+				if(conn != null) conn.close();
+			}
+			
+		} catch(SQLException e)
+		{
+			log.error("Failed writing worker Information to database, something very bad is happening");
+			throw new IllegalStateException(e);
+		}
+		
+		
+		
+	}
+	
 }

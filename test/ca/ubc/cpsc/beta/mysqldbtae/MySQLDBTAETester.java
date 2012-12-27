@@ -50,7 +50,7 @@ public class MySQLDBTAETester {
 	private static final String MYSQL_POOL = "junit_test_4";
 	
 
-	private static final int TARGET_RUNS_IN_LOOPS = 2000;
+	private static final int TARGET_RUNS_IN_LOOPS = 1;
 	private static final int BATCH_INSERT_SIZE = TARGET_RUNS_IN_LOOPS/10;
 	
 	@BeforeClass
@@ -73,10 +73,10 @@ public class MySQLDBTAETester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --timeLimit ").append(100000);
-			b.append(" --tae PARAMECHO --runsToBatch 20 --delayBetweenRequests 1 " );
+			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 " );
 			proc = Runtime.getRuntime().exec(b.toString());
 			
-			//InputReader.createReadersForProcess(proc);
+			InputReader.createReadersForProcess(proc);
 			
 			
 			

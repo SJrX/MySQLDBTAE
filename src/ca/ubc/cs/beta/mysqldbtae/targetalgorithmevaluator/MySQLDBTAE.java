@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.AbstractDeferredTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TAEShutdownException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 
@@ -60,7 +62,17 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 
 	@Override
 	public void notifyShutdown() {
-	
+		
+		requestWatcher.shutdown();
+		try {
+			log.info("MySQL TAE Shut Down Request, waiting 30 seconds");
+			requestWatcher.awaitTermination(30, TimeUnit.SECONDS);
+			log.info("MySQL TAE Shutdown Complete");
+		} catch(InterruptedException e)
+		{
+			Thread.currentThread().interrupt();
+		}
+		requestWatcher.shutdownNow();
 	}
 
 	@Override
@@ -93,7 +105,7 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 	class MySQLRequestWatcher implements Runnable
 	{
 		private final RunToken token;
-		private final TAECallback handler;
+		private final TAECallback handler; 
 		
 		public MySQLRequestWatcher(RunToken token, TAECallback handler)
 		{
@@ -114,6 +126,9 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 					} catch(InterruptedException e)
 					{
 						Thread.currentThread().interrupt();
+						//We were interrupted, we will abort
+						handler.onFailure(new TAEShutdownException(e));
+						return;
 					}
 					
 				}
@@ -125,15 +140,18 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 						log.info("Um this was an abort {} : {} ", run.getRunConfig(), run);
 						
 						handler.onFailure(new TargetAlgorithmAbortException(run));
+						return;
 					}
 				}
 	
 			} catch(RuntimeException e)
 			{
 				handler.onFailure(e);
+				return;
 			}
 			
 			handler.onSuccess(runs);
+			return;
 				
 		}
 		

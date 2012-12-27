@@ -367,12 +367,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
+				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
 				{				
-						 sb.append(" (?,?,?,?,?,?,?,?),");
+						 sb.append(" (?,?,?,?,?,?,?,?,?),");
 				
 				}
 		
@@ -399,6 +399,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
+							if(rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation().length() > 2000)
+							{
+								throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 2K or less in this version, I'm sorry");
+							}
+							
+							stmt.setString(k++, rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation());
 							stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
 							stmt.setDouble(k++, rc.getCutoffTime());
 							String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);

@@ -66,6 +66,10 @@ DEFAULT 'RUNNING',
 `endTime` datetime NOT NULL,
 `crashInfo` text COLLATE utf8_unicode_ci,
 `startTime` datetime NOT NULL,
+`runsToBatch` int(11) NOT NULL,
+`delayBetweenRequests` int(11) NOT NULL,
+`pool` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
+`upToDate` tinyint(1) NOT NULL,
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE
 CURRENT_TIMESTAMP,
 PRIMARY KEY (`workerUUID`)

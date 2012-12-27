@@ -73,8 +73,8 @@ public class MySQLPersistence {
 			cpds.setPassword(password);                                  
 				
 			// the settings below are optional -- c3p0 can work with defaults
-			cpds.setMinPoolSize(5);                                     
-			cpds.setAcquireIncrement(5);
+			cpds.setMinPoolSize(1);                                     
+			cpds.setAcquireIncrement(1);
 			cpds.setMaxPoolSize(20);
 			cpds.setAutoCommitOnClose(true);
 			

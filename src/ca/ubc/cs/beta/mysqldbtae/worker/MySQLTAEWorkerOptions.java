@@ -26,7 +26,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	public int uncaughtExceptionLimit = 5;
 
 	@Parameter(names="--delayBetweenRequests", description="Minimum amount of time (in seconds) required between fetching requests from the MySQL DB", validateWith=PositiveInteger.class)
-	public long delayBetweenRequests = 10;
+	public int delayBetweenRequests = 10;
 
 	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
 	public String pool;
@@ -39,6 +39,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@Parameter(names="--jobID", description="Job Identifier for worker (logged to database)")
 	public String jobID = "CLI";
+
+	@Parameter(names="--updateFrequency", description="How often to check DB for new parameters")
+	public long updateFrequency = 60;
 	
 	/*
 	@Parameter(names="--numberOfInsertsForTest")
