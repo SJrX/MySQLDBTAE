@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,13 +61,16 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 	}*/
 
 
+	private AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 	@Override
 	public void notifyShutdown() {
 		
+		shutdownRequested.set(true);
 		requestWatcher.shutdown();
+		
 		try {
-			log.info("MySQL TAE Shut Down Request, waiting 30 seconds");
-			requestWatcher.awaitTermination(30, TimeUnit.SECONDS);
+			log.info("MySQL TAE Shutdown in Progress");
+			requestWatcher.awaitTermination(24, TimeUnit.DAYS);
 			log.info("MySQL TAE Shutdown Complete");
 		} catch(InterruptedException e)
 		{
@@ -121,6 +125,10 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 				while((runs = persistence.pollRunResults(token)) == null)
 				{
 					
+					if(shutdownRequested.get())
+					{
+						return;
+					}
 					try {
 						Thread.sleep(2000);
 					} catch(InterruptedException e)

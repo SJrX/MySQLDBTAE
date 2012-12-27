@@ -27,7 +27,9 @@ public class ACLibHasher {
 	
 	public String getHash(AlgorithmExecutionConfig execConfig, PathStripper pathStrip)
 	{
-		MessageDigest digest = DigestUtils.getSha1Digest();
+		try {
+			MessageDigest digest = DigestUtils.getSha1Digest();
+		
 		
 		try {
 			byte[] result = digest.digest( (pathStrip.stripPath(execConfig.getAlgorithmExecutable()) + pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()) + execConfig.getAlgorithmCutoffTime() + execConfig.isDeterministicAlgorithm() + execConfig.isExecuteOnCluster() + pathStrip.stripPath(execConfig.getParamFile().getParamFileName())).getBytes("UTF-8"));
@@ -35,6 +37,12 @@ public class ACLibHasher {
 
 		} catch (UnsupportedEncodingException e) {
 			throw new IllegalStateException("Could not encode Algorithm Execution Config " + execConfig);
+		}
+		
+		} catch(NoSuchMethodError e)
+		{
+			System.err.println(this.getClass().getClassLoader().getResource("org/apache/commons/codec/digest/DigestUtils.class").getPath());
+			throw e;
 		}
 	}
 }
