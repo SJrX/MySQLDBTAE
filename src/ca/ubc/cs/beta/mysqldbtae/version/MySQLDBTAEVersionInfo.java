@@ -2,20 +2,14 @@ package ca.ubc.cs.beta.mysqldbtae.version;
 
 import org.mangosdk.spi.ProviderFor;
 
+import ca.ubc.cs.beta.aclib.misc.version.AbstractVersionInfo;
 import ca.ubc.cs.beta.aclib.misc.version.VersionInfo;
 
 @ProviderFor(VersionInfo.class)
-public class MySQLDBTAEVersionInfo implements VersionInfo{
+public class MySQLDBTAEVersionInfo extends AbstractVersionInfo {
 
-	@Override
-	public String getProductName() {		
-		return "MySQL Database Target Algorithm Evaluator";
+	public MySQLDBTAEVersionInfo() {
+		super("MySQL Database Target Algorithm Evaluator", "mysqldbtae-version.txt", true);
 	}
-
-	@Override
-	public String getVersion() {	
-		return "v0.12b";
-	}
-
 
 }

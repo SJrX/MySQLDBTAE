@@ -47,7 +47,7 @@ public class MySQLDBTAETester {
 	
 	private static MySQLConfig mysqlConfig;
 	
-	private static final String MYSQL_POOL = "junit_test_4";
+	private static final String MYSQL_POOL = "juniting";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 1;
@@ -72,7 +72,7 @@ public class MySQLDBTAETester {
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
-			b.append(" --timeLimit ").append(100000);
+			b.append(" --timeLimit 1d");
 			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 " );
 			proc = Runtime.getRuntime().exec(b.toString());
 			
@@ -157,7 +157,7 @@ public class MySQLDBTAETester {
 	{
 		
 			final AtomicReference<RuntimeException> myRef = new AtomicReference<RuntimeException>();
-			final int TEST_COUNT = 100;
+			final int TEST_COUNT = 50;
 			
 			final CountDownLatch latch = new CountDownLatch(TEST_COUNT);
 			

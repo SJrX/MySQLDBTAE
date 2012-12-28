@@ -26,6 +26,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBui
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
+import ca.ubc.cs.beta.mysqldbtae.version.MySQLDBTAEVersionInfo;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
@@ -150,7 +151,19 @@ public class MySQLTAEWorker {
 			calendar.setTimeInMillis(endTime);
 			
 			
-			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests );
+		
+			
+			String version = "<Error getting version>";
+			try
+			{
+				MySQLDBTAEVersionInfo mysqlVersionInfo = new MySQLDBTAEVersionInfo();
+				version = mysqlVersionInfo.getVersion();
+			} catch(RuntimeException e)
+			{ 
+				log.error("Couldn't get version information ", e);
+			}
+			
+			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests , version);
 		
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 				

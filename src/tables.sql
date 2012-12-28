@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS `workers_ACLIB_POOL_NAME` (
 `status` enum('RUNNING','DONE') COLLATE utf8_unicode_ci NOT NULL
 DEFAULT 'RUNNING',
 `endTime` datetime NOT NULL,
+`version` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'UNKNOWN',
 `crashInfo` text COLLATE utf8_unicode_ci,
 `startTime` datetime NOT NULL,
 `runsToBatch` int(11) NOT NULL,

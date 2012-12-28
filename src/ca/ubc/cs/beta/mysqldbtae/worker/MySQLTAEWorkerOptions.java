@@ -4,6 +4,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
+import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
+import ca.ubc.cs.beta.aclib.misc.jcommander.validator.FixedPositiveInteger;
+import ca.ubc.cs.beta.aclib.misc.jcommander.validator.NonNegativeInteger;
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
@@ -31,10 +34,10 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
 	public String pool;
 	
-	@Parameter(names="--timeLimit", description="Amount of time to work for", required = true, validateWith=PositiveInteger.class)
+	@Parameter(names="--timeLimit", description="Amount of time to work for", required = true, converter=DurationConverter.class)
 	public int timeLimit;
 	
-	@Parameter(names="--shutdownBuffer", description="Amount of time to budget for shutdown tasks", validateWith=PositiveInteger.class)
+	@Parameter(names="--shutdownBuffer", description="Amount of time to budget for shutdown tasks", converter=DurationConverter.class)
 	public int shutdownBuffer = 60;
 	
 	@Parameter(names="--jobID", description="Job Identifier for worker (logged to database)")

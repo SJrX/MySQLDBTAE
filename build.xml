@@ -1,11 +1,16 @@
 <?xml version="1.0"?>
-<project name="MySQLDBTAE" default="compile">
-	<property name="software.dir" value="/ubc/cs/home/s/seramage/arrowspace/software/"/>
-	
-	<property name="deploy-wg.dir" value="/ubc/cs/home/s/seramage/disks/westgrid-home/apps/rundispatcher/"/>
-	
-	<property name="version.file" value="mysqldbtae-version.txt"/>
+<project name="mysqldbtae" default="compile">
+	<property name="private.buildfile" value="build-resources/private/user-antbuild.properties"/>
+		<property file="${private.buildfile}"/>
+		<property file="build-resources/antbuild.properties"/>
+		
 
+	<property name="version.file" value="mysqldbtae-version.txt"/>
+	<property name="version.file.dev" value="version/${version.file}"/>
+		
+	
+
+	
 	<target name="get-git-branch"> 
 			<exec executable="git" outputproperty="git.branch">
 				<arg value="rev-parse"/>
@@ -16,7 +21,7 @@
 			<property name="deploy.dir" value="${software.dir}/mysqldbtae-${git.branch}/"/>
 	</target>
 		
-				
+	
 				
 	<target name="init" depends="get-git-branch"> 
 		<mkdir dir="build/classes/"/>
@@ -51,9 +56,23 @@
 		</copy>
 	</target>
 	<target name="archive" depends="compile">
-		<jar destfile="dist/mysqldbtae.jar" basedir="build/classes"/>
-		<buildnumber file="/ubc/cs/project/arrow/seramage/software/build-numbers/buildnumber-${ant.project.name}"/>
+		<buildnumber file="${buildnumberpath}/buildnumber-${ant.project.name}"/>
+		<property name="version.string" value="v${version.major}.${version.minor}.${version.revision}${version.beta}-${git.branch}-${build.number}"/>
+		<property name="version.devstring" value="v${version.major}.${version.minor}.${version.revision}dev-${git.branch}-${build.number}"/>
+		<echo file="${version.file.dev}">${version.devstring}</echo>
+		<echo file="build/classes/${version.file}">${version.string}</echo>
+		<property name="outputfilename" value="${ant.project.name}-${version.string}"/>
+		<!--<jar destfile="dist/mysqldbtae.jar" basedir="build/classes"/>-->
+		<!--<buildnumber file="/ubc/cs/project/arrow/seramage/software/build-numbers/buildnumber-${ant.project.name}"/>-->
 		<!-- <echo file="build/classes/${version.file}">vDEV-${build.number}</echo> -->
+		<jar destfile="dist/${ant.project.name}.jar" basedir="build/classes"/>
+				
+		<jar destfile="dist/${ant.project.name}-src.jar">
+			<fileset dir="src/">
+				 <include name="**/*.java"/>
+			</fileset>
+		</jar>
+				
 		
 		<copy todir="dist/">
 					<fileset refid="lib"/>
@@ -63,38 +82,37 @@
 						<include name="*"/>
 					</fileset>	
 		</copy>
+		
+		
 	</target>			
-	<target name="deploy" depends="archive">
-		<mkdir dir="${deploy.dir}"/>
-		<chmod perm="777">
-						<fileset dir="${deploy.dir}">
-								<include name="*"/>
-						</fileset>
-		</chmod>
-		<copy todir="${deploy.dir}" force="true">
-			<fileset dir="dist/">
-				<include name="*"/>
-				<include name="*/*"/>
-			</fileset>
-		</copy>
-		<chmod perm="444">
-				<fileset dir="${deploy.dir}">
-						<include name="*"/>
-				</fileset>
-		</chmod>
-		<chmod perm="555">
-				<fileset dir="${deploy.dir}">
-						<include name="*.sh"/>
-				</fileset>
-		</chmod>
-		<echo> THIS SEEMS TO BE VERY BROKEN AND NOT ACTUALLY UPDATE THE FILES </echo>
-		<echo> THIS SEEMS TO BE VERY BROKEN AND NOT ACTUALLY UPDATE THE FILES </echo>
-		<echo> THIS SEEMS TO BE VERY BROKEN AND NOT ACTUALLY UPDATE THE FILES </echo>
-		<echo> THIS SEEMS TO BE VERY BROKEN AND NOT ACTUALLY UPDATE THE FILES </echo>
-		<echo> THIS SEEMS TO BE VERY BROKEN AND NOT ACTUALLY UPDATE THE FILES </echo>
-		<echo> THIS SEEMS TO BE VERY BROKEN AND NOT ACTUALLY UPDATE THE FILES </echo>
-		<echo> THIS SEEMS TO BE VERY BROKEN AND NOT ACTUALLY UPDATE THE FILES </echo>
-
-	</target>
+	<target name="zip" depends="archive" description="Makes tarball for this release">
+			
+			<tar destFile="${software.dir}/${outputfilename}.tar.gz" longfile="gnu" compression="gzip">
+					<tarfileset dir="dist/" filemode="750" prefix="${outputfilename}/">
+											<include name="mysql-worker"/>
+						</tarfileset>
+				<tarfileset dir="dist/" filemode="640" dirmode="750" prefix="${outputfilename}/">
+							<include name="**/*"/>
+							<exclude name="${lastdeployfile}"/> 
+							<exclude name="mysql-worker"/>
+						</tarfileset>
+						
+			</tar>
+		</target>
+	
+	<target name="deploy-release" depends="zip" description="untars tarball in software.dir and creates symlink">
+		
+			<exec executable="tar" dir="${software.dir}" failonerror="true">
+				<arg value="-xzf"/>
+				<arg value="${software.dir}/${outputfilename}.tar.gz"/>
+			</exec>
+			
+			<!--<echo file="${lastdeployfile}" append="false">${software.dir}/${outputfilename}</echo>-->
+				
+			<symlink link="${deploy.dir}-${git.branch}" overwrite="true" resource="${software.dir}/${ant.project.name}-${version.string}" failonerror="false"/>
+			<echo>Untar Successful to ${software.dir}/${outputfilename}</echo>
+		</target>
+		<target name="deploy" depends="zip, deploy-release"/>
+		
 	
 </project>

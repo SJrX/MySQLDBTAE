@@ -57,18 +57,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 	
 	
-	public MySQLPersistenceWorker(MySQLConfig mysqlOptions, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest)
+	public MySQLPersistenceWorker(MySQLConfig mysqlOptions, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest, version);
 	}
 	
-	
-	public MySQLPersistenceWorker(String host, String port, String databaseName, String username, String password, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest)
-	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest);
-	}
-	
-	
+
 	/**
 	 * Job Indentifier, meaningless except for logging purposes
 	 */
@@ -80,14 +74,14 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Date endDateTime;
 	
 	public MySQLPersistenceWorker(String host, int port,
-			String databaseName, String username, String password, String pool,String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest) {
+			String databaseName, String username, String password, String pool,String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version) {
 		super(host, port, databaseName, username, password, pool);
 
 		log.info("My Worker ID is " + workerUUID.toString());
 		this.jobID = jobID;
 		this.endDateTime = endDateTime;
 		
-		logWorker(runsToBatch, delayBetweenRequest, pool);
+		logWorker(runsToBatch, delayBetweenRequest, pool, version);
 	}
 
 	
@@ -343,10 +337,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	}
 
-	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool)
+	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, String version)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime, runsToBatch, delayBetweenRequests, pool,upToDate)  VALUES (?,?,?,?,NOW(),?,?,?,1)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime, runsToBatch, delayBetweenRequests, pool,upToDate, version)  VALUES (?,?,?,?,NOW(),?,?,?,1,?)");
 		
 		
 		try {
@@ -376,7 +370,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			stmt.setInt(5,runsToBatch);
 			stmt.setInt(6, delayBetweenRequests);
 			stmt.setString(7, pool);
-			
+			stmt.setString(8,version);
 			stmt.execute();
 			stmt.close();
 			conn.close();
