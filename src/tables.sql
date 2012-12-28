@@ -65,10 +65,10 @@ CREATE TABLE IF NOT EXISTS `workers_ACLIB_POOL_NAME` (
 `jobID` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
 `status` enum('RUNNING','DONE') COLLATE utf8_unicode_ci NOT NULL
 DEFAULT 'RUNNING',
+`startTime` datetime NOT NULL,
 `endTime` datetime NOT NULL,
 `version` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'UNKNOWN',
 `crashInfo` text COLLATE utf8_unicode_ci,
-`startTime` datetime NOT NULL,
 `runsToBatch` int(11) NOT NULL,
 `delayBetweenRequests` int(11) NOT NULL,
 `pool` varchar(64) COLLATE utf8_unicode_ci NOT NULL,

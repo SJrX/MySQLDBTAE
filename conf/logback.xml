@@ -6,15 +6,15 @@
   
   
   
- 
+  
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-  <file>/tmp/worker.log</file>
+  <file>${LOG_LOCATION}</file>
   <append>true</append>
   <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread]  %logger{36} - %msg%n</pattern>
     </encoder>
   </appender>
-  
+ 
  
  
 
@@ -48,7 +48,7 @@
   <root level="DEBUG">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="STDERR" />
-    <appender-ref ref="FILE" />
+     <appender-ref ref="FILE" />
   </root>
     
 </configuration>

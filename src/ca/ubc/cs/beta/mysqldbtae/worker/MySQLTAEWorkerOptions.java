@@ -1,5 +1,7 @@
 package ca.ubc.cs.beta.mysqldbtae.worker;
 
+import java.io.File;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
@@ -11,6 +13,7 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.options.TargetAlgorithmEvaluatorOptions;
+import ca.ubc.cs.beta.aclib.misc.jcommander.converter.WritableDirectoryConverter;
 
 @UsageTextField(title="MySQL TAE Worker Options", description="Options that describe and control the MySQL TAE Worker Process ")
 public class MySQLTAEWorkerOptions extends AbstractOptions {
@@ -46,6 +49,8 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--updateFrequency", description="How often to check DB for new parameters")
 	public long updateFrequency = 60;
 	
+	@Parameter(names="--logOutputDir", description="Log Output Directory", converter=WritableDirectoryConverter.class)
+	public File logDirectory = new File(System.getProperty("user.home"));
 	/*
 	@Parameter(names="--numberOfInsertsForTest")
 	public int numberOfInserts = 1000;

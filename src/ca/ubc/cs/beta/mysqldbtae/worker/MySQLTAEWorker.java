@@ -1,7 +1,9 @@
 package ca.ubc.cs.beta.mysqldbtae.worker;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.PrintStream;
+import java.lang.management.ManagementFactory;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -33,7 +35,7 @@ import com.beust.jcommander.ParameterException;
 
 public class MySQLTAEWorker {
 
-	private static final Logger log = LoggerFactory.getLogger(MySQLTAEWorker.class);
+	private static Logger log;//Do not initialize here until after the logging environment variables are started
 	
 	
 	
@@ -51,13 +53,34 @@ public class MySQLTAEWorker {
 		
 		MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
 		
+		
+		
+				
 		JCommander com = new JCommander(options, true, true);
 		com.setProgramName("mysqltaeworker");
 		int exceptionCount = 0;
 		
 		
+		
+		
+		
+		
 		try {
 			com.parse(args);
+			
+			
+			
+			
+			
+			String workerID = options.jobID  + "/" + ManagementFactory.getRuntimeMXBean().getName();
+			String logLocation = options.logDirectory.getAbsolutePath() + File.separator + "log-worker-"+workerID.replaceAll("[^A-Za-z0-9_]+", "_")+".txt";
+			System.setProperty("LOG_LOCATION", logLocation);
+			System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");
+			
+			log = LoggerFactory.getLogger(MySQLTAEWorker.class);;
+			
+			
+			
 			
 			List<String> names = TargetAlgorithmEvaluatorBuilder.getAvailableTargetAlgorithmEvaluators(options.taeOptions);
 			
@@ -127,6 +150,7 @@ public class MySQLTAEWorker {
 			
 			
 		}
+		log.info("Main Method Ended");
 	}
 	
 	public static long getSecondsLeft(MySQLTAEWorkerOptions options)
@@ -179,7 +203,7 @@ public class MySQLTAEWorker {
 						e.printStackTrace();
 						System.err.println("WHAT?");
 					}
-					System.out.println("Shutdown hook fired");
+				log.info("Shutdown hook finished");
 				}
 				
 			});
@@ -297,7 +321,7 @@ public class MySQLTAEWorker {
 						
 						if(waitTime > getSecondsLeft(options))
 						{
-							
+							log.info("Wait time {} is too high, finishing up", waitTime);
 							return;
 						} else if(getSecondsLeft(options) < 0)
 						{
