@@ -422,6 +422,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				if(!rs.next())
 				{
+					stmt.close();
 					return null;
 				}
 				
@@ -432,12 +433,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				stmt = conn.prepareStatement(sb.toString());
 				stmt.execute();
-				
+				stmt.close();
 				//conn.commit();
 				return newParameters;
 			} finally
 			{
 				if(conn != null) conn.close();
+				
 			}
 			
 		} catch(SQLException e)
