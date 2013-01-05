@@ -98,7 +98,7 @@ public class MySQLDBTAETester {
 	{
 		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -163,7 +163,7 @@ public class MySQLDBTAETester {
 			
 			final AtomicInteger runsCompleted = new AtomicInteger(0);
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25,true);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)

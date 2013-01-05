@@ -50,7 +50,6 @@ public class MySQLTAEWorker {
 		
 		
 		
-		
 		MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
 		
 		
@@ -66,18 +65,23 @@ public class MySQLTAEWorker {
 		
 		
 		try {
+			try {
 			com.parse(args);
+			} finally
+			{
+				String workerID = options.jobID  + "/" + ManagementFactory.getRuntimeMXBean().getName();
+				String logLocation = options.logDirectory.getAbsolutePath() + File.separator + "log-worker-"+workerID.replaceAll("[^A-Za-z0-9_]+", "_")+".txt";
+				System.setProperty("LOG_LOCATION", logLocation);
+				System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");
+				
+				log = LoggerFactory.getLogger(MySQLTAEWorker.class);;
+
+			}
 			
 			
 			
 			
 			
-			String workerID = options.jobID  + "/" + ManagementFactory.getRuntimeMXBean().getName();
-			String logLocation = options.logDirectory.getAbsolutePath() + File.separator + "log-worker-"+workerID.replaceAll("[^A-Za-z0-9_]+", "_")+".txt";
-			System.setProperty("LOG_LOCATION", logLocation);
-			System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");
-			
-			log = LoggerFactory.getLogger(MySQLTAEWorker.class);;
 			
 			
 			
@@ -187,7 +191,7 @@ public class MySQLTAEWorker {
 				log.error("Couldn't get version information ", e);
 			}
 			
-			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests , version);
+			final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests , version,options.createTables);
 		
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 				

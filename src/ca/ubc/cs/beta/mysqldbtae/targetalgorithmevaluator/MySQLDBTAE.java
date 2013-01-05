@@ -84,10 +84,16 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 		evaluateRunsAsync(Collections.singletonList(runConfig), handler);
 	}
 
+	
 	@Override
+	@SuppressWarnings("unchecked")
 	public void evaluateRunsAsync(List<RunConfig> runConfigs,
 			TAECallback handler) {
 		
+		if(runConfigs.size() == 0)
+		{
+			handler.onSuccess(Collections.EMPTY_LIST);
+		}
 		RunToken token = persistence.enqueueRunConfigs(runConfigs);
 		
 		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler);

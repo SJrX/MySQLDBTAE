@@ -57,9 +57,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 	
 	
-	public MySQLPersistenceWorker(MySQLConfig mysqlOptions, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version)
+	public MySQLPersistenceWorker(MySQLConfig mysqlOptions, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version, boolean createTables)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest, version);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest, version, createTables);
 	}
 	
 
@@ -74,8 +74,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Date endDateTime;
 	
 	public MySQLPersistenceWorker(String host, int port,
-			String databaseName, String username, String password, String pool,String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version) {
-		super(host, port, databaseName, username, password, pool);
+			String databaseName, String username, String password, String pool,String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version, boolean createTables) {
+		super(host, port, databaseName, username, password, pool, createTables);
 
 		log.info("My Worker ID is " + workerUUID.toString());
 		this.jobID = jobID;

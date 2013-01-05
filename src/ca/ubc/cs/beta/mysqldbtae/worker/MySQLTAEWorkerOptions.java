@@ -55,4 +55,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--numberOfInsertsForTest")
 	public int numberOfInserts = 1000;
 	*/
+
+	@Parameter(names="--createPoolTables", description="Create the tables for the pool in the database")
+	public boolean createTables = true;
 }

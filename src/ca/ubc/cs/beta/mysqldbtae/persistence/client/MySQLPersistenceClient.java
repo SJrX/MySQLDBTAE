@@ -141,26 +141,26 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	private static final ACLibHasher hasher = new ACLibHasher();
 
 	
-	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, int batchInsertSize)
+	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, int batchInsertSize, boolean createTables)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables);
 	}
-	
+	/*
 	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, String pathStrip, int batchInsertSize)
 	{
 		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, pathStrip, batchInsertSize);
-	}
+	}*/
 	
-	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize)
+	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize);
+		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables);
 	}
 	
 
 	public MySQLPersistenceClient(String host, int port,
 			String databaseName, String username, String password, String pool,
-			String pathStrip, int batchInsertSize) {
-		super(host, port, databaseName, username, password, pool);
+			String pathStrip, int batchInsertSize, boolean createTables) {
+		super(host, port, databaseName, username, password, pool, createTables);
 		this.pathStrip = new PathStripper(pathStrip);
 		this.batchInsertSize = batchInsertSize;
 	
@@ -229,7 +229,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							sb.setCharAt(sb.length()-1, ' ');
 							
 							sb.append(") AND status=\"COMPLETE\"");
-							log.info("Query was {} ", sb.toString());
+							log.trace("Query was {} ", sb);
 							PreparedStatement stmt = null;
 							int returnedResults = 0;
 							try 
@@ -386,7 +386,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						stmt = conn.prepareStatement(sb.toString());
 					
 					
-						log.debug("SQL INSERT: {} ", sb.toString());
+						log.trace("SQL INSERT: {} ", sb);
 						
 						log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
 			

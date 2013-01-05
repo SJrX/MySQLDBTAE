@@ -51,7 +51,7 @@ public class MySQLPersistence {
 	private final String password;
 	ComboPooledDataSource cpds = new ComboPooledDataSource();
 	
-	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool)
+	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, boolean createTables)
 	{
 		
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
@@ -78,37 +78,44 @@ public class MySQLPersistence {
 			cpds.setMaxPoolSize(20);
 			cpds.setAutoCommitOnClose(true);
 			
-			
-			BufferedReader br = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("tables.sql")));
-			
-			StringBuilder sb = new StringBuilder();
-			
-			String line;
-			boolean nothingFound = true;
-	    	while ((line = br.readLine()) != null) {
-	    		sb.append(line).append("\n");
-	    		nothingFound = false;
-	    	} 
-	    	
-	    	if(nothingFound) throw new IllegalStateException("Couldn't load tables.sql");
-			String sql = sb.toString();
-			sql = sql.replace("ACLIB_POOL_NAME", pool).trim();
-			
-			
-			String[] chunks = sql.split(";");
-			Connection conn = cpds.getConnection();
-			for(String sqlStatement : chunks)
+			if(createTables)
 			{
-				if(sqlStatement.trim().length() == 0) continue;
+			
+				BufferedReader br = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("tables.sql")));
 				
-				PreparedStatement stmt = conn.prepareStatement(sqlStatement);
-				stmt.execute();
-				stmt.close();
+				StringBuilder sb = new StringBuilder();
+				
+				String line;
+				boolean nothingFound = true;
+		    	while ((line = br.readLine()) != null) {
+		    		sb.append(line).append("\n");
+		    		nothingFound = false;
+		    	} 
+		    	
+		    	if(nothingFound) throw new IllegalStateException("Couldn't load tables.sql");
+				String sql = sb.toString();
+				sql = sql.replace("ACLIB_POOL_NAME", pool).trim();
+				
+				
+				String[] chunks = sql.split(";");
+				Connection conn = cpds.getConnection();
+				for(String sqlStatement : chunks)
+				{
+					if(sqlStatement.trim().length() == 0) continue;
+					
+					PreparedStatement stmt = conn.prepareStatement(sqlStatement);
+					stmt.execute();
+					stmt.close();
+				}
+				
+				conn.close();
+				br.close();
+				log.info("Pool Created");
+			} else
+			{
+				log.info("Skipping table creation");
 			}
 			
-			conn.close();
-			br.close();
-			log.info("Pool Created");
 			 TABLE_COMMAND = "commandTable_" + pool;
 			 TABLE_EXECCONFIG = "execConfig_"+ pool;
 			 TABLE_RUNCONFIG = "runConfigs_"+ pool;

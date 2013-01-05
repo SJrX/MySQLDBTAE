@@ -1,5 +1,8 @@
 package ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator;
 
+import java.util.Arrays;
+import java.util.Collections;
+
 import org.mangosdk.spi.ProviderFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +41,14 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		String username = getEnvVariable("MYSQL_USERNAME");
 		String password = getEnvVariable("MYSQL_PASSWORD", "");
 		String pool = getEnvVariable("MYSQL_POOL","default");
+		boolean createTables;
+		try {
+			 createTables = stringToBoolean(getEnvVariable("MYSQL_CREATE_TABLES","TRUE"));
+		} catch (IllegalArgumentException e)
+		{
+			throw new IllegalArgumentException("Error occured while processing variable " + " MYSQL_SKIP_TABLE_CREATE",e);
+		}
+		
 		int batchInsertSize;
 		try {
 			 batchInsertSize = Integer.valueOf(getEnvVariable("MYSQL_BATCH_INSERT_SIZE", "500"));
@@ -66,7 +77,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
 		}
 		
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables);
 		
 		
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
@@ -78,6 +89,25 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		
 	}
 	
+	private boolean stringToBoolean(String envVariable) {
+	
+		String[] trueValues = {"1","TRUE","YES","Y","T","PLEASE DO","I DON'T KNOW THE HAVOC I COULD UNLEASH"};
+		String[] falseValues = {"0","FALSE","NO","N","F","NO SIR","MYSQL 5.5 LOCKING IS STUPID"};
+		if(Arrays.asList(trueValues).contains(envVariable.toUpperCase().trim()))
+		{
+			return true;
+		}
+		
+		if(Arrays.asList(falseValues).contains(envVariable.toUpperCase().trim()))
+		{
+			return false;
+		}
+		
+	
+		throw new IllegalArgumentException("Boolean variable must have been set to either TRUE or FALSE");
+	}
+
+
 	private String getEnvVariable(String name)
 	{
 		return getEnvVariable(name, null);
