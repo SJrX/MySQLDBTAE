@@ -57,6 +57,13 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			throw new ParameterException("MYSQL_BATCH_INSERT_SIZE enviroment variable must be an Integer not " + getEnvVariable("MYSQL_BATCH_INSERT_SIZE"));
 		}
 		
+		int runPartition;
+		try {
+			runPartition = Integer.valueOf(getEnvVariable("MYSQL_RUN_PARTITION"));
+		} catch(NumberFormatException e)
+		{
+			throw new ParameterException("MYSQL_RUN_PARTITION environment variable must be set to an Integer not " + getEnvVariable("MYSQL_RUN_PARTITION"));
+		}
 		
 		
 		
@@ -77,7 +84,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
 		}
 		
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition);
 		
 		
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));

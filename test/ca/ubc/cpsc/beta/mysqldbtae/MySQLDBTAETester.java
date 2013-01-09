@@ -54,6 +54,7 @@ public class MySQLDBTAETester {
 	private static final int TARGET_RUNS_IN_LOOPS = 50;
 	private static final int BATCH_INSERT_SIZE = TARGET_RUNS_IN_LOOPS/10;
 	
+	private static final int MYSQL_RUN_PARTITION = 0;
 	@BeforeClass
 	public static void beforeClass()
 	{
@@ -99,7 +100,7 @@ public class MySQLDBTAETester {
 	{
 		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -151,6 +152,107 @@ public class MySQLDBTAETester {
 		
 	}
 	
+
+	@Test
+	public void testRunPartitions()
+	{
+		
+			
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION);
+			try {
+			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+			} catch(RuntimeException e)
+			{
+				e.printStackTrace();
+				throw e;
+			}
+			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			
+			MySQLDBTAE mysqlDBTae = new MySQLDBTAE(execConfig, mysqlPersistence);
+			
+			configSpace.setPRNG(new MersenneTwister());
+			
+			List<RunConfig> runConfigs = new ArrayList<RunConfig>(5);
+			for(int i=0; i < 5; i++)
+			{
+				ParamConfiguration config = configSpace.getDefaultConfiguration();
+			
+				config.put("seed", String.valueOf(i));
+				config.put("runtime", String.valueOf(2*i+1));
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config);
+				runConfigs.add(rc);
+				
+			}
+			
+			System.out.println("Performing " + runConfigs.size() + " runs");
+			TargetAlgorithmEvaluator tae = mysqlDBTae;
+			
+			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			
+			
+			for(AlgorithmRun run : runs)
+			{
+				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
+				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
+				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
+				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
+				assertEquals(config.get("solved"), run.getRunResult().name());
+				//This executor should not have any additional run data
+				assertEquals("",run.getAdditionalRunData());
+
+			}
+			
+			//Same runPartition
+			runs = tae.evaluateRun(runConfigs);
+			for(AlgorithmRun run : runs)
+			{
+				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
+				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
+				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
+				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
+				assertEquals(config.get("solved"), run.getRunResult().name());
+				//This executor should not have any additional run data
+				assertEquals("",run.getAdditionalRunData());
+
+			}
+			
+			
+			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION+1);
+			try {
+			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+			} catch(RuntimeException e)
+			{
+				e.printStackTrace();
+				throw e;
+			}
+			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			
+			tae = new MySQLDBTAE(execConfig, mysqlPersistence);
+
+			
+			//Different RunPartition
+			runs = tae.evaluateRun(runConfigs);
+			for(AlgorithmRun run : runs)
+			{
+				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				//THIS Test will fail
+				//MODIFY THE DB, and set this RunPartition value to have the -1 as a value.
+				assertDEquals(config.get("runtime"), run.getRuntime()+1, 0.1); 
+				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
+				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
+				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
+				assertEquals(config.get("solved"), run.getRunResult().name());
+				//This executor should not have any additional run data
+				assertEquals("",run.getAdditionalRunData());
+
+			}
+						
+			
+		
+	}
+	
 	
 
 	@Test
@@ -164,7 +266,7 @@ public class MySQLDBTAETester {
 			
 			final AtomicInteger runsCompleted = new AtomicInteger(0);
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25,true);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25,true,MYSQL_RUN_PARTITION);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -265,7 +367,7 @@ public class MySQLDBTAETester {
 	{
 		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)

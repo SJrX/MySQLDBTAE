@@ -140,29 +140,29 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	private static final ACLibHasher hasher = new ACLibHasher();
 
+	/**
+	 * Run partition of what we are doing
+	 */
+	private final int runPartition;
 	
-	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, int batchInsertSize, boolean createTables)
+	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, int batchInsertSize, boolean createTables, int runPartition)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition);
 	}
-	/*
-	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, String pathStrip, int batchInsertSize)
-	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, pathStrip, batchInsertSize);
-	}*/
 	
-	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables)
+	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables, int runPartition)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables);
+		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition);
 	}
 	
 
 	public MySQLPersistenceClient(String host, int port,
 			String databaseName, String username, String password, String pool,
-			String pathStrip, int batchInsertSize, boolean createTables) {
+			String pathStrip, int batchInsertSize, boolean createTables, int runPartition) {
 		super(host, port, databaseName, username, password, pool, createTables);
 		this.pathStrip = new PathStripper(pathStrip);
 		this.batchInsertSize = batchInsertSize;
+		this.runPartition = runPartition;
 	
 	}
 
@@ -367,12 +367,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID) VALUES ");
+				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID, runPartition) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
 				{				
-						 sb.append(" (?,?,?,?,?,?,?,?,?),");
+						 sb.append(" (?,?,?,?,?,?,?,?,?,?),");
 				
 				}
 		
@@ -395,7 +395,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						{				
 							RunConfig rc = runConfigs.get(j);
 							
-							String uuid = getHash(rc, execConfig);
+							String uuid = getHash(rc, execConfig, runPartition);
 							
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
@@ -422,7 +422,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							stmt.setString(k++, hasher.getHash(rc.getParamConfiguration()));
 							stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
 							stmt.setString(k++,uuid);
-						
+							stmt.setInt(k++, runPartition);
 							runKeys.add(uuid);
 							this.runConfigIDToRunConfig.put(uuid, rc);
 						}
@@ -517,7 +517,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			}
 			
 			StringBuilder sb = new StringBuilder();
-			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE lastModified = NOW()");
+			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE algorithmExecutionConfigID=LAST_INSERT_ID(algorithmExecutionConfigID), lastModified = NOW()");
 			
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
@@ -529,8 +529,17 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				stmt.setBoolean(5, execConfig.isDeterministicAlgorithm());
 				stmt.setDouble(6,execConfig.getAlgorithmCutoffTime());
 				stmt.setString(7, hasher.getHash(execConfig,pathStrip));
+				
+				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutable()));
+				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()));
+				System.out.println(pathStrip.stripPath(execConfig.getParamFile().getParamFileName()));
+				System.out.println(execConfig.isExecuteOnCluster());
+				System.out.println(execConfig.isDeterministicAlgorithm());
+				System.out.println(execConfig.getAlgorithmCutoffTime());
+				System.out.println(hasher.getHash(execConfig,pathStrip));
 				stmt.execute();
 				ResultSet rs = stmt.getGeneratedKeys();
+				System.out.println(stmt.toString());
 				rs.next();
 				execConfigID = rs.getInt(1);
 				
@@ -611,12 +620,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 	}
 	
-	public String getHash(RunConfig rc, AlgorithmExecutionConfig execConfig )
+	public String getHash(RunConfig rc, AlgorithmExecutionConfig execConfig, int runPartition )
 	{
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
 		try {
-			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(execConfig,pathStrip)).getBytes("UTF-8"));
+			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(execConfig,pathStrip) + runPartition).getBytes("UTF-8"));
 			return new String(Hex.encodeHex(result));
 	
 		} catch (UnsupportedEncodingException e) {
