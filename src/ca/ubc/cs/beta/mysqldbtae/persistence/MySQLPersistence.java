@@ -73,10 +73,13 @@ public class MySQLPersistence {
 			cpds.setPassword(password);                                  
 				
 			// the settings below are optional -- c3p0 can work with defaults
-			cpds.setMinPoolSize(1);                                     
-			cpds.setAcquireIncrement(1);
+			cpds.setMinPoolSize(2);                                     
+			cpds.setAcquireIncrement(3);
 			cpds.setMaxPoolSize(20);
 			cpds.setAutoCommitOnClose(true);
+			cpds.setMaxIdleTimeExcessConnections(120);
+			cpds.setIdleConnectionTestPeriod(15);
+			cpds.setPreferredTestQuery("SELECT 1");
 			
 			if(createTables)
 			{

@@ -16,6 +16,7 @@ import ca.ubc.cs.beta.aclib.exceptions.TargetAlgorithmAbortException;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.AbstractDeferredTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TAEShutdownException;
@@ -35,31 +36,6 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 		this.persistence = persistence;
 	}
 
-	/*
-	@Override
-	public List<AlgorithmRun> evaluateRun(List<RunConfig> runConfigs)
-	{
-		
-		/*
-		RunToken token = persistence.enqueueRunConfigs(runConfigs);
-		
-		
-		List<AlgorithmRun> runs = persistence.pollRunResults(token);
-		
-		for(AlgorithmRun run : runs)
-		{
-			if(run.getRunResult().equals(RunResult.ABORT))
-			{
-				log.info("Um this was an abort {} : {} ", run.getRunConfig(), run);
-				
-				throw new TargetAlgorithmAbortException(run);
-			}
-		}
-		
-		return runs;
-		
-	}*/
-
 
 	private AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 	@Override
@@ -67,7 +43,7 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 		
 		shutdownRequested.set(true);
 		requestWatcher.shutdown();
-		
+		persistence.shutdown();
 		try {
 			log.info("MySQL TAE Shutdown in Progress");
 			requestWatcher.awaitTermination(24, TimeUnit.DAYS);
@@ -89,12 +65,19 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 	@SuppressWarnings("unchecked")
 	public void evaluateRunsAsync(List<RunConfig> runConfigs,
 			TAECallback handler) {
+				evaluateRunsAsync(runConfigs, handler, null);
+			}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public void evaluateRunsAsync(List<RunConfig> runConfigs,
+			TAECallback handler, CurrentRunStatusObserver obs) {
 		
 		if(runConfigs.size() == 0)
 		{
 			handler.onSuccess(Collections.EMPTY_LIST);
 		}
-		RunToken token = persistence.enqueueRunConfigs(runConfigs);
+		RunToken token = persistence.enqueueRunConfigs(runConfigs,obs);
 		
 		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler);
 		
@@ -169,6 +152,12 @@ public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
 				
 		}
 		
+	}
+
+	@Override
+	public boolean areRunsObservable() {
+		// TODO Auto-generated method stub
+		return true;
 	}
 	
 }

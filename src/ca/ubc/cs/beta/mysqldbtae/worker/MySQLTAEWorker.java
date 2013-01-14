@@ -7,6 +7,7 @@ import java.lang.management.ManagementFactory;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
@@ -25,6 +27,7 @@ import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
@@ -168,7 +171,7 @@ public class MySQLTAEWorker {
 	}
 	
 	
-	public static void processRuns(MySQLTAEWorkerOptions options)
+	public static void processRuns(final MySQLTAEWorkerOptions options)
 	{
 		
 		
@@ -246,18 +249,50 @@ public class MySQLTAEWorker {
 							TargetAlgorithmEvaluator tae = taeMap.get(execConfig);
 							
 							
-							for(RunConfig runConfig : ent.getValue())
+							for(final RunConfig runConfig : ent.getValue())
 							{ //===Process the requests one by one, in case we get an Exception
 								AutoStartStopWatch runWatch = new AutoStartStopWatch();
 								
 								try {
 									
 									
+									CurrentRunStatusObserver obs = new CurrentRunStatusObserver() {
+										private long lastDBUpdate = System.currentTimeMillis();
+										@Override
+										public void currentStatus( List<? extends KillableAlgorithmRun> runs) {
+											
+											if((System.currentTimeMillis() - lastDBUpdate) < options.delayBetweenRequests * 1000)
+											{
+												//=== Too soon to update request
+												return;
+											} else
+											{
+												boolean shouldKill = mysqlPersistence.updateRunStatusAndCheckKillBit(runs.get(0));
+												
+												if(shouldKill)
+												{
+													log.info("Database updated and run has been flagged as killed");
+													runs.get(0).kill();
+												} else
+												{
+													log.info("Database updated continue run");
+												}
+												
+												lastDBUpdate = System.currentTimeMillis();
+											}
+											
+											
+											
+											
+											
+										}
+										
+									};
 									
 									
 									if(runConfig.getCutoffTime() < getSecondsLeft(options))
 									{
-										algorithmRuns.addAll(tae.evaluateRun(runConfig));
+										algorithmRuns.addAll(tae.evaluateRun(Collections.singletonList(runConfig), obs));
 									} else
 									{
 										log.info("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft(options) );

@@ -32,7 +32,8 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	public int uncaughtExceptionLimit = 5;
 
 	@Parameter(names="--delayBetweenRequests", description="Minimum amount of time (in seconds) required between fetching requests from the MySQL DB", validateWith=PositiveInteger.class)
-	public int delayBetweenRequests = 10;
+	//MySQL worker other thread may read this
+	public volatile int delayBetweenRequests = 10;
 
 	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
 	public String pool;

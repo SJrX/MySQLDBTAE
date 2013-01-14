@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
@@ -164,7 +165,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				sb = new StringBuffer();
 				//
-				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
+				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
 				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
 				
 		
@@ -191,7 +192,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					double cutoffTime = rs.getDouble(6);
 					String paramConfiguration = rs.getString(7);
 					boolean cutoffLessThanMax = rs.getBoolean(8);
-									
+					boolean killJob = rs.getBoolean(9);
+					if(killJob)
+					{
+						cutoffTime = 0;
+					}
 					
 					ProblemInstance pi = new ProblemInstance(problemInstance, instanceSpecificInformation);
 					ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
@@ -449,6 +454,46 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		}
 		
 		
+		
+	}
+
+
+	/**
+	 * Updates the run in the database
+	 * @param killableAlgorithmRun
+	 * @return <code>true</code> if the job has been killed or otherwise is no longer updatedable by us
+	 */
+	public boolean updateRunStatusAndCheckKillBit(KillableAlgorithmRun run) {
+		
+		//This query is designed to update the database IF and only IF
+		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
+		//This saves us another trip to the database
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=? WHERE runConfigUUID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
+		
+		
+		try {
+			Connection conn = getConnection();
+			
+			try {
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				stmt.setDouble(1, run.getRuntime());
+				stmt.setDouble(2, run.getRunLength());
+				stmt.setString(3, this.runConfigIDMap.get(run.getRunConfig()));
+				boolean shouldKill = (stmt.executeUpdate() == 0);
+
+				stmt.close();
+				return shouldKill;
+			} finally
+			{
+				conn.close();
+			}
+			
+		}catch(SQLException e)
+		{
+			log.error("Failed writing abort to database, something very bad is happening");
+			
+			throw new IllegalStateException(e);
+		}
 		
 	}
 	

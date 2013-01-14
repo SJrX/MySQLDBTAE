@@ -13,9 +13,9 @@ CREATE TABLE IF NOT EXISTS `commandTable_ACLIB_POOL_NAME` (
 CREATE TABLE IF NOT EXISTS `execConfig_ACLIB_POOL_NAME` (
   `algorithmExecutionConfigID` int(11) NOT NULL AUTO_INCREMENT,
   `algorithmExecutionConfigHashCode` char(40) COLLATE utf8_unicode_ci NOT NULL,
-  `algorithmExecutable` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `algorithmExecutableDirectory` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-  `parameterFile` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+  `algorithmExecutable` varchar(4096) COLLATE utf8_unicode_ci NOT NULL,
+  `algorithmExecutableDirectory` varchar(4096) COLLATE utf8_unicode_ci NOT NULL,
+  `parameterFile` varchar(4096) COLLATE utf8_unicode_ci NOT NULL,
   `executeOnCluster` tinyint(1) NOT NULL,
   `deterministicAlgorithm` tinyint(1) NOT NULL,
   `cutoffTime` double NOT NULL,

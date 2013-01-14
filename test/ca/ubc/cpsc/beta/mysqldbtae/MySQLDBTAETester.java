@@ -1,6 +1,8 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
+import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,10 +15,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
+import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
@@ -24,7 +29,9 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.CommandLineTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.BoundedTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
@@ -33,6 +40,7 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTAE;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.EchoTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 
 import ec.util.MersenneTwister;
 
@@ -55,6 +63,9 @@ public class MySQLDBTAETester {
 	private static final int BATCH_INSERT_SIZE = TARGET_RUNS_IN_LOOPS/10;
 	
 	private static final int MYSQL_RUN_PARTITION = 0;
+	
+	//Negative partitions won't be deleted
+	private static final int MYSQL_PERMANENT_RUN_PARTITION = -10;
 	@BeforeClass
 	public static void beforeClass()
 	{
@@ -100,7 +111,7 @@ public class MySQLDBTAETester {
 	{
 		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -149,7 +160,7 @@ public class MySQLDBTAETester {
 			}
 			
 			
-		
+			mysqlDBTae.notifyShutdown();
 	}
 	
 
@@ -158,7 +169,7 @@ public class MySQLDBTAETester {
 	{
 		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_PERMANENT_RUN_PARTITION,false);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -219,7 +230,7 @@ public class MySQLDBTAETester {
 			}
 			
 			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION+1);
+			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_PERMANENT_RUN_PARTITION+1,false);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -239,7 +250,13 @@ public class MySQLDBTAETester {
 				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
 				//THIS Test will fail
 				//MODIFY THE DB, and set this RunPartition value to have the -1 as a value.
-				assertDEquals(config.get("runtime"), run.getRuntime()+1, 0.1); 
+				try {
+				assertDEquals(config.get("runtime"), run.getRuntime()+1, 0.1);
+				} catch(AssertionError e)
+				{
+					System.err.println("Fix is SELECT * FROM runConfigs_" + MYSQL_POOL + " WHERE runPartition = " + MYSQL_PERMANENT_RUN_PARTITION);
+					throw e;
+				}
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
@@ -250,7 +267,7 @@ public class MySQLDBTAETester {
 			}
 						
 			
-		
+			mysqlDBTae.notifyShutdown();
 	}
 	
 	
@@ -266,7 +283,7 @@ public class MySQLDBTAETester {
 			
 			final AtomicInteger runsCompleted = new AtomicInteger(0);
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25,true,MYSQL_RUN_PARTITION);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25,true,MYSQL_RUN_PARTITION,true);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -357,7 +374,9 @@ public class MySQLDBTAETester {
 				throw e;
 			}
 			assertEquals((TEST_COUNT*(TEST_COUNT+1))/2,runsCompleted.get());
-			System.out.println("Um I really did " + runsCompleted.get());
+			//System.out.println("Um I really did " + runsCompleted.get());
+			
+			mysqlDBTae.notifyShutdown();
 		
 	}
 	
@@ -367,7 +386,7 @@ public class MySQLDBTAETester {
 	{
 		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION,true);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -398,7 +417,7 @@ public class MySQLDBTAETester {
 			}
 			
 			System.out.println("Performing " + runConfigs.size() + " runs");
-			TargetAlgorithmEvaluator tae = new BoundedTargetAlgorithmEvaluator(mysqlDBTae, 10);
+			TargetAlgorithmEvaluator tae = new BoundedTargetAlgorithmEvaluator(mysqlDBTae, 10,execConfig);
 			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
 			
 			
@@ -415,14 +434,20 @@ public class MySQLDBTAETester {
 
 			}
 			
+			mysqlDBTae.notifyShutdown();
 			
-		
+	}
+	@Test(expected=IllegalArgumentException.class)
+	public void testProtectionMechanism()
+	{
+	
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION,true);
+	
+	
 	}
 	
 	
-	
-	
-	
+
 	
 	@AfterClass
 	public static void afterClass()
