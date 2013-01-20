@@ -28,6 +28,7 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
+import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
@@ -118,7 +119,9 @@ public class MySQLTAEWorker {
 					done = true;
 					log.info("Done work");
 					
-					
+				}catch(PoolChangedException e)
+				{
+					options.pool = e.getNewPool();
 				} catch(Exception e)
 				{
 					if(Thread.currentThread().isInterrupted())
@@ -127,8 +130,16 @@ public class MySQLTAEWorker {
 						break;
 					} else
 					{
+						
+						try {
+							Thread.sleep( (long) (( 120 + Math.random()*60.0) * 1000) );
+						} catch (InterruptedException e1) {
+							Thread.interrupted();
+							return;
+						}
 						exceptionCount++;
 						log.error("Exception occured",e);
+						
 						log.info("Uncaught exceptions used {} out of {}", exceptionCount, options.uncaughtExceptionLimit);
 					}
 					
@@ -171,7 +182,7 @@ public class MySQLTAEWorker {
 	}
 	
 	
-	public static void processRuns(final MySQLTAEWorkerOptions options)
+	public static void processRuns(final MySQLTAEWorkerOptions options) throws PoolChangedException
 	{
 		
 		
@@ -348,6 +359,16 @@ public class MySQLTAEWorker {
 								options.runsToBatch = params.getBatchSize();
 								
 								log.info("New Delay {} and Batch Size {}", options.delayBetweenRequests, options.runsToBatch);
+								
+								if(!options.pool.trim().equals(params.getPool().trim()))
+								{
+									options.pool = params.getPool().trim();
+									log.info("Pool Changed to {}",options.pool);
+									throw new PoolChangedException(null, options.pool);
+								}
+										
+								
+								
 							}
 							lastUpdateTime = System.currentTimeMillis();
 							
