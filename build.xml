@@ -18,7 +18,6 @@
 				<arg value="HEAD"/>
 			</exec>
 			<echo>${git.branch}</echo>
-			<property name="deploy.dir" value="${software.dir}/mysqldbtae-${git.branch}/"/>
 	</target>
 		
 	
@@ -30,9 +29,6 @@
 		<path id="compile.classpath">
 					<fileset dir="lib" id="lib">
 						<include name="*.jar"/>
-					</fileset>
-					<fileset dir="${software.dir}/fastrf/" id="fastrf">
-						<include name="fastrf.jar"/>
 					</fileset>
 					<fileset dir="${software.dir}/aclib-${git.branch}/" id="aclib">
 						<include name="*.jar"/>
@@ -62,9 +58,6 @@
 		<echo file="${version.file.dev}">${version.devstring}</echo>
 		<echo file="build/classes/${version.file}">${version.string}</echo>
 		<property name="outputfilename" value="${ant.project.name}-${version.string}"/>
-		<!--<jar destfile="dist/mysqldbtae.jar" basedir="build/classes"/>-->
-		<!--<buildnumber file="/ubc/cs/project/arrow/seramage/software/build-numbers/buildnumber-${ant.project.name}"/>-->
-		<!-- <echo file="build/classes/${version.file}">vDEV-${build.number}</echo> -->
 		<jar destfile="dist/${ant.project.name}.jar" basedir="build/classes"/>
 				
 		<jar destfile="dist/${ant.project.name}-src.jar">
@@ -85,8 +78,7 @@
 						<include name="*"/>
 					</fileset>	
 		</copy>
-		
-		
+
 	</target>			
 	<target name="zip" depends="archive" description="Makes tarball for this release">
 			
@@ -101,7 +93,7 @@
 						</tarfileset>
 						
 			</tar>
-		</target>
+	</target>
 	
 	<target name="deploy-release" depends="zip" description="untars tarball in software.dir and creates symlink">
 		
