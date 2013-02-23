@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
@@ -84,8 +85,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		logWorker(runsToBatch, delayBetweenRequest, pool, version);
 	}
 
-	
-	
+	private final long BASIC_SLEEP_MS = 50;
+	private final long MAX_SLEEP_MS = 15000;
 	private AlgorithmExecutionConfig getAlgorithmExecutionConfig(int execConfigID) throws SQLException {
 		
 		if(!execConfigMap.containsKey(execConfigID)) 
@@ -152,19 +153,15 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			try {
 				Connection conn = getConnection();
 				stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
-				try {
-					stmt.execute();
-				} catch(MySQLTransactionRollbackException e)
-				{
-					log.info("Deadlock detected, trying again");
-					return getRuns(n);
-				}
+				
+				execute(stmt);
+				
 				//if(true) return Collections.emptyMap();
 				//conn.commit();
 				
 				sb = new StringBuffer();
 				//
-				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax FROM ").append(TABLE_RUNCONFIG);
+				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
 				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
 				
 		
@@ -191,7 +188,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					double cutoffTime = rs.getDouble(6);
 					String paramConfiguration = rs.getString(7);
 					boolean cutoffLessThanMax = rs.getBoolean(8);
-									
+					boolean killJob = rs.getBoolean(9);
+					if(killJob)
+					{
+						cutoffTime = 0;
+					}
 					
 					ProblemInstance pi = new ProblemInstance(problemInstance, instanceSpecificInformation);
 					ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
@@ -255,8 +256,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						stmt.setString(7, run.getAdditionalRunData());
 						
 						stmt.setString(8,runConfigUUID);
-						stmt.execute();
 						
+						execute(stmt);
 					} catch(SQLException e)
 					{
 						log.error("SQL Exception while saving run {}", run);
@@ -281,6 +282,30 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
+	private void execute(PreparedStatement stmt) throws SQLException
+	{
+		long sleepMS = BASIC_SLEEP_MS;
+		for(int i=0; i < 25; i++)
+		{
+			try {
+				stmt.execute();
+				return;
+			} catch(MySQLTransactionRollbackException e)
+			{
+				//Deadlock detected
+				
+				try {
+					Thread.sleep(sleepMS + (long) ((Math.random()*sleepMS)/2));
+				} catch (InterruptedException e1) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException("Unknown interruption occurred", e1);
+				}
+				sleepMS = Math.min(2*sleepMS, MAX_SLEEP_MS);
+				continue;
+			}
+		}
+		throw new SQLException("After 25 attempts we could not get a successful Transaction");
+	}
 	private void setAbortRun(String runConfigUUID)
 	{
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult='ABORT', status='COMPLETE'  WHERE runConfigUUID=?");
@@ -292,7 +317,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				Connection conn = getConnection();
 				stmt = conn.prepareStatement(sb.toString());
 				stmt.setString(1, runConfigUUID);
-				stmt.execute();
+				execute(stmt);
 				//conn.commit();
 				conn.close();
 			} finally
@@ -319,7 +344,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
-				stmt.execute();
+				execute(stmt);
 
 				stmt.close();
 			} finally
@@ -408,7 +433,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	}
 	
 	public UpdatedWorkerParameters getUpdatedParameters() {
-		StringBuilder sb = new StringBuilder("SELECT runsToBatch, delayBetweenRequests FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+		StringBuilder sb = new StringBuilder("SELECT runsToBatch, delayBetweenRequests,pool FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
@@ -426,7 +451,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					return null;
 				}
 				
-				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(rs.getInt(1), rs.getInt(2));
+				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(rs.getInt(1), rs.getInt(2), rs.getString(3));
 				stmt.close();
 				
 				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET upToDate=1 WHERE workerUUID=\""+workerUUID.toString()+"\" ");
@@ -449,6 +474,46 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		}
 		
 		
+		
+	}
+
+
+	/**
+	 * Updates the run in the database
+	 * @param killableAlgorithmRun
+	 * @return <code>true</code> if the job has been killed or otherwise is no longer updatedable by us
+	 */
+	public boolean updateRunStatusAndCheckKillBit(KillableAlgorithmRun run) {
+		
+		//This query is designed to update the database IF and only IF
+		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
+		//This saves us another trip to the database
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=? WHERE runConfigUUID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
+		
+		
+		try {
+			Connection conn = getConnection();
+			
+			try {
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				stmt.setDouble(1, run.getRuntime());
+				stmt.setDouble(2, run.getRunLength());
+				stmt.setString(3, this.runConfigIDMap.get(run.getRunConfig()));
+				boolean shouldKill = (stmt.executeUpdate() == 0);
+
+				stmt.close();
+				return shouldKill;
+			} finally
+			{
+				conn.close();
+			}
+			
+		}catch(SQLException e)
+		{
+			log.error("Failed writing abort to database, something very bad is happening");
+			
+			throw new IllegalStateException(e);
+		}
 		
 	}
 	

@@ -46,7 +46,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			 createTables = stringToBoolean(getEnvVariable("MYSQL_CREATE_TABLES","TRUE"));
 		} catch (IllegalArgumentException e)
 		{
-			throw new IllegalArgumentException("Error occured while processing variable " + " MYSQL_SKIP_TABLE_CREATE",e);
+			throw new IllegalArgumentException("Error occured while processing variable " + " MYSQL_SKIP_TABLE_CREATE, must be set to true or false.",e);
 		}
 		
 		int batchInsertSize;
@@ -57,10 +57,27 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			throw new ParameterException("MYSQL_BATCH_INSERT_SIZE enviroment variable must be an Integer not " + getEnvVariable("MYSQL_BATCH_INSERT_SIZE"));
 		}
 		
+		int runPartition;
+		try {
+			runPartition = Integer.valueOf(getEnvVariable("MYSQL_RUN_PARTITION"));
+		} catch(NumberFormatException e)
+		{
+			throw new ParameterException("MYSQL_RUN_PARTITION environment variable must be set to an Integer not " + getEnvVariable("MYSQL_RUN_PARTITION",String.valueOf(Integer.MIN_VALUE)));
+		}
+		
+		boolean deletePartitionDataOnShutdown;
+		try {
+			deletePartitionDataOnShutdown = stringToBoolean(getEnvVariable("MYSQL_DELETE_PARTITION_DATA_ON_SHUTDOWN","FALSE"));
+		} catch(IllegalArgumentException e)
+		{
+			throw new IllegalArgumentException("Error occured while processing variable " + " MYSQL_DELETE_PARTITION_DATA_ON_SHUTDOWN, must be set to true or false",e);
+		}
 		
 		
-		
-		
+		if(deletePartitionDataOnShutdown && runPartition < 0)
+		{
+			throw new IllegalArgumentException("Sorry you cannot automatically delete partitions with negative ids, this is a protection mechanism so you don't delete a bunch of data you aren't expecting");
+		}
 		
 		
 		String illegalPathPrefixToken = "\\=2421@%!%@!!@4"; //Can't use null because that means it's required
@@ -77,7 +94,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
 		}
 		
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown);
 		
 		
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
