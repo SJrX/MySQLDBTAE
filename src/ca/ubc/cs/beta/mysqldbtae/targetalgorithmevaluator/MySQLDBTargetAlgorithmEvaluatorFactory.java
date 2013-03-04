@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
+import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.factory.TargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
@@ -29,7 +30,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 	
 	@Override
 	public TargetAlgorithmEvaluator getTargetAlgorithmEvaluator(
-			AlgorithmExecutionConfig execConfig, int maxConcurrentExecutions) {
+			AlgorithmExecutionConfig execConfig, AbstractOptions options) {
 		
 		/**
 		 * Get MYSQL Connection
@@ -102,7 +103,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 	
 		
 		
-		return new MySQLDBTAE(execConfig, mysqlPersistence);
+		return new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
 		
 	}
 	
@@ -144,6 +145,14 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		
 		return propertyValue;
 	}
+
+
+	@Override
+	public AbstractOptions getOptionObject() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
 	
 	
 

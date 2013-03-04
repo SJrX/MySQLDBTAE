@@ -23,15 +23,15 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TAEShutdownExcep
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 
-public class MySQLDBTAE extends AbstractDeferredTargetAlgorithmEvaluator {
+public class MySQLTargetAlgorithmEvaluator extends AbstractDeferredTargetAlgorithmEvaluator {
 
 
 	private final MySQLPersistenceClient persistence;
-	private final Logger log = LoggerFactory.getLogger(MySQLDBTAE.class);
+	private final Logger log = LoggerFactory.getLogger(MySQLTargetAlgorithmEvaluator.class);
 	private final ExecutorService requestWatcher = Executors.newCachedThreadPool();
 	
 
-	public MySQLDBTAE(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence) {
+	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence) {
 		super(execConfig);
 		this.persistence = persistence;
 	}

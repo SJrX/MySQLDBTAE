@@ -20,14 +20,17 @@ import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
+import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
+import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
@@ -55,18 +58,11 @@ public class MySQLTAEWorker {
 		
 		
 		MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
+		Map<String,AbstractOptions> taeOptions = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
 		
-		
-		
-				
-		JCommander com = new JCommander(options, true, true);
+		JCommander com = JCommanderHelper.getJCommander(options, taeOptions);
 		com.setProgramName("mysqltaeworker");
 		int exceptionCount = 0;
-		
-		
-		
-		
-		
 		
 		try {
 			try {
@@ -83,16 +79,7 @@ public class MySQLTAEWorker {
 			}
 			
 			
-			
-			
-			
-			
-			
-			
-			
-			List<String> names = TargetAlgorithmEvaluatorBuilder.getAvailableTargetAlgorithmEvaluators(options.taeOptions);
-			
-			VersionTracker.setClassLoader(TargetAlgorithmEvaluatorBuilder.getClassLoader(options.taeOptions));
+			VersionTracker.setClassLoader(TargetAlgorithmEvaluatorLoader.getClassLoader());
 			VersionTracker.logVersions();
 		
 			
@@ -101,7 +88,7 @@ public class MySQLTAEWorker {
 			options.taeOptions.abortOnFirstRunCrash = false;
 			options.taeOptions.verifySAT = false;
 			
-			for(String name : names)
+			for(String name : taeOptions.keySet())
 			{
 				log.info("Target Algorithm Evaluator Available {} ", name);
 			}
@@ -115,7 +102,7 @@ public class MySQLTAEWorker {
 			{
 				try {
 					
-					processRuns(options);
+					processRuns(options, taeOptions);
 					done = true;
 					log.info("Done work");
 					
@@ -151,7 +138,7 @@ public class MySQLTAEWorker {
 		}catch(ParameterException e)
 		{
 			try {
-				ConfigToLaTeX.usage(ConfigToLaTeX.getParameters(options));
+				ConfigToLaTeX.usage(ConfigToLaTeX.getParameters(options, taeOptions));
 			} catch (IllegalArgumentException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
@@ -182,7 +169,7 @@ public class MySQLTAEWorker {
 	}
 	
 	
-	public static void processRuns(final MySQLTAEWorkerOptions options) throws PoolChangedException
+	public static void processRuns(final MySQLTAEWorkerOptions options, Map<String, AbstractOptions> taeOptions) throws PoolChangedException
 	{
 		
 		
@@ -253,7 +240,7 @@ public class MySQLTAEWorker {
 							log.info("Have {} jobs to do ", ent.getValue().size());
 							if(taeMap.get(execConfig) == null)
 							{
-								TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions, execConfig, false);
+								TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions, execConfig, false, taeOptions);
 								taeMap.put(execConfig, tae);
 							}
 								
