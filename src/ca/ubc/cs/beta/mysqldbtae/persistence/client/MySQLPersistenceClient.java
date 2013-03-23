@@ -96,6 +96,13 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	private final Map<RunToken, Map<String, RunConfig>> runTokenToStringRCMap = new ConcurrentHashMap<RunToken, Map<String, RunConfig>>();
 	
+	
+	/**
+	 * Stores a mapping from RunConfigUUID to runConfigID
+	 */
+	private final Map<RunToken, Map<String, Integer>> runTokenToStringIDMap = new ConcurrentHashMap<RunToken, Map<String, Integer>>();
+	
+	
 	/**
 	 * Stores a mapping from RunConfig to RunConfigUUID
 	 */
@@ -104,7 +111,9 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	
 	/**
 	 * Stores a mapping from RunConfig to RunConfigUUI
+	 * Not sure if this map will be particularly useful
 	 */
+	@Deprecated
 	private final Map<RunConfig, String> runConfigToRunConfigID = new ConcurrentHashMap<RunConfig, String>();
 	
 	/**
@@ -177,6 +186,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	private final int runPartition;
 
+	private final boolean getAdditionalRunData = false;
 	/**
 	 * Flag variable, if <code>true</code> we should delete all the data in the db. 
 	 */
@@ -242,7 +252,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					
 					conn = getConnection();
 				
-				
 					Map<RunConfig, AlgorithmRun> userRuns = runTokenToCompletedRuns.get(token);
 					Map<RunConfig, KillableAlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(token); 
 					Map<RunConfig, KillHandler> killHandlers = runTokenToKillHandler.get(token);
@@ -257,9 +266,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						while(userRuns.size() < runs)
 						{
 							StringBuilder sb = new StringBuilder();	
-							sb.append("SELECT runConfigUUID, result_line,status,runtime FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 							
+							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, result_seed  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 							
+						
 							int querySize = 0;
 							for(String key : incompleteRuns)
 							{
@@ -283,16 +293,13 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							{
 								stmt = conn.prepareStatement(sb.toString());
 							
-							
 								ResultSet rs = stmt.executeQuery();
-								
-								
 								
 								while(rs.next())
 								{	
-									if(rs.getString(3).equals("COMPLETE"))
+									if(rs.getString(2).equals("COMPLETE"))
 									{
-										String resultLine = rs.getString(2);
+										String resultLine = rs.getString(3) + "," + rs.getDouble(4) + "," + rs.getDouble(5) + "," + rs.getDouble(6) + "," + rs.getLong(7);
 										
 										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
 										incompleteRuns.remove(rs.getString(1));
@@ -311,13 +318,13 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										userRuns.put(runConfig, run);
 										returnedResults++;
 										
-									} else if(rs.getString(3).equals("ASSIGNED"))
+									} else if(rs.getString(2).equals("ASSIGNED"))
 									{
 										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
 										
 										outstandingRuns.put(runConfig, new RunningAlgorithmRun(execConfig, runConfig, "RUNNING," + rs.getDouble(4)+",0,0,"+ runConfig.getProblemInstanceSeedPair().getSeed() , killHandlers.get(runConfig)));
 									} else
-									{
+									{	
 										throw new IllegalStateException("Must have some new status that we don't know what do with in the database");
 									}
 								}	
@@ -448,6 +455,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					runTokenToKillHandler.remove(token);
 					runTokenToStringRCMap.remove(token);
 					runTokenToRCStringMap.remove(token);
+					runTokenToStringIDMap.remove(token);
 
 					
 					
@@ -469,8 +477,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 
 	public RunToken enqueueRunConfigs(List<RunConfig> runConfigs, CurrentRunStatusObserver obs)
 	{
-	
-		
+
 		AutoStartStopWatch completeInsertionTime = new AutoStartStopWatch();
 		
 		if(execConfigID == -1) throw new IllegalStateException("execConfigID must be set");
@@ -480,12 +487,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			throw new IllegalArgumentException("Must supply atleast one run " + runConfigs);
 		}
 	
-		
 		List<String> runKeys = new ArrayList<String>(runConfigs.size());
 		
 		RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
 		
-	
 		boolean firstRun = true;
 		Connection conn = null;
 		try {
@@ -516,6 +521,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			Map<RunConfig, KillHandler> killHandlers = runTokenToKillHandler.get(runToken);
 			Map<RunConfig, String> runConfigToString = runTokenToRCStringMap.get(runToken);
 			Map<String,RunConfig> stringToRunConfig  = runTokenToStringRCMap.get(runToken);
+			Map<String, Integer> runConfigToIDMap = new HashMap<String, Integer>();
 			
 			for(int i=0; (i < Math.ceil((runConfigs.size()/(double) batchInsertSize)));i++)
 			{
@@ -529,12 +535,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration,paramConfigurationHash, cutoffLessThanMax, runConfigUUID, runPartition) VALUES ");
+				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
 				{				
-						 sb.append(" (?,?,?,?,?,?,?,?,?,?),");
+						 sb.append(" (?,?,?,?,?,?,?,?,?),");
 				
 				}
 		
@@ -553,6 +559,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
 			
 						int k=1;
+						List<String> uuids = new ArrayList<String>(listUpperBound - listLowerBound + 1);
+						
 						for(int j =listLowerBound; j < listUpperBound; j++ )
 						{				
 							RunConfig rc = runConfigs.get(j);
@@ -564,7 +572,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							killHandlers.put(rc, kh);
 							outstandingRuns.put(rc, new RunningAlgorithmRun(execConfig, rc, "RUNNING,0,0,0,"+ rc.getProblemInstanceSeedPair().getSeed() , kh));
 							String uuid = getHash(rc, execConfig, runPartition);
-							
+							uuids.add(uuid);
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
 							if(rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation().length() > 2000)
@@ -586,8 +594,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							}
 							stmt.setString(k++, configString);
 							
-							
-							stmt.setString(k++, hasher.getHash(rc.getParamConfiguration()));
 							stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
 							stmt.setString(k++,uuid);
 							stmt.setInt(k++, runPartition);
@@ -610,6 +616,38 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								log.info("Deadlock");
 							}
 						}
+						
+						/*
+						stmt.close();
+						
+						StringBuilder sb2 = new StringBuilder("SELECT runConfigID, runConfigUUID FROM runConfigUUID IN (");
+						
+						for(int j =listLowerBound; j < listUpperBound; j++ )
+						{
+							sb2.append("?,");
+						}
+						sb2.setCharAt(sb2.length()-1, ' ');
+						sb2.append(")");
+						
+						stmt = conn.prepareStatement(sb2.toString());
+						
+						for(int j =listLowerBound,m=1; j < listUpperBound; j++,m++ )
+						{
+							stmt.setString(m, uuids.get(m-1));
+						}
+						
+					
+						
+					
+						ResultSet rs = stmt.executeQuery();
+
+						while(rs.next())
+						{	
+							int runConfigID = rs.getInt(1);
+							String runConfigUUID = rs.getString(2);
+							runConfigToIDMap.put(runConfigUUID, runConfigID);
+						}
+						*/					
 					} finally 
 					{
 						if(stmt != null) stmt.close();
@@ -619,7 +657,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					
 					Object[] args = { listUpperBound - listLowerBound, stopWatch.time()/1000.0, timePerRow};
 					log.debug("Insertion of {} rows took {} seconds {} row / second", args);
-							
+					
 				
 				} catch(PacketTooBigException e)
 				{
@@ -640,6 +678,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			this.runTokenToIncompleteRunsSet.put(runToken, unfinishedRunConfigs);
 			
 			this.runTokenToCompletedRuns.put(runToken, new HashMap<RunConfig, AlgorithmRun>());
+			this.runTokenToStringIDMap.put(runToken, runConfigToIDMap);
 			
 			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
 			log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);

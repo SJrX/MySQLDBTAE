@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,13 +56,15 @@ public class MySQLDBObserverTester {
 	
 	private static MySQLConfig mysqlConfig;
 	
-	private static final String MYSQL_POOL = "juniting";
+	private static final String MYSQL_POOL = "juniting2";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 50;
 	private static final int BATCH_INSERT_SIZE = TARGET_RUNS_IN_LOOPS/10;
 	
 	private static final int MYSQL_RUN_PARTITION = 0;
+	
+	private  static Random rand;
 	@BeforeClass
 	public static void beforeClass()
 	{
@@ -111,6 +114,7 @@ public class MySQLDBObserverTester {
 		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 0.01);
 		
 		
+		rand = new MersenneTwister();
 		
 
 		
@@ -148,7 +152,7 @@ public class MySQLDBObserverTester {
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
 		for(int i=0; i < 1; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration();
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -250,7 +254,7 @@ public class MySQLDBObserverTester {
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
 		for(int i=0; i < 1; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration();
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -351,7 +355,7 @@ public class MySQLDBObserverTester {
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
 		for(int i=0; i < 4; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration();
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -453,7 +457,7 @@ public class MySQLDBObserverTester {
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
 		for(int i=0; i < 4; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration();
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -563,7 +567,7 @@ public class MySQLDBObserverTester {
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(10);
 		for(int i=0; i < 10; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration();
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 			config.put("runtime", ""+(i+1));
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -672,7 +676,7 @@ public class MySQLDBObserverTester {
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(10);
 		for(int i=0; i < 10; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration();
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 			config.put("runtime", ""+(i+1));
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{

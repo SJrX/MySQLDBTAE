@@ -102,7 +102,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		 String algorithmExecutable = rs.getString(1);
 		 String algorithmExecutionDirectory = rs.getString(2);
 		 
-		 ParamConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3), 1);
+		 ParamConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
 		 
 		 boolean executeOnCluster = rs.getBoolean(4);
 		 boolean deterministicAlgorithm = rs.getBoolean(5);
@@ -144,7 +144,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 			//Pull workers off the queue in order of priority, do not take workers where we already tried
 			//This isn't a perfect heuristic. I'm hoping it's good enough.
-			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN ( SELECT runConfigUUID FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND (workerUUID IS NULL OR workerUUID <> \""+ workerUUID.toString() +"\") LIMIT " + n +  "  FOR UPDATE) B ON B.runConfigUUID=A.runConfigUUID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\";");
+			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (").append(
+					"SELECT runConfigID, priority FROM (").append(
+					"(SELECT runConfigID,0 AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"LOW\" LIMIT " + n +  ")\n").append(
+					"UNION\n").append(
+					"(SELECT runConfigID,1 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"NORMAL\" LIMIT " + n +  ")\n").append(
+					"UNION\n").append(
+					"(SELECT runConfigID,2 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"HIGH\" LIMIT " + n +  ")\n").append(
+					"UNION\n").append(
+					"(SELECT runConfigID,3 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"UBER\" LIMIT " + n +  ")\n").append(		
+					") innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(	
+					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\";");
 					
 					
 			System.out.println(sb.toString());
@@ -161,7 +171,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				sb = new StringBuffer();
 				//
-				sb.append("SELECT runConfigUUID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
+				sb.append("SELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
 				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
 				
 		
@@ -178,8 +188,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				while(rs.next())
 				{
 					
-					String uuid = rs.getString(1);
-					log.debug("Assigned Run {} ", uuid);
+					String rcID = rs.getString(1);
+					log.debug("Assigned Run {} ", rcID);
 					//if(true) continue;
 					AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
 					String problemInstance = rs.getString(3);
@@ -199,7 +209,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
 					
 					RunConfig rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
-					runConfigIDMap.put(rc, uuid);
+					runConfigIDMap.put(rc, rcID);
 					if(myMap.get(execConfig) == null)
 					{
 						myMap.put(execConfig, new ArrayList<RunConfig>(n));
@@ -231,7 +241,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	{
 	
 		
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, result_seed=?, result_line=?, runtime=?, additional_run_data=?, status='COMPLETE'  WHERE runConfigUUID=?");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, result_seed=?, runtime=?, additional_run_data=?, status='COMPLETE'  WHERE runConfigID=?");
 		
 		try {
 			
@@ -243,7 +253,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 				for(AlgorithmRun run : runResult)
 				{	
-					String runConfigUUID = runConfigIDMap.get(run.getRunConfig());
+					String runConfigID = runConfigIDMap.get(run.getRunConfig());
 						
 					try {
 						
@@ -251,11 +261,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						stmt.setDouble(2, run.getRunLength());
 						stmt.setDouble(3, run.getQuality());
 						stmt.setLong(4,run.getResultSeed());
-						stmt.setString(5, run.getResultLine());
-						stmt.setDouble(6, run.getRuntime());
-						stmt.setString(7, run.getAdditionalRunData());
+						stmt.setDouble(5, run.getRuntime());
+						stmt.setString(6, run.getAdditionalRunData());
 						
-						stmt.setString(8,runConfigUUID);
+						stmt.setString(7,runConfigID);
 						
 						execute(stmt);
 					} catch(SQLException e)
@@ -263,7 +272,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						log.error("SQL Exception while saving run {}", run);
 						log.error("Error occured", e);
 						log.error("Saving ABORT Manually");
-						setAbortRun(runConfigUUID);
+						setAbortRun(runConfigID);
 					}
 					
 				} 

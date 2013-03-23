@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -56,7 +57,7 @@ public class MySQLDBTAETester {
 	
 	private static MySQLConfig mysqlConfig;
 	
-	private static final String MYSQL_POOL = "juniting";
+	private static final String MYSQL_POOL = "juniting2";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 50;
@@ -66,6 +67,8 @@ public class MySQLDBTAETester {
 	
 	//Negative partitions won't be deleted
 	private static final int MYSQL_PERMANENT_RUN_PARTITION = -10;
+	
+	private static Random rand; 
 	@BeforeClass
 	public static void beforeClass()
 	{
@@ -93,14 +96,13 @@ public class MySQLDBTAETester {
 			
 			
 			
-			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
 		configSpace = new ParamConfigurationSpace(paramFile);
 		execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
-		
+		rand = new MersenneTwister();
 
 		
 	}
@@ -123,12 +125,12 @@ public class MySQLDBTAETester {
 			
 			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
 			
-			configSpace.setPRNG(new MersenneTwister());
+			
 			
 			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
 			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 			{
-				ParamConfiguration config = configSpace.getRandomConfiguration();
+				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 				{
 					//Only want good configurations
@@ -181,7 +183,7 @@ public class MySQLDBTAETester {
 			
 			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
 			
-			configSpace.setPRNG(new MersenneTwister());
+			
 			
 			List<RunConfig> runConfigs = new ArrayList<RunConfig>(5);
 			for(int i=0; i < 5; i++)
@@ -295,7 +297,6 @@ public class MySQLDBTAETester {
 			
 			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
 			
-			configSpace.setPRNG(new MersenneTwister());
 			
 			for(int i=0; i < TEST_COUNT; i++)
 			{
@@ -303,7 +304,7 @@ public class MySQLDBTAETester {
 				
 				for(int j=0; j <= i; j++)
 				{
-					ParamConfiguration config = configSpace.getRandomConfiguration();
+					ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 					if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 					{
 						//Only want good configurations
@@ -398,12 +399,11 @@ public class MySQLDBTAETester {
 			
 			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
 			
-			configSpace.setPRNG(new MersenneTwister());
 			
 			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
 			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 			{
-				ParamConfiguration config = configSpace.getRandomConfiguration();
+				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 				{
 					//Only want good configurations

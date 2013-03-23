@@ -18,7 +18,8 @@ import ca.ubc.cs.beta.targetalgorithmevaluator.TAETestSet;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
 	MySQLDBObserverTester.class,
-	MySQLDBTAETester.class
+	MySQLDBTAETester.class,
+	MySQLDBTAEPoolSwitchTester.class
 })
 
 public class MySQLDBTestSuite
