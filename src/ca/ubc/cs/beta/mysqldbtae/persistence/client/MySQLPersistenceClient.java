@@ -43,6 +43,7 @@ import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
+import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
 import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
@@ -192,25 +193,35 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	private final boolean deletePartitionDataOnShutdown;
 	
-	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown)
+
+	private final JobPriority priority;
+	
+	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority);
 	}
 	
-	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown)
+	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown);
+		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority);
 	}
 	
 
 	public MySQLPersistenceClient(String host, int port,
 			String databaseName, String username, String password, String pool,
-			String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown) {
+			String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority) {
 		super(host, port, databaseName, username, password, pool, createTables);
 		this.pathStrip = new PathStripper(pathStrip);
 		this.batchInsertSize = batchInsertSize;
 		this.runPartition = runPartition;
 		this.deletePartitionDataOnShutdown = deletePartitionDataOnShutdown;
+		if(priority == null)
+		{
+			throw new IllegalArgumentException("Priority cannot be null");
+		}
+		this.priority = priority;
+		
+		
 		if(deletePartitionDataOnShutdown && runPartition < 0)
 		{
 			throw new IllegalArgumentException("You cannot delete partition data with a negative partition value, this is a safety mechanism. DELETE FROM " + TABLE_RUNCONFIG + " WHERE runPartition="+runPartition);
@@ -535,18 +546,19 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT IGNORE INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition) VALUES ");
+				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
 				{				
-						 sb.append(" (?,?,?,?,?,?,?,?,?),");
+						 sb.append(" (?,?,?,?,?,?,?,?,?,?),");
 				
 				}
 		
 				sb.setCharAt(sb.length()-1, ' ');
 				
-				
+				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\"");
+						
 				try {
 					PreparedStatement stmt = null;
 					StopWatch stopWatch = new StopWatch();
@@ -597,6 +609,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
 							stmt.setString(k++,uuid);
 							stmt.setInt(k++, runPartition);
+							stmt.setString(k++, priority.name());
 							runKeys.add(uuid);
 							
 							stringToRunConfig.put(uuid, rc);

@@ -36,6 +36,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunSta
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.BoundedTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
+import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -69,6 +70,8 @@ public class MySQLDBTAEPoolSwitchTester {
 	private static final int MYSQL_PERMANENT_RUN_PARTITION = -10;
 	
 	private static Random rand;
+	
+	private final JobPriority priority = JobPriority.HIGH;
 	@BeforeClass
 	public static void beforeClass()
 	{
@@ -116,7 +119,7 @@ public class MySQLDBTAEPoolSwitchTester {
 	{
 		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+1, 25, true,MYSQL_PERMANENT_RUN_PARTITION,false);
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+1, 25, true,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -177,7 +180,7 @@ public class MySQLDBTAEPoolSwitchTester {
 			}
 			
 			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+2, 25, true,MYSQL_PERMANENT_RUN_PARTITION+1,false);
+			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+2, 25, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
