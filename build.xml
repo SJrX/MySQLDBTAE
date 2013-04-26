@@ -72,7 +72,7 @@
 						<include name="conf/**"/>
 			</fileset>
 					<fileset refid="lib"/>
-					<fileset refid="fastrf"/>
+
 					<fileset refid="aclib"/>
 					<fileset dir="scripts">
 						<include name="*"/>

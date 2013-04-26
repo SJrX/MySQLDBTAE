@@ -259,7 +259,7 @@ public class MySQLDBTAETester {
 				assertDEquals(config.get("runtime"), run.getRuntime()+1, 0.1);
 				} catch(AssertionError e)
 				{
-					System.err.println("Fix is SELECT * FROM runConfigs_" + MYSQL_POOL + " WHERE runPartition = " + MYSQL_PERMANENT_RUN_PARTITION);
+					System.err.println("Make sure to run this configuration to fix the database (after truncating the table and one failed run) UPDATE runConfigs_" + MYSQL_POOL + " SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1));
 					throw e;
 				}
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
