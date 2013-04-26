@@ -52,11 +52,12 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@Parameter(names="--logOutputDir", description="Log Output Directory", converter=WritableDirectoryConverter.class)
 	public File logDirectory = new File(System.getProperty("user.home"));
-	/*
-	@Parameter(names="--numberOfInsertsForTest")
-	public int numberOfInserts = 1000;
-	*/
 
 	@Parameter(names="--createPoolTables", description="Create the tables for the pool in the database")
 	public boolean createTables = true;
+	
+	@UsageTextField(defaultValues="10 days")
+	@Parameter(names="--idleLimit", description="Amount of time to not have a task before shutting down (by default this limit is set to 10 days)" , converter=DurationConverter.class)
+	public int idleLimit = 86400*10;
+	
 }

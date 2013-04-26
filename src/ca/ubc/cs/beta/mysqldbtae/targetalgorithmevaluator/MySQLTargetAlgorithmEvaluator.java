@@ -146,8 +146,13 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractDeferredTargetAlgorit
 				handler.onFailure(e);
 				return;
 			}
-			
-			handler.onSuccess(runs);
+			try {
+				handler.onSuccess(runs);
+			} catch(RuntimeException e)
+			{
+				log.error("RuntimeException occurred during invocation of onSuccess(), calling onFailure()", e);
+				handler.onFailure(e);
+			}
 			return;
 				
 		}

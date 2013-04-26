@@ -89,7 +89,7 @@ public class MySQLDBObserverTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --timeLimit 1d");
-			b.append(" --tae CLI --runsToBatch 200 --delayBetweenRequests 1 " );
+			b.append(" --tae CLI --runsToBatch 200 --delayBetweenRequests 1 --idleLimit 15s" );
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc);

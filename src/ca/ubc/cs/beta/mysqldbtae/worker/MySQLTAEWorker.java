@@ -172,16 +172,13 @@ public class MySQLTAEWorker {
 	public static void processRuns(final MySQLTAEWorkerOptions options, Map<String, AbstractOptions> taeOptions) throws PoolChangedException
 	{
 		
-		
 			long endTime = (startTimeSecs + getSecondsLeft(options)) * 1000;
 			long lastUpdateTime = System.currentTimeMillis();
+			long lastJobFinished = System.currentTimeMillis();
 			
 			Calendar calendar = Calendar.getInstance();
 			calendar.setTimeInMillis(endTime);
-			
-			
 		
-			
 			String version = "<Error getting version>";
 			try
 			{
@@ -206,7 +203,7 @@ public class MySQLTAEWorker {
 					} catch(RuntimeException e)
 					{
 						e.printStackTrace();
-						System.err.println("WHAT?");
+						System.err.println("Error occurd during shutdown hook?");
 					}
 				log.info("Shutdown hook finished");
 				}
@@ -251,8 +248,7 @@ public class MySQLTAEWorker {
 							{ //===Process the requests one by one, in case we get an Exception
 								AutoStartStopWatch runWatch = new AutoStartStopWatch();
 								
-								try {
-									
+								try {									
 									
 									CurrentRunStatusObserver obs = new CurrentRunStatusObserver() {
 										private long lastDBUpdate = System.currentTimeMillis();
@@ -325,11 +321,14 @@ public class MySQLTAEWorker {
 						if(zeroJobs)
 						{
 							log.info("No jobs in database");
+						} else
+						{
+							log.info("Saving results");
+							mysqlPersistence.setRunResults(algorithmRuns);
+							mysqlPersistence.resetUnfinishedRuns();
+							lastJobFinished = System.currentTimeMillis();
 						}
 						
-						log.info("Saving results");
-						mysqlPersistence.setRunResults(algorithmRuns);
-						mysqlPersistence.resetUnfinishedRuns();
 						
 						long loopStop = loopStart.stop();
 						
@@ -363,17 +362,22 @@ public class MySQLTAEWorker {
 						
 						double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
 						
+						double idleTime = (int) (System.currentTimeMillis()/1000.0 - lastJobFinished/1000.0);
 						
-						log.info("Seconds left for worker is {} seconds",getSecondsLeft(options));
+						log.info("Seconds left for worker is {} seconds and idle limit left is {} seconds ",getSecondsLeft(options), (int) ( options.idleLimit - idleTime));
+						
 						
 						if(waitTime > getSecondsLeft(options))
 						{
 							log.info("Wait time {} is too high, finishing up", waitTime);
 							return;
-						} else if(getSecondsLeft(options) < 0)
+						} else if(idleTime > options.idleLimit)
 						{
-							//Not sure why this isn't a dead branch 
+							log.info("We have been idle too long {}, finishing up", idleTime );
+							return;
 						}
+							
+							
 						
 						
 						

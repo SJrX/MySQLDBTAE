@@ -106,7 +106,7 @@ public class MySQLDBTAEPriorityOrderTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --timeLimit 1d");
-			b.append(" --tae PARAMECHO --runsToBatch 1 --delayBetweenRequests 3 " );
+			b.append(" --tae PARAMECHO --runsToBatch 1 --delayBetweenRequests 3 --idleLimit 30s" );
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc);

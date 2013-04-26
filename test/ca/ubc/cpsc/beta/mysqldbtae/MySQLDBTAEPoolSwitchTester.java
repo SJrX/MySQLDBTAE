@@ -92,7 +92,7 @@ public class MySQLDBTAEPoolSwitchTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL + 1);
 			b.append(" --timeLimit 1d --updateFrequency 2");
-			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 " );
+			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 --idleLimit 30s" );
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc);

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -36,6 +37,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunSta
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.BoundedTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.WaitableTAECallback;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
@@ -69,6 +71,7 @@ public class MySQLDBTAETester {
 	//Negative partitions won't be deleted
 	private static final int MYSQL_PERMANENT_RUN_PARTITION = -10;
 	
+	private static final AtomicBoolean lastLineSeen = new AtomicBoolean(false);
 	private static Random rand;
 	
 	private JobPriority priority = JobPriority.HIGH;
@@ -91,11 +94,25 @@ public class MySQLDBTAETester {
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
-			b.append(" --timeLimit 1d");
+			b.append(" --timeLimit 1d --idleLimit 10s");
 			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 " );
 			proc = Runtime.getRuntime().exec(b.toString());
 			
-			InputReader.createReadersForProcess(proc);
+			InputReader.createReadersForProcess(proc, "WORKER>", new InputReader.LineHandler() 
+			{
+
+				@Override
+				public void processLine(String line) {
+					// TODO Auto-generated method stub
+					//System.out.println("Saw: " + line);
+					if(line.contains("Main Method Ended"))
+					{
+						System.out.println("Setting last line to true");
+						lastLineSeen.set(true);
+					}
+				}
+				
+			});
 			
 			
 			
@@ -169,6 +186,73 @@ public class MySQLDBTAETester {
 	}
 	
 
+	
+	@Test
+	public void testOnSuccessExceptionCallsonFailure()
+	{
+		
+			
+			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
+			try {
+			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+			} catch(RuntimeException e)
+			{
+				e.printStackTrace();
+				throw e;
+			}
+			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			
+			
+			
+			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
+			{
+				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
+				{
+					//Only want good configurations
+					i--;
+					continue;
+				} else
+				{
+					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+					runConfigs.add(rc);
+				}
+			}
+			
+			System.out.println("Performing " + runConfigs.size() + " runs");
+			TargetAlgorithmEvaluator tae = mysqlDBTae;
+			final AtomicBoolean onFailure = new AtomicBoolean(false);
+			TAECallback callback = new TAECallback()
+			{
+
+				@Override
+				public void onSuccess(List<AlgorithmRun> runs) {
+					System.out.println("Throwing an exception in onSuccess");
+					throw new IllegalStateException("Yo Yo Yo!");
+				}
+
+				@Override
+				public void onFailure(RuntimeException t) {
+					onFailure.set(true);
+				}
+				
+			};
+			WaitableTAECallback wait = new WaitableTAECallback(callback);
+			
+			tae.evaluateRunsAsync(runConfigs, wait);
+			
+			wait.waitForCompletion();
+			assertTrue("onFailure was expected to be invoked", onFailure.get());
+			
+			 
+			mysqlDBTae.notifyShutdown();
+	}
+	
+
+	
 	@Test
 	public void testRunPartitions()
 	{
@@ -446,6 +530,9 @@ public class MySQLDBTAETester {
 		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION,true, priority);
 	}
 	
+	
+	
+	
 	@AfterClass
 	public static void afterClass()
 	{
@@ -488,4 +575,118 @@ public class MySQLDBTAETester {
 		if(d2 - d1 > delta) throw new AssertionError("Expected "  + (d1 - d2)+ " < " + delta);
 		
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	/**
+	 * This tests that the worker will eventually idle timeout at the appropriate time
+	 * 
+	 * NOTE: THIS MUST BE THE LAST TEST IN THE FILE SINCE IT WILL KILL THE WORKER
+	 * 
+	 * Essentially we sleep for 5 seconds,
+	 * submit a job,
+	 * then make sure after 15 more seconds the worker has exited
+	 * 
+	 * 
+	 * This test is incredibly sensitive to timings unfortunately :(
+	 */
+	@Test
+	public void testIdleShutdown()
+	{
+		
+		
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION,true, priority);
+		try {
+		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+		} catch(RuntimeException e)
+		{
+			e.printStackTrace();
+			throw e;
+		}
+		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+		
+		MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+		
+		try {
+			Thread.sleep(5000);
+		} catch (InterruptedException e1) {
+			Thread.currentThread().interrupt();
+		}
+		
+		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		for(int i=0; i < 1; i++)
+		{
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
+			{
+				//Only want good configurations
+				i--;
+				continue;
+			} else
+			{
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+				runConfigs.add(rc);
+			}
+		}
+		
+		System.out.println("Performing " + runConfigs.size() + " runs");
+		TargetAlgorithmEvaluator tae =mysqlDBTae;
+		List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			
+		
+		for(int i = 0; i < 8; i++)
+		{
+			try {
+				Thread.sleep(1000);
+				try {
+					if(proc.exitValue() >= 0)
+					{
+						fail("Process shouldn't have exited yet");
+						return;
+					}
+				} catch(IllegalThreadStateException e)
+				{
+					//We have no other way of checking if a process has ended except for waiting for catching this exception if it isn't
+				}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		assertFalse("Expected worker would NOT have exited by now ", lastLineSeen.get());
+		System.out.println("Waiting 2 seconds for idle");
+		
+		try {
+			Thread.sleep(4000);
+			assertTrue("Expected worker would have exited by now ", lastLineSeen.get());
+		}  catch (InterruptedException e) {
+			System.out.println("Interrupted");
+			Thread.currentThread().interrupt();
+		}
+		
+		
+		
+	}
+
+	/****
+	 * 
+	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
+	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
+	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
+	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
+	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
+	 * 
+	 */
+
 }

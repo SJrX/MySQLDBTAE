@@ -104,7 +104,7 @@ public class MySQLDBTAEKillRetryTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --timeLimit 1d");
-			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 3 " );
+			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 3 --idleLimit 10s " );
 			
 			
 			System.out.println(b.toString());
