@@ -51,11 +51,12 @@ public class MySQLPersistence {
 	private final String password;
 	ComboPooledDataSource cpds = new ComboPooledDataSource();
 	
+	
 	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, boolean createTables)
 	{
 		
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
-		if(pool.length() > 15) throw new ParameterException("Pool name must be at most 15 characters");
+		if(pool.length() > 15) throw new ParameterException("Pool name must be at most 32 characters");
 		
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
 		
@@ -75,9 +76,10 @@ public class MySQLPersistence {
 		
 	
 			// the settings below are optional -- c3p0 can work with defaults
-			cpds.setMinPoolSize(2);                                     
-			cpds.setAcquireIncrement(3);
-			cpds.setMaxPoolSize(20);
+			cpds.setMinPoolSize(1);                                     
+			cpds.setAcquireIncrement(1);
+			cpds.setMaxPoolSize(10);
+			cpds.setInitialPoolSize(1);
 			cpds.setAutoCommitOnClose(true);
 			cpds.setMaxIdleTimeExcessConnections(120);
 			cpds.setIdleConnectionTestPeriod(15);
