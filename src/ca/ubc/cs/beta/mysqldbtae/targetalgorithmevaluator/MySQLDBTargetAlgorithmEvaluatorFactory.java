@@ -44,8 +44,6 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		
 		checkOldEnvironmentVariables();
 		
-		
-		
 		String hostname = opts.host;
 		String port = String.valueOf(opts.port);
 		String databaseName = opts.databaseName;
@@ -134,9 +132,19 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		}
 		
 		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, JobPriority.HIGH);
+		String command = System.getProperty("sun.java.command");
+		if((command == null) || (command.trim().length() < 1))
+		{
+			command = "JRE did not provide this information (sorry)";
+		}
 		
 		
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+		try {
+		mysqlPersistence.setCommand(command);
+		} catch(RuntimeException e)
+		{
+			log.error("Unknown exception occured while trying to set the command {} (We will continue anyway, since the command is just informational)", e);
+		}
 		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 
 		return new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
