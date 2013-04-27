@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
+import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
@@ -34,6 +36,7 @@ import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.WaitableTAECallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
@@ -268,190 +271,207 @@ public class MySQLDBTAELoadTest {
 		e.printStackTrace();
 	}*/
 	
+	
+	private final int THREADS  = 50;
 	@Test
 	public void testProcessingLoad()
 	{
 		
-		if(System.currentTimeMillis() < 0)
-		{
+		ExecutorService execService = Executors.newCachedThreadPool();
+		try 
+		{	
 		
-			MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.NORMAL);
-			try {
-			normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
+			
+			if(System.currentTimeMillis() < 0)
 			{
-				e.printStackTrace();
-				throw e;
-			}
-			normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 			
-			MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
-			
-			MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.HIGH);
-			try {
-			highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);
-			
-			
-			
-			final AtomicInteger completeRuns = new AtomicInteger();
-			
-			final AtomicBoolean failure = new AtomicBoolean(false);
-			
-			final AtomicReference<RunConfig> ref = new AtomicReference<RunConfig>();
-			
-			final Semaphore complete = new Semaphore(-TARGET_RUNS_IN_LOOPS+1);
-			
-			PrintStream stream = System.out;
-			
-			PrintStream stream2 = new PrintStream(new ByteArrayOutputStream());
-			
-			System.setOut(stream2);
-			long total =0;
-			double totalDelta = 0.0;
-			
-			for(int j=0; j < 100; j++)
-			{
-				List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
-				
-				for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
+				MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.NORMAL);
+				try {
+				normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+				} catch(RuntimeException e)
 				{
-					ParamConfiguration config = configSpace.getRandomConfiguration(rand);
-					if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
-					{
-						//Only want good configurations
-						i--;
-						continue;
-					} else
-					{
-						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
-						
-						runConfigs.add(rc);
-					}
+					e.printStackTrace();
+					throw e;
 				}
+				normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 				
-				long time = System.currentTimeMillis();
-				highMySQLTAE.evaluateRunsAsync(runConfigs, new TAECallback() {
-	
-					@Override
-					public void onSuccess(List<AlgorithmRun> runs) {
-						//complete.release();
-						boolean swap = completeRuns.compareAndSet(0, 1);
-						
-						if(!swap)
+				MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
+				
+				MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.HIGH);
+				try {
+				highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+				} catch(RuntimeException e)
+				{
+					e.printStackTrace();
+					throw e;
+				}
+				highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+				
+				MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);
+				
+				
+				
+				final AtomicInteger completeRuns = new AtomicInteger();
+				
+				final AtomicBoolean failure = new AtomicBoolean(false);
+				
+				final AtomicReference<RunConfig> ref = new AtomicReference<RunConfig>();
+				
+				final Semaphore complete = new Semaphore(-TARGET_RUNS_IN_LOOPS+1);
+				
+				PrintStream stream = System.out;
+				
+				PrintStream stream2 = new PrintStream(new ByteArrayOutputStream());
+				
+				System.setOut(stream2);
+				long total =0;
+				double totalDelta = 0.0;
+				
+				for(int j=0; j < 100; j++)
+				{
+					List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+					
+					for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
+					{
+						ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+						if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 						{
-							failure.set(true);
+							//Only want good configurations
+							i--;
+							continue;
+						} else
+						{
+							RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+							
+							runConfigs.add(rc);
 						}
 					}
-	
-					@Override
-					public void onFailure(RuntimeException t) {
-						
-					}
 					
-				});
-				long endTime = System.currentTimeMillis();
-				long delta = endTime - time;
-				total += runConfigs.size();
-				totalDelta += delta;
-				stream.println("Inserting " + runConfigs.size() + " took " + (delta)/1000.0 + " seconds " + " total:" + total  + " time: " + totalDelta/1000.0 + " test:" + total/(totalDelta/1000));
-			}
-			
-			System.setOut(stream);
-			assertTrue("Average runtime should be greater than 1000 rows / second", total/(totalDelta/1000.0) > 1000.0);
-			
-		}
-		final MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
+					long time = System.currentTimeMillis();
+					highMySQLTAE.evaluateRunsAsync(runConfigs, new TAECallback() {
 		
-		options.pool = MYSQL_POOL+"processing";
-		options.timeLimit = 86400*1;
-		options.idleLimit = 10;
-		options.delayBetweenRequests = 1;
-		options.taeOptions.targetAlgorithmEvaluator = "PARAMECHO";
-		final Map<String, AbstractOptions> opts = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
+						@Override
+						public void onSuccess(List<AlgorithmRun> runs) {
+							//complete.release();
+							boolean swap = completeRuns.compareAndSet(0, 1);
+							
+							if(!swap)
+							{
+								failure.set(true);
+							}
+						}
 		
-		CountDownLatch latch = new CountDownLatch(1);
-		ExecutorService execService = Executors.newCachedThreadPool();
-		int THREADS = 250;
-		
-		final List<MySQLTAEWorkerTaskProcessor> processors = Collections.synchronizedList(new ArrayList<MySQLTAEWorkerTaskProcessor>());
-		for(int i=0; i < THREADS; i++)
-		{
-		
-			MySQLTAEWorkerTaskProcessor taeTaskProcessor = new MySQLTAEWorkerTaskProcessor(System.currentTimeMillis()/1000, options, opts, latch);
-			processors.add(taeTaskProcessor);
-				
-		}
-		
-		
-		
-		for(int i=0; i < THREADS; i++)
-		{
-			final int myInt= i;
-			Runnable run = new Runnable()
-			{
-				@Override
-				public void run()
-				{
-					MySQLTAEWorkerTaskProcessor taeTaskProcessor = processors.get(myInt);
-					try {
+						@Override
+						public void onFailure(RuntimeException t) {
+							
+						}
 						
-						
-						
-						
-						taeTaskProcessor.process();
-					} catch (PoolChangedException e) {
-						//Can't happen
-						throw new IllegalStateException(e);
-					}
-					
-					double averageTime = taeTaskProcessor.getTotalRunFetchTimeInMS() / (double) taeTaskProcessor.getTotalRunFetchRequests();
-					System.out.println("Average time per request " +  averageTime + " ms (number): " + taeTaskProcessor.getTotalRunFetchRequests());
+					});
+					long endTime = System.currentTimeMillis();
+					long delta = endTime - time;
+					total += runConfigs.size();
+					totalDelta += delta;
+					stream.println("Inserting " + runConfigs.size() + " took " + (delta)/1000.0 + " seconds " + " total:" + total  + " time: " + totalDelta/1000.0 + " test:" + total/(totalDelta/1000));
 				}
 				
-			};
-			execService.submit(run);
-		}
-		
-		latch.countDown();
-		
-		while(true)
-		{
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				return;
+				System.setOut(stream);
+				assertTrue("Average runtime should be greater than 1000 rows / second", total/(totalDelta/1000.0) > 1000.0);
+				
 			}
+			final MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
 			
-			long totalTime = 0; 
-			double totalRequests = 0;
+			options.pool = MYSQL_POOL+"processing";
+			options.timeLimit = 86400*1;
+			options.idleLimit = 10;
+			options.delayBetweenRequests = 1;
+			options.taeOptions.targetAlgorithmEvaluator = "PARAMECHO";
+			final Map<String, AbstractOptions> opts = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
 			
-			for(MySQLTAEWorkerTaskProcessor taeProc : processors)
+			CountDownLatch latch = new CountDownLatch(1);
+			
+			
+			
+			final List<MySQLTAEWorkerTaskProcessor> processors = Collections.synchronizedList(new ArrayList<MySQLTAEWorkerTaskProcessor>());
+			for(int i=0; i < THREADS; i++)
 			{
-				totalTime += taeProc.getTotalRunFetchTimeInMS();
-				totalRequests += taeProc.getTotalRunFetchRequests();
+			
+				MySQLTAEWorkerTaskProcessor taeTaskProcessor = new MySQLTAEWorkerTaskProcessor(System.currentTimeMillis()/1000, options, opts, latch);
+				processors.add(taeTaskProcessor);
+					
 			}
-			double avg = totalTime / (double) totalRequests;
+			
+			
 			
 			for(int i=0; i < THREADS; i++)
 			{
-				System.err.println("Average time per request " +  avg + " ms (number): " + totalRequests);
+				final int myInt= i;
+				Runnable run = new Runnable()
+				{
+					@Override
+					public void run()
+					{
+						MySQLTAEWorkerTaskProcessor taeTaskProcessor = processors.get(myInt);
+						try {
+							
+							
+							
+							
+							taeTaskProcessor.process();
+						} catch (PoolChangedException e) {
+							//Can't happen
+							throw new IllegalStateException(e);
+						}
+						
+						double averageTime = taeTaskProcessor.getTotalRunFetchTimeInMS() / (double) taeTaskProcessor.getTotalRunFetchRequests();
+						System.out.println("Average time per request " +  averageTime + " ms (number): " + taeTaskProcessor.getTotalRunFetchRequests());
+					}
+					
+				};
+				execService.submit(run);
 			}
 			
+			latch.countDown();
 			
+			while(true)
+			{
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return;
+				}
+				
+				long totalTime = 0; 
+				double totalRequests = 0;
+				
+				for(MySQLTAEWorkerTaskProcessor taeProc : processors)
+				{
+					totalTime += taeProc.getTotalRunFetchTimeInMS();
+					totalRequests += taeProc.getTotalRunFetchRequests();
+				}
+				double avg = totalTime / (double) totalRequests;
+				
+				for(int i=0; i < THREADS; i++)
+				{
+					System.err.println("Average time per request " +  avg + " ms (number): " + totalRequests);
+				}
+				
+				
+				
+			}
+		} finally
+		{
+			execService.shutdownNow();
 			
 		}
 		
-		
 	}
+	
+	
+	
+	
+	
+	
 	
 	
 	

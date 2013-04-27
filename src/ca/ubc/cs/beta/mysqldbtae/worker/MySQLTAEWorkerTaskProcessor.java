@@ -43,6 +43,7 @@ public class MySQLTAEWorkerTaskProcessor {
 	
 	private volatile long totalRunFetchTimeInMS = 0;
 	
+	private volatile RuntimeException crashReason = null;
 
 
 	private volatile int totalRunFetchRequests = 0;
@@ -310,6 +311,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 				t.printStackTrace(pout);
 				mysqlPersistence.markWorkerCompleted(bout.toString());
+				crashReason = t;
 				throw t;
 				
 			}
@@ -343,5 +345,8 @@ public class MySQLTAEWorkerTaskProcessor {
 		return totalRunFetchRequests;
 	}
 	
-	
+	public RuntimeException getCrashReason()
+	{
+		return crashReason;
+	}
 }

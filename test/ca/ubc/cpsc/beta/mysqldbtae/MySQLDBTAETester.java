@@ -5,11 +5,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,8 +31,10 @@ import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
+import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
+import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
@@ -38,11 +45,15 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.BoundedTargetAlg
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.WaitableTAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
+import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
+import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
+import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerTaskProcessor;
 import ca.ubc.cs.beta.targetalgorithmevaluator.EchoTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 
@@ -555,9 +566,7 @@ public class MySQLDBTAETester {
 	}
 	
 
-	
-	
-	
+
 	
 	public void assertDEquals(String d1, double d2, double delta)
 	{
@@ -689,4 +698,185 @@ public class MySQLDBTAETester {
 	 * 
 	 */
 
+	
+	/***
+	 * This test is an exception because it doesn't rely on the worker :)
+	 * 
+	 * 
+	 */
+	@Test
+	/**
+	 * This tests that garbage in the database (for instance a para file that doesn't exist
+	 * doesn't cause the worker to crash)
+	 * 
+	 */
+	public void testBadExecution()
+	{
+		ExecutorService execService = Executors.newCachedThreadPool();
+		try {
+			
+			
+			final MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
+			
+			options.pool = MYSQL_POOL+"badexec";
+			options.timeLimit = 86400*1;
+			options.idleLimit = 10;
+			options.delayBetweenRequests = 1;
+			options.taeOptions.targetAlgorithmEvaluator = "CLI";
+			options.createTables = true;
+			final Map<String, AbstractOptions> opts = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
+			
+			CountDownLatch latch = new CountDownLatch(1);
+			
+			
+			
+			final List<MySQLTAEWorkerTaskProcessor> processors = Collections.synchronizedList(new ArrayList<MySQLTAEWorkerTaskProcessor>());
+			for(int i=0; i < 1; i++)
+			{
+			
+				MySQLTAEWorkerTaskProcessor taeTaskProcessor = new MySQLTAEWorkerTaskProcessor(System.currentTimeMillis()/1000, options, opts, latch);
+				processors.add(taeTaskProcessor);
+					
+			}
+			
+			
+			
+			for(int i=0; i < 1; i++)
+			{
+				final int myInt= i;
+				Runnable run = new Runnable()
+				{
+					@Override
+					public void run()
+					{
+						MySQLTAEWorkerTaskProcessor taeTaskProcessor = processors.get(myInt);
+						try {
+							
+							
+							
+							
+							taeTaskProcessor.process();
+						} catch (PoolChangedException e) {
+							//Can't happen
+							throw new IllegalStateException(e);
+						}
+						
+						double averageTime = taeTaskProcessor.getTotalRunFetchTimeInMS() / (double) taeTaskProcessor.getTotalRunFetchRequests();
+						System.out.println("Average time per request " +  averageTime + " ms (number): " + taeTaskProcessor.getTotalRunFetchRequests());
+					}
+					
+				};
+				execService.submit(run);
+			}
+			
+	
+			
+			MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"badexec", 1500, true,1,true, JobPriority.NORMAL);
+			try {
+			normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+			} catch(RuntimeException e)
+			{
+				e.printStackTrace();
+				throw e;
+			}
+			
+			try {
+				File paramFile = File.createTempFile("junittests", "badexec");
+				
+				FileWriter writer = new FileWriter(paramFile);
+				writer.write("boo { yay, hoo, yeah } [hoo]");
+				
+				writer.flush();
+				writer.close();
+				ParamConfigurationSpace configSpace = ParamFileHelper.getParamFileParser(paramFile);
+				
+				
+				AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
+				
+			normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			
+			MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
+			
+			
+	
+			
+			TAECallback tae = new TAECallback()
+			{
+	
+				@Override
+				public void onSuccess(List<AlgorithmRun> runs) {
+	
+					System.out.println("Done");
+				}
+	
+				@Override
+				public void onFailure(RuntimeException t) {
+	
+					System.out.println("ROAR");
+				}
+				
+			};
+			
+			
+			WaitableTAECallback wait = new WaitableTAECallback(tae);
+			normalMySQLTAE.evaluateRunsAsync(new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("foo"), 123), 0, configSpace.getDefaultConfiguration()), wait);
+			
+			paramFile.delete();
+			/*
+			 writer = new FileWriter(paramFile);
+			writer.write("boo { yay} [yay]");
+			
+			writer.flush();
+			writer.close();
+			*/
+			try {
+				Thread.sleep(2500);
+			} catch (InterruptedException e1) {
+				Thread.currentThread().interrupt();
+			}
+			
+			
+			latch.countDown();
+			try {
+				Thread.sleep(2500);
+			} catch (InterruptedException e1) {
+				Thread.currentThread().interrupt();
+			}
+			
+			
+			normalMySQLTAE.notifyShutdown();
+			
+			
+			
+			try {
+				Thread.sleep(5000);
+				if(processors.get(0).getCrashReason() != null)
+				{
+					processors.get(0).getCrashReason().printStackTrace();
+				}
+				assertNull("Expected that the worker would not crash but got " + processors.get(0).getCrashReason(), processors.get(0).getCrashReason());
+			
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			
+			
+			
+			} catch(IOException e)
+			{
+				e.printStackTrace();
+				fail("Unexpected exception occured");
+			}
+		} finally
+		{
+			execService.shutdownNow();
+			
+		}
+		
+	}
+	
+	
+	
+	
+	
 }

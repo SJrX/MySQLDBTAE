@@ -10,12 +10,15 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +37,8 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.mysqldbtae.JobPriority;
+import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 
 public class MySQLPersistenceWorker extends MySQLPersistence {
@@ -87,41 +92,77 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	private final long BASIC_SLEEP_MS = 50;
 	private final long MAX_SLEEP_MS = 15000;
-	private AlgorithmExecutionConfig getAlgorithmExecutionConfig(int execConfigID) throws SQLException {
+	
+	private final Map<Integer, AlgorithmExecutionConfigIDBlacklistedException> blacklistedKeys = new HashMap<Integer, AlgorithmExecutionConfigIDBlacklistedException>();
+	
+	private AlgorithmExecutionConfig getAlgorithmExecutionConfig(int execConfigID) throws SQLException, AlgorithmExecutionConfigIDBlacklistedException {
 		
-		if(!execConfigMap.containsKey(execConfigID)) 
+	
+		AlgorithmExecutionConfigIDBlacklistedException e = blacklistedKeys.get(execConfigID);
+		
+		if(e != null)
 		{
-		 StringBuilder sb = new StringBuilder();
-		 sb.append("SELECT algorithmExecutable, algorithmExecutableDIrectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
-		 Connection conn = getConnection();
-		 PreparedStatement stmt = conn.prepareStatement(sb.toString());
-		 ResultSet rs = stmt.executeQuery();
-		 
-		 rs.next();
-		 
-		 String algorithmExecutable = rs.getString(1);
-		 String algorithmExecutionDirectory = rs.getString(2);
-		 
-		 ParamConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
-		 
-		 boolean executeOnCluster = rs.getBoolean(4);
-		 boolean deterministicAlgorithm = rs.getBoolean(5);
-		 double cutoffTime = rs.getDouble(6);
-		 
-			
-		 AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
-		 
-		 
-		 execConfigMap.put(execConfigID, execConfig);
-			
-		 conn.close();
-		 rs.close();
-		 stmt.close();
+			throw e;
 		}
-		
-		
-		return execConfigMap.get(execConfigID);
-		
+		try {
+			if(!execConfigMap.containsKey(execConfigID)) 
+			{
+			 StringBuilder sb = new StringBuilder();
+			 sb.append("SELECT algorithmExecutable, algorithmExecutableDIrectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
+			 Connection conn = null;
+			 try {
+				 conn = getConnection();
+			 
+				 PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				 ResultSet rs = stmt.executeQuery();
+				 
+				 
+				 
+				 
+				 boolean hasNextResult = rs.next();
+				 
+				 if(!hasNextResult)
+				 {
+					 throw new IllegalStateException("Database table " + TABLE_EXECCONFIG + " does not have an entry for " + execConfigID + " tables must be corrupted or something");
+				 }
+				 
+				 String algorithmExecutable = rs.getString(1);
+				 String algorithmExecutionDirectory = rs.getString(2);
+				 
+				 ParamConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
+				 
+				 boolean executeOnCluster = rs.getBoolean(4);
+				 boolean deterministicAlgorithm = rs.getBoolean(5);
+				 double cutoffTime = rs.getDouble(6);
+				 
+					
+				 AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
+				 
+				 
+				 execConfigMap.put(execConfigID, execConfig);
+					
+				 conn.close();
+				 rs.close();
+				 stmt.close();
+			 } finally
+			 {
+				 if(conn != null) 
+				 {
+					 conn.close();
+				 }
+			 }
+			}
+			
+			
+			return execConfigMap.get(execConfigID);
+		} catch(RuntimeException rt)
+		{
+			log.error("Exception occured while trying to process execConfigID: " + execConfigID , rt);
+			
+			AlgorithmExecutionConfigIDBlacklistedException e2 = new AlgorithmExecutionConfigIDBlacklistedException(execConfigID, rt); 
+			blacklistedKeys.put(execConfigID, e2);
+			throw e2;
+		}
 		
 		
 	}
@@ -144,16 +185,21 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 			//Pull workers off the queue in order of priority, do not take workers where we already tried
 			//This isn't a perfect heuristic. I'm hoping it's good enough.
-			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (").append(
-					"SELECT runConfigID, priority FROM (").append(
-					"(SELECT runConfigID,0 AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"LOW\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(
-					"UNION\n").append(
-					"(SELECT runConfigID,1 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"NORMAL\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(
-					"UNION\n").append(
-					"(SELECT runConfigID,2 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"HIGH\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(
-					"UNION\n").append(
-					"(SELECT runConfigID,3 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"UBER\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(		
-					") innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(	
+			
+			
+			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (\n\t").append(
+					"SELECT runConfigID, priority FROM (");
+					int i=0;
+					for(JobPriority job : JobPriority.values())
+					{
+						sb.append("\n\t\t(SELECT runConfigID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"").append(job).append("\" ORDER BY runConfigID LIMIT " + n +  ")\n\t\t").append("UNION");
+						i++;
+					}
+			
+					sb.replace(sb.length()-"UNION".length(), sb.length(), "\n");
+					
+							
+					sb.append("\t) innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(
 					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1;");
 					
 					
@@ -187,35 +233,62 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 				while(rs.next())
 				{
+					AlgorithmExecutionConfig execConfig = null;
+					RunConfig rc = null;
+					int execConfigID = -1;
+					String rcID = "?";
+					try {
 					
-					String rcID = rs.getString(1);
-					log.debug("Assigned Run {} ", rcID);
-					//if(true) continue;
-					AlgorithmExecutionConfig execConfig = getAlgorithmExecutionConfig(rs.getInt(2));
-					String problemInstance = rs.getString(3);
-					String instanceSpecificInformation = rs.getString(4);
-					long seed = rs.getLong(5);
-					double cutoffTime = rs.getDouble(6);
-					String paramConfiguration = rs.getString(7);
-					boolean cutoffLessThanMax = rs.getBoolean(8);
-					boolean killJob = rs.getBoolean(9);
-					if(killJob)
+						rcID = rs.getString(1);
+						
+							try {
+								
+								execConfigID =  rs.getInt(2);
+								execConfig = getAlgorithmExecutionConfig(execConfigID);
+								
+								
+							} catch (AlgorithmExecutionConfigIDBlacklistedException e) {
+								log.debug("Execution ID has been blacklisted skipping run {} ", rcID);
+								continue;
+							}
+							
+						log.debug("Assigned Run {} ", rcID);
+						
+						String problemInstance = rs.getString(3);
+						String instanceSpecificInformation = rs.getString(4);
+						long seed = rs.getLong(5);
+						double cutoffTime = rs.getDouble(6);
+						String paramConfiguration = rs.getString(7);
+						boolean cutoffLessThanMax = rs.getBoolean(8);
+						boolean killJob = rs.getBoolean(9);
+						if(killJob)
+						{
+							cutoffTime = 0;
+						}
+						
+						ProblemInstance pi = new ProblemInstance(problemInstance, instanceSpecificInformation);
+						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
+						ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
+						
+						rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
+						runConfigIDMap.put(rc, rcID);
+					} catch(RuntimeException e)
 					{
-						cutoffTime = 0;
+						log.error("Exception occured while trying to process run " + rcID + " with execConfigID: "+ execConfigID , e);
+						
+						AlgorithmExecutionConfigIDBlacklistedException e2 = new AlgorithmExecutionConfigIDBlacklistedException(execConfigID, e); 
+						blacklistedKeys.put(execConfigID, e2);
+						
+						continue;
 					}
-					
-					ProblemInstance pi = new ProblemInstance(problemInstance, instanceSpecificInformation);
-					ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
-					ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
-					
-					RunConfig rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
-					runConfigIDMap.put(rc, rcID);
+							
 					if(myMap.get(execConfig) == null)
 					{
 						myMap.put(execConfig, new ArrayList<RunConfig>(n));
 					}
 					
 					myMap.get(execConfig).add(rc);
+					
 				}
 				rs.close();
 				conn.close();
@@ -459,6 +532,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					stmt.close();
 					return null;
 				}
+				
+
+				log.debug("Flushing blacklist which previously had {} entries", this.blacklistedKeys.size());
+				this.blacklistedKeys.clear();
 				
 				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(rs.getInt(1), rs.getInt(2), rs.getString(3));
 				stmt.close();
