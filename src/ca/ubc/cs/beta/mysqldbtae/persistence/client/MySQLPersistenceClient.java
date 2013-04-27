@@ -557,7 +557,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 				sb.setCharAt(sb.length()-1, ' ');
 				
-				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\", runtime=IF(killJob=1,0,runtime), status=IF(killJob = 1,\"NEW\",status), killJob=0");
+				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\",retryAttempts=0, runtime=IF(killJob=1,0,runtime), status=IF(killJob = 1,\"NEW\",status), killJob=0");
 				System.out.println(sb.toString());
 				try {
 					PreparedStatement stmt = null;

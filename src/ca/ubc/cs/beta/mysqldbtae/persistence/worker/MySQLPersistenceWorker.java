@@ -419,7 +419,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	public void resetUnfinishedRuns()
 	{
 		log.info("Resetting Unfinished Runs");
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"NEW\" WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\"");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"NEW\", priority=\""+JobPriority.LOW+ "\" WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\"");
 		
 		try {
 			Connection conn = getConnection();
