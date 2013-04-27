@@ -146,15 +146,15 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			//This isn't a perfect heuristic. I'm hoping it's good enough.
 			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (").append(
 					"SELECT runConfigID, priority FROM (").append(
-					"(SELECT runConfigID,0 AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"LOW\" LIMIT " + n +  ")\n").append(
+					"(SELECT runConfigID,0 AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"LOW\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(
 					"UNION\n").append(
-					"(SELECT runConfigID,1 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"NORMAL\" LIMIT " + n +  ")\n").append(
+					"(SELECT runConfigID,1 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"NORMAL\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(
 					"UNION\n").append(
-					"(SELECT runConfigID,2 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"HIGH\" LIMIT " + n +  ")\n").append(
+					"(SELECT runConfigID,2 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"HIGH\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(
 					"UNION\n").append(
-					"(SELECT runConfigID,3 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND workerUUID <> \""+ workerUUID.toString() +"\" AND priority=\"UBER\" LIMIT " + n +  ")\n").append(		
+					"(SELECT runConfigID,3 FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"UBER\" ORDER BY runConfigID LIMIT " + n +  ")\n").append(		
 					") innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(	
-					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\";");
+					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1;");
 					
 					
 			System.out.println(sb.toString());
