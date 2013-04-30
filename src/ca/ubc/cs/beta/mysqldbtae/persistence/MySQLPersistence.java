@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -105,6 +107,15 @@ public class MySQLPersistence {
 				
 				
 				String[] chunks = sql.split(";");
+				 String hostname = "[UNABLE TO DETERMINE HOSTNAME]";
+					try {
+						hostname = InetAddress.getLocalHost().getHostName();
+					} catch(UnknownHostException e)
+					{ //If this fails it's okay we just use it to output to the log
+						
+					}
+				Object args[] = { hostname, host, port };
+				log.info("Attempting database connection, if nothing is happening it probably means the database is inaccessible. Please try connecting to the database from host {} to {} : {}",args );
 				Connection conn = cpds.getConnection();
 				for(String sqlStatement : chunks)
 				{

@@ -129,9 +129,14 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		if(pathStrip != null && pathStrip.trim().endsWith("/"))
 		{
 			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
+			try {
+				Thread.sleep(2048);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
 		}
 		
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, JobPriority.HIGH);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority);
 		String command = System.getProperty("sun.java.command");
 		if((command == null) || (command.trim().length() < 1))
 		{

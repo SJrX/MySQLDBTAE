@@ -36,6 +36,7 @@ import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillHandler;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableWrappedAlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.StatusVariableKillHandler;
+import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
@@ -587,9 +588,9 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							uuids.add(uuid);
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
-							if(rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation().length() > 2000)
+							if(rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation().length() > 4000)
 							{
-								throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 2K or less in this version, I'm sorry");
+								throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 4K or less in this version, I'm sorry");
 							}
 							
 							stmt.setString(k++, rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation());
@@ -726,15 +727,25 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		}
 		this.execConfig = execConfig;
 		
-		File f = new File(execConfig.getParamFile().getParamFileName());
+		
 		Connection conn = null; 
 		try {
 			conn = getConnection();
-			if(!f.isAbsolute() || !f.exists())
-			{
-				throw new IllegalStateException("Param File must be created with an absolute file name not the following: " + execConfig.getParamFile().getParamFileName());
-			}
 			
+			File f = new File(execConfig.getParamFile().getParamFileName());
+			
+			String paramFile = execConfig.getParamFile().getParamFileName();
+			
+			if(execConfig.getParamFile().equals(ParamConfigurationSpace.getSingletonConfigurationSpace()))
+			{
+				paramFile = ParamConfigurationSpace.SINGLETON_ABSOLUTE_NAME;
+			} else
+			{
+				if(!f.isAbsolute() || !f.exists())
+				{
+					throw new IllegalStateException("Param File must be created with an absolute file name not the following: " + execConfig.getParamFile().getParamFileName());
+				}
+			}
 			StringBuilder sb = new StringBuilder();
 			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE algorithmExecutionConfigID=LAST_INSERT_ID(algorithmExecutionConfigID), lastModified = NOW()");
 			

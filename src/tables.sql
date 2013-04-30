@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `runConfigs_ACLIB_POOL_NAME` (
  `runConfigID` int(11) NOT NULL AUTO_INCREMENT,
  `runConfigUUID` char(48) NOT NULL,
  `execConfigID` int(11) NOT NULL,
- `problemInstance` varchar(128) NOT NULL,
+ `problemInstance` varchar(2048) NOT NULL,
  `instanceSpecificInformation` varchar(2048) NOT NULL DEFAULT '0',
  `seed` bigint(20) NOT NULL,
  `cutoffTime` double NOT NULL,

@@ -7,6 +7,7 @@ import java.sql.DriverManager;
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.jcommander.validator.FixedPositiveInteger;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
+import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterFile;
@@ -53,6 +54,9 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@Parameter(names="--mysqldbtae-options", description="MySQL Configuration Option File")
 	@ParameterFile
 	public File mysqlParamFile = null;
+
+	@Parameter(names="--mysqldbtae-priority", description="Priority of Jobs inserted into database")
+	public JobPriority priority = JobPriority.NORMAL;
 
 	public Connection getConnection()
 	{
