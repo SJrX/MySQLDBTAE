@@ -68,6 +68,10 @@ public class MySQLPersistence {
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
 		if(pool.length() > 32) throw new ParameterException("Pool name must be at most 32 characters");
 		
+		if(!pool.matches("^[0-9a-zA-Z\\$_]+$"))
+		{
+			throw new ParameterException("Pool name can only consist of alpha numeric characters underscores and $");
+		}
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
 		
 		try {
