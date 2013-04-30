@@ -56,6 +56,7 @@ public class DangerZoneQueueOptions extends AbstractOptions {
 	public String exec = null;
 
 	
+	
 	@Parameter(names={"--wait-for-completion","--wait-for-runs"}, description="[ADVANCED] Wait for the runs to complete before returning (we will always wait if the TAE is not Persistent)")
 	public boolean waitForRuns;
 	
@@ -65,6 +66,9 @@ public class DangerZoneQueueOptions extends AbstractOptions {
 	@Parameter(names="--wrapper-show-output", description="[ADVANCED] Pass all wrapper output to the callee")
 	public boolean showOutput = false;
 
+	@Parameter(names={"--wrapper-output-pils-line","--wrapper-pils-line"}, description="[ADVANCED] Whether to display a \"Results for ParamILS:\" line (if something else will do this then it's best to use that). You will need to use --wrapper-show-output true as well")
+	public boolean wrapperPils = false;
+	
 	@Parameter(names="--update-frequency", description="[ADVANCED] How often to show status updates (in seconds)")
 	public double statusFrequency = 10;
 

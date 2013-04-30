@@ -74,6 +74,16 @@ public class DangerZoneWrapper {
 			
 			
 			String output = argString.get("SHOWOUTPUT").trim();
+			String prefix = "OUT>";
+			
+			boolean pilsLine = true;
+			if((argString.get("PILSLINE") != null) && !Boolean.valueOf(argString.get("PILSLINE")))
+			{
+				prefix ="";
+				pilsLine = false;
+			}
+			final String finalPrefix = prefix;
+			
 			LineHandler lh = new LineHandler()
 			{
 
@@ -92,7 +102,7 @@ public class DangerZoneWrapper {
 
 					@Override
 					public void processLine(String line) {
-						System.out.println("OUT>" + line);
+						System.out.println(finalPrefix + line);
 					}
 					
 				};
@@ -184,7 +194,11 @@ public class DangerZoneWrapper {
 					runResult = "CRASHED";
 				}
 			}
-			System.out.println("Result for ParamILS: "+runResult+"," + runtime + "," + runlength + "," + quality + "," + resultSeed + "\n");
+			
+			if(pilsLine)
+			{
+				System.out.println("Result for ParamILS: "+runResult+"," + runtime + "," + runlength + "," + quality + "," + resultSeed + "\n");
+			}
 			
 		} catch(Exception e)
 		{

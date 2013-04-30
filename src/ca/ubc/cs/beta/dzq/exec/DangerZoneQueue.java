@@ -115,7 +115,7 @@ public class DangerZoneQueue {
 					{
 						
 						String cmd2 = cmd.replaceAll("\\%ID\\%", String.valueOf(i+dzOpts.idOffset));
-						ProblemInstance pi = new ProblemInstance("\"DIR=>" + ps.stripPath(dzOpts.dir) + ";CMD=>" + ps.stripPath(cmd2)+";ENFORCETIME=>" + dzOpts.enforceTimeLimit + ";SHOWOUTPUT=>" + dzOpts.showOutput  + "\"", "DZQFTW");
+						ProblemInstance pi = new ProblemInstance("\"DIR=>" + ps.stripPath(dzOpts.dir) + ";CMD=>" + ps.stripPath(cmd2)+";ENFORCETIME=>" + dzOpts.enforceTimeLimit + ";SHOWOUTPUT=>" + dzOpts.showOutput  + ";PILSLINE=>" + dzOpts.wrapperPils + "\"", "DZQFTW");
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi, i);
 						
 						runConfigs.add(new RunConfig(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration()));
