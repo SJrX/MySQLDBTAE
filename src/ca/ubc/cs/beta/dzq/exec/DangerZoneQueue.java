@@ -44,6 +44,8 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.WaitableTAECallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.dzq.options.DangerZoneQueueOptions;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
+import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
 
 public class DangerZoneQueue {
 
@@ -79,12 +81,20 @@ public class DangerZoneQueue {
 	
 			ParamConfigurationSpace configSpace = ParamConfigurationSpace.getSingletonConfigurationSpace();
 			
+			MySQLTargetAlgorithmEvaluatorOptions c;
+			
+			
+			PathStripper ps  = new PathStripper("!!!!!");
+			if(dzOpts.taeOptions.targetAlgorithmEvaluator.equals("MYSQLDB"))
+			{
+				 ps = new PathStripper(((MySQLTargetAlgorithmEvaluatorOptions) taeOpts.get("MYSQLDB")).pathStrip);
+			}
 			
 			AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(getExecutionString(dzOpts.wrapper), "/", configSpace, true, true, dzOpts.runtimeLimit);
 			
 			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(dzOpts.taeOptions, execConfig, false, dzOpts.ignoreTAEBounds, taeOpts, null);
 			try {
-				List<String> commands = getCommands(dzOpts);
+				
 				
 				List<RunConfig> runConfigs = new ArrayList<RunConfig>();
 				
@@ -98,14 +108,14 @@ public class DangerZoneQueue {
 				log.info("==========Configuration Options==========\n{}", sb.toString());
 				
 	
-				
+				List<String> commands = getCommands(dzOpts);
 				for(String cmd : commands)
 				{
 					for(int i=0; i < dzOpts.execTimes; i++)
 					{
 						
 						String cmd2 = cmd.replaceAll("\\%ID\\%", String.valueOf(i+dzOpts.idOffset));
-						ProblemInstance pi = new ProblemInstance("\"DIR=>" + dzOpts.dir + ";CMD=>" + cmd2+";ENFORCETIME=>" + dzOpts.enforceTimeLimit + ";SHOWOUTPUT=>" + dzOpts.showOutput  + "\"", "DZQFTW");
+						ProblemInstance pi = new ProblemInstance("\"DIR=>" + ps.stripPath(dzOpts.dir) + ";CMD=>" + ps.stripPath(cmd2)+";ENFORCETIME=>" + dzOpts.enforceTimeLimit + ";SHOWOUTPUT=>" + dzOpts.showOutput  + "\"", "DZQFTW");
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi, i);
 						
 						runConfigs.add(new RunConfig(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration()));
