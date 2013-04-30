@@ -1,8 +1,4 @@
 
-
-
-
-
 CREATE TABLE IF NOT EXISTS `commandTable_ACLIB_POOL_NAME` (
   `commandID` int(11) NOT NULL AUTO_INCREMENT,
   `commandString` text COLLATE utf8_unicode_ci NOT NULL,
@@ -52,7 +48,8 @@ CREATE TABLE IF NOT EXISTS `runConfigs_ACLIB_POOL_NAME` (
 `additional_run_data` varchar(2048) NOT NULL DEFAULT '',
  PRIMARY KEY (`runConfigID`),
  UNIQUE KEY `runConfigUUID` (`runConfigUUID`),
- KEY `status` (`status`,`workerUUID`)
+ KEY `status_2` (`status`,`priority`),
+ KEY `status` (`status`,`workerUUID`,`priority`,`retryAttempts`)
 ) ENGINE=InnoDB;
 
 
@@ -73,5 +70,13 @@ DEFAULT 'RUNNING',
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE
 CURRENT_TIMESTAMP,
 PRIMARY KEY (`workerUUID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `version_ACLIB_POOL_NAME` (
+`id` int(11) NOT NULL AUTO_INCREMENT,
+`version` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
+`hash` varchar(128) COLLATE utf8_unicode_ci NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `hash` (`hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
