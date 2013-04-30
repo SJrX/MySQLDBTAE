@@ -11,7 +11,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
-
+/***
+ * A basic wrapper class
+ * 
+ * NOTE: This class cannot have any dependencies to anything outside of the JRE
+ * as it will be invoked without anything on it's classpath
+ * 
+ * @author Steve Ramage <seramage@cs.ubc.ca>
+ */
 public class DangerZoneWrapper {
 
 	/**

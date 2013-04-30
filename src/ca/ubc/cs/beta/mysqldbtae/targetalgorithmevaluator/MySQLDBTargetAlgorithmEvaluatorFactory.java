@@ -136,7 +136,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 			}
 		}
 		
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority, opts.additionalRunData);
 		String command = System.getProperty("sun.java.command");
 		if((command == null) || (command.trim().length() < 1))
 		{

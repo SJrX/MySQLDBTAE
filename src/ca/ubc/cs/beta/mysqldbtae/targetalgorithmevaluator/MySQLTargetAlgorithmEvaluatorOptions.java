@@ -57,6 +57,10 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 
 	@Parameter(names="--mysqldbtae-priority", description="Priority of Jobs inserted into database")
 	public JobPriority priority = JobPriority.NORMAL;
+	
+	//This is almost certain premature optimization
+	@Parameter(names={"--mysqldbtae-get-addl-run-data", "--mysqldbtae-get-additional-run-data", "--mysqldbtae-get-full-run"}, description="Get the Additional Run Data field from the database")
+	public boolean additionalRunData = true;
 
 	public Connection getConnection()
 	{

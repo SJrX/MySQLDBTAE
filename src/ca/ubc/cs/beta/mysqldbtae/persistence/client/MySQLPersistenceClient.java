@@ -188,7 +188,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	private final int runPartition;
 
-	private final boolean getAdditionalRunData = false;
+	private final boolean getAdditionalRunData;
 	/**
 	 * Flag variable, if <code>true</code> we should delete all the data in the db. 
 	 */
@@ -199,23 +199,24 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	
 	public MySQLPersistenceClient(MySQLConfig mysqlOptions, String pool, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, false);
 	}
 	
-	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
+	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean addlRunData)
 	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority);
+		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, addlRunData);
 	}
 	
 
 	public MySQLPersistenceClient(String host, int port,
 			String databaseName, String username, String password, String pool,
-			String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority) {
+			String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean getAdditionalRunData) {
 		super(host, port, databaseName, username, password, pool, createTables);
 		this.pathStrip = new PathStripper(pathStrip);
 		this.batchInsertSize = batchInsertSize;
 		this.runPartition = runPartition;
 		this.deletePartitionDataOnShutdown = deletePartitionDataOnShutdown;
+		this.getAdditionalRunData = getAdditionalRunData;
 		if(priority == null)
 		{
 			throw new IllegalArgumentException("Priority cannot be null");
@@ -279,7 +280,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						{
 							StringBuilder sb = new StringBuilder();	
 							
-							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, result_seed  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+							String addlRunData = (this.getAdditionalRunData) ? ", additional_run_data" : "";
+							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, result_seed"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 							
 						
 							int querySize = 0;
@@ -311,7 +313,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								{	
 									if(rs.getString(2).equals("COMPLETE"))
 									{
-										String resultLine = rs.getString(3) + "," + rs.getDouble(4) + "," + rs.getDouble(5) + "," + rs.getDouble(6) + "," + rs.getLong(7);
+										
+										
+										String addlRunDataStr = (this.getAdditionalRunData) ? "," + rs.getString(8) : "";
+										String resultLine = rs.getString(3) + "," + rs.getDouble(4) + "," + rs.getDouble(5) + "," + rs.getDouble(6) + "," + rs.getLong(7) + addlRunDataStr;
 										
 										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
 										incompleteRuns.remove(rs.getString(1));
