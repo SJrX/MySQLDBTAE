@@ -84,12 +84,14 @@
 			
 			<tar destFile="${software.dir}/${outputfilename}.tar.gz" longfile="gnu" compression="gzip">
 					<tarfileset dir="dist/" filemode="750" prefix="${outputfilename}/">
-											<include name="mysql-worker"/>
+							<include name="mysql-worker"/>
+							<include name="dzq"/>
 						</tarfileset>
 				<tarfileset dir="dist/" filemode="640" dirmode="750" prefix="${outputfilename}/">
 							<include name="**/*"/>
 							<exclude name="${lastdeployfile}"/> 
 							<exclude name="mysql-worker"/>
+							<exclude name="dzq"/>
 						</tarfileset>
 						
 			</tar>
