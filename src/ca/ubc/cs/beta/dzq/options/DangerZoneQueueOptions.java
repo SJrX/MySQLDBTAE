@@ -49,7 +49,7 @@ public class DangerZoneQueueOptions extends AbstractOptions {
 	public boolean ignoreTAEBounds = true;
 
 	
-	@Parameter(names="--execFile", description="File with commands one per line to execute (lines starting with a # will be ignored). \"%ID%\" will be replaced with the index of the job in the array and a space")
+	@Parameter(names="--execFile", description="File with commands one per line to execute (lines starting with a # will be ignored). \"%ID%\" will be replaced with the index of the job in the array and a space", converter=ReadableFileConverter.class)
 	public File execFile;
 	
 	@Parameter(names="--exec", description="Command to execute. \"%ID \" will be replaced with the index of the job in the array and a space")

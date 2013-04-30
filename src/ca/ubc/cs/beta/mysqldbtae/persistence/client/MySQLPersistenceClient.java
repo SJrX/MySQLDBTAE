@@ -325,7 +325,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										if(run.getRunResult().equals(RunResult.ABORT))
 										{
 											Object[] args = {rs.getString(1), rs.getString(2), rs.getString(3) } ;
-											log.info("ABORT DETECTED: {} : {} : {}",args );
+											log.debug("ABORT DETECTED: {} : {} : {}",args );
 										}
 										userRuns.put(runConfig, run);
 										returnedResults++;
@@ -346,11 +346,11 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							}
 							
 							Object args[] =  { token, userRuns.size(), runs };
-							log.info("RunToken {} has {} out of {} runs complete ",args);
+							log.debug("RunToken {} has {} out of {} runs complete ",args);
 							
 					
 							//Thread.sleep(1000);
-							log.debug("Queried for {} got {} results back", querySize, returnedResults);
+							log.trace("Queried for {} got {} results back", querySize, returnedResults);
 							
 							
 							List<String> runsToKill = new ArrayList<String>();
@@ -567,7 +567,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						stmt = conn.prepareStatement(sb.toString());
 					
 					
-						log.trace("SQL INSERT: {} ", sb);
+						log.debug("SQL INSERT: {} ", sb);
 						
 						log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
 			
@@ -627,7 +627,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								insertFailed = false;
 							} catch(MySQLTransactionRollbackException e)
 							{
-								log.info("Deadlock");
+								log.info("Deadlock detected, retrying");
 							}
 						}
 						
@@ -675,7 +675,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				} catch(PacketTooBigException e)
 				{
-					throw new IllegalStateException("SQL Error Occured, Try lowering the Batch Size (probably MYSQL_BATCH_INSERT_SIZE or a CLI option)", e);
+					throw new IllegalStateException("SQL Error Occured, Try lowering the Batch Size", e);
 				} catch (SQLException e) {
 					throw new IllegalStateException("SQL Error", e);
 				}

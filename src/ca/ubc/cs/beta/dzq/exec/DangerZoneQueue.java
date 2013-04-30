@@ -1,6 +1,10 @@
 package ca.ubc.cs.beta.dzq.exec;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -252,6 +256,7 @@ public class DangerZoneQueue {
 		
 		int commandOptions = 0;
 
+		
 		List<String> commands = null;
 		if(dzOpts.exec != null)
 		{
@@ -261,7 +266,36 @@ public class DangerZoneQueue {
 	
 		if(dzOpts.execFile != null)
 		{
-			throw new UnsupportedOperationException("Not Implemented Currently");
+			commandOptions++;
+			
+			commands = new ArrayList<String>();
+			log.info("Reading commands from file {} ", dzOpts.execFile.getAbsolutePath());
+			
+			try {
+				BufferedReader reader = new BufferedReader(new FileReader(dzOpts.execFile));
+				String line;
+				while( (line = reader.readLine()) != null)
+				{
+					
+					if(line.trim().length() == 0)
+					{
+						continue;
+					}
+					if(line.trim().startsWith("#"))
+					{
+						continue;
+					} else
+					{ 
+						log.debug("Parsed command line {}", line);
+						commands.add(line);
+					}
+				}
+				
+				
+				
+			} catch (IOException e) {
+				throw new IllegalStateException("Unexpected IO Expection", e);
+			}
 		}
 		
 		
