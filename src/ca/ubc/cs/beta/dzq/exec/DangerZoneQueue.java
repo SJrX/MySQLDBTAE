@@ -319,28 +319,29 @@ public class DangerZoneQueue {
 	}
 
 
-	private static String getExecutionString(String wrapper) {
+	public static String getExecutionString(String wrapper) {
 		if(wrapper.equals("BUILTIN"))
 		{
 			
-			String fullClass = DangerZoneWrapper.class.getClassLoader().getResource(DangerZoneWrapper.class.getCanonicalName().replace(".", File.separator)  + ".class").getFile();
-			String root;
+				String fullClass = DangerZoneWrapper.class.getClassLoader().getResource(DangerZoneWrapper.class.getCanonicalName().replace(".", File.separator)  + ".class").getFile();
+				String root;
+				
+				
+				if(!fullClass.contains("jar!"))
+				{
+					String wrapperRelativePath = DangerZoneWrapper.class.getCanonicalName().replace(".", File.separator) + ".class";
+					root = fullClass.replace(wrapperRelativePath, "");
+				} else
+				{
+					root = fullClass.split("!")[0];
+				}
+				
+				
+				log.debug("Built In Wrapper parsed to location {} ", root);
 			
+				
+				return AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX + "java -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
 			
-			if(!fullClass.contains("jar!"))
-			{
-				String wrapperRelativePath = DangerZoneWrapper.class.getCanonicalName().replace(".", File.separator) + ".class";
-				root = fullClass.replace(wrapperRelativePath, "");
-			} else
-			{
-				root = fullClass.split("!")[0];
-			}
-			
-			
-			log.debug("Built In Wrapper parsed to location {} ", root);
-		
-			
-			return "java -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
 			//System.out.println(DangerZoneWrapper.class.getClassLoader().getResource(ProviderFor.class.getCanonicalName().replace(".", File.separator)  + ".class").getFile());
 			
 			//return wrapper;

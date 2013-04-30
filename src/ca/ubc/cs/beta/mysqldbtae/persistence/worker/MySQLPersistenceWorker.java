@@ -37,6 +37,7 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.dzq.exec.DangerZoneQueue;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
@@ -135,7 +136,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				 boolean deterministicAlgorithm = rs.getBoolean(5);
 				 double cutoffTime = rs.getDouble(6);
 				 
-					
+ 				 if(algorithmExecutable.startsWith(AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX))
+				 {
+					algorithmExecutable = DangerZoneQueue.getExecutionString("BUILTIN").replace(AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX,"");
+				 }
+				 
+				 
+				 
 				 AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
 				 
 				 

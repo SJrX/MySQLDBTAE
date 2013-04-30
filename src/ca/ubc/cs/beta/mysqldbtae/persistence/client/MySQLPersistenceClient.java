@@ -817,8 +817,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			
 			sb.append("INSERT INTO ").append(TABLE_COMMAND).append(" (CommandString) VALUES (?)");
 			
-		
-			
 			try {
 				PreparedStatement stmt = null;
 				
