@@ -1,43 +1,17 @@
 package ca.ubc.cs.beta.mysqldbtae.worker;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
-import java.text.DateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.CountDownLatch;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
-import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
-import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
-import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
-import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
-import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
-import ca.ubc.cs.beta.mysqldbtae.version.MySQLDBTAEVersionInfo;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 

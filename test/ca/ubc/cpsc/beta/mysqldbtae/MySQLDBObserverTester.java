@@ -8,11 +8,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -30,17 +25,12 @@ import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.cli.CommandLineTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.BoundedTargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
-import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
-import ca.ubc.cs.beta.targetalgorithmevaluator.EchoTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 
 import ec.util.MersenneTwister;
@@ -215,7 +205,7 @@ public class MySQLDBObserverTester {
 			
 			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
 			
-			if(run.getRunResult().equals(RunResult.TIMEOUT))
+			if(run.getRunResult().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -317,7 +307,7 @@ public class MySQLDBObserverTester {
 			
 			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
 			
-			if(run.getRunResult().equals(RunResult.TIMEOUT))
+			if(run.getRunResult().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -418,7 +408,7 @@ public class MySQLDBObserverTester {
 			
 			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
 			
-			if(run.getRunResult().equals(RunResult.TIMEOUT))
+			if(run.getRunResult().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -520,7 +510,7 @@ public class MySQLDBObserverTester {
 			
 			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
 			
-			if(run.getRunResult().equals(RunResult.TIMEOUT))
+			if(run.getRunResult().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -630,7 +620,7 @@ public class MySQLDBObserverTester {
 			
 			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
 			
-			if(run.getRunResult().equals(RunResult.TIMEOUT))
+			if(run.getRunResult().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -738,7 +728,7 @@ public class MySQLDBObserverTester {
 			
 			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
 			
-			if(run.getRunResult().equals(RunResult.TIMEOUT))
+			if(run.getRunResult().isSuccessfulAndCensored())
 			{
 				continue;
 			}

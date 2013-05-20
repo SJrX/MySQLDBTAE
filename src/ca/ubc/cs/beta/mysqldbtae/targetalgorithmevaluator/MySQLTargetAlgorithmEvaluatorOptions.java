@@ -4,14 +4,12 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
-import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.jcommander.validator.FixedPositiveInteger;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterFile;
-import com.beust.jcommander.ParametersDelegate;
 
 public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 

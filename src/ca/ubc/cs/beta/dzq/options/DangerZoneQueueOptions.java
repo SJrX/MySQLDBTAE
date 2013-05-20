@@ -3,7 +3,6 @@ package ca.ubc.cs.beta.dzq.options;
 import java.io.File;
 
 import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
-import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.options.TargetAlgorithmEvaluatorOptions;

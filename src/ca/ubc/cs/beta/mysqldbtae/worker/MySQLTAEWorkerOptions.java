@@ -7,8 +7,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
 import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
-import ca.ubc.cs.beta.aclib.misc.jcommander.validator.FixedPositiveInteger;
-import ca.ubc.cs.beta.aclib.misc.jcommander.validator.NonNegativeInteger;
 import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;

@@ -1,19 +1,11 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -29,7 +21,6 @@ import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -178,7 +169,7 @@ public class MySQLDBTAEKillRetryTester {
 				} });
 			 
 			
-			assertEquals(RunResult.TIMEOUT, runs.get(0).getRunResult());
+			assertEquals(RunResult.KILLED, runs.get(0).getRunResult());
 			
 			try {
 				Thread.sleep(30000);
