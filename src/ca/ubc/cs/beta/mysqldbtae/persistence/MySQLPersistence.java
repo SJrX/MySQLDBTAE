@@ -9,6 +9,7 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 
 import java.sql.SQLException;
 
@@ -271,6 +272,78 @@ public class MySQLPersistence {
 			DataSources.destroy(cpds);
 		} catch (SQLException e) {
 			log.error("Unknown exception occurred {}",e );
+		}
+	}
+	
+	/**
+	 * Executes a SQL query against the database
+	 * 
+	 * This is mainly used for debug purposes and is not very robust, it is protected 
+	 * to prevent abuse, and you must use the {@link ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil} class to actually invoke it
+	 * 
+	 * @param query SQL Query to execute
+	 */
+	protected void debugExecuteUpdate(String query)
+	{
+		try {
+			Connection conn = null;
+			try {
+				 conn = getConnection();
+				
+				
+				Statement stmt = conn.createStatement();
+				log.debug("Executing Query: {} " ,query);
+				boolean isResultSet = stmt.execute(query);
+				
+				if(isResultSet)
+				{
+					log.debug("Query has result set ");
+					ResultSet rs = stmt.getResultSet();
+					int columnCount = rs.getMetaData().getColumnCount();
+					
+					
+					
+					StringBuilder sb = new StringBuilder();
+					int j=0;
+					while(rs.next())
+					{
+						for(int i=1; i <= columnCount; i++)
+						{
+							sb.append(rs.getString(i));
+							if( i != columnCount)
+							{
+								sb.append(",");
+							}
+							
+						}
+						
+						
+						log.debug("Result ({}) : {} )",j, sb.toString());
+						j++;
+					}
+					
+					
+					
+				} else
+				{
+					int updateCount = stmt.getUpdateCount();
+					if(updateCount != -1)
+					{
+						log.debug("Query completed successfully, update count is {} ", updateCount );
+					} else
+					{
+						log.debug("Query completed successfully");
+					}
+					
+				}
+			
+			} finally
+			{
+				if(conn != null) conn.close();
+			}
+		} catch(SQLException e)
+		{
+			throw new IllegalStateException(e);
 		}
 	}
 

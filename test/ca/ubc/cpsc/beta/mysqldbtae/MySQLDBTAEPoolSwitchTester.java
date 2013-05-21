@@ -23,6 +23,8 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
+import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
@@ -40,7 +42,7 @@ public class MySQLDBTAEPoolSwitchTester {
 	
 	private static MySQLConfig mysqlConfig;
 	
-	private static final String MYSQL_POOL = "juniting2";
+	private static final String MYSQL_POOL = "junit_pool_switch";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 50;
@@ -57,13 +59,7 @@ public class MySQLDBTAEPoolSwitchTester {
 	@BeforeClass
 	public static void beforeClass()
 	{
-		
-		mysqlConfig = new MySQLConfig();
-		mysqlConfig.host = "arrowdb.cs.ubc.ca";
-		mysqlConfig.port = 4040;
-		mysqlConfig.password = "october-127";
-		mysqlConfig.databaseName = "mysql_db_tae";
-		mysqlConfig.username = "mysql_db_tae";
+		mysqlConfig = MySQLDBUnitTestConfig.getMySQLConfig();
 		
 		try {
 			StringBuilder b = new StringBuilder();
@@ -73,6 +69,7 @@ public class MySQLDBTAEPoolSwitchTester {
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL + 1);
+			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --timeLimit 1d --updateFrequency 2");
 			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 --idleLimit 30s" );
 			proc = Runtime.getRuntime().exec(b.toString());
@@ -174,22 +171,28 @@ public class MySQLDBTAEPoolSwitchTester {
 			
 			tae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
 
+			final MySQLPersistence sqlExec = mysqlPersistence;
 			runs = tae.evaluateRun(runConfigs,new CurrentRunStatusObserver()
 			{
 
+				boolean poolSwitchAttempted = false;
 				@Override
 				public void currentStatus(
 						List<? extends KillableAlgorithmRun> runs) {
+					/*
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
+					*/
 					try {
 						Thread.sleep(500);
 					} catch (InterruptedException e) {
 					
 						e.printStackTrace();
 					}
+				
+					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0", sqlExec);
 				}
 				
 			});

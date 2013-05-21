@@ -47,7 +47,7 @@ public class MySQLDBObserverTester {
 	
 	private static MySQLConfig mysqlConfig;
 	
-	private static final String MYSQL_POOL = "juniting2";
+	private static final String MYSQL_POOL = "junit_observer";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 50;
@@ -62,13 +62,8 @@ public class MySQLDBObserverTester {
 	@BeforeClass
 	public static void beforeClass()
 	{
+		mysqlConfig = MySQLDBUnitTestConfig.getMySQLConfig();
 		
-		mysqlConfig = new MySQLConfig();
-		mysqlConfig.host = "arrowdb.cs.ubc.ca";
-		mysqlConfig.port = 4040;
-		mysqlConfig.password = "october-127";
-		mysqlConfig.databaseName = "mysql_db_tae";
-		mysqlConfig.username = "mysql_db_tae";
 		
 		try {
 			StringBuilder b = new StringBuilder();
@@ -77,6 +72,7 @@ public class MySQLDBObserverTester {
 			b.append(System.getProperty("java.class.path"));
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
+			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --timeLimit 1d");
 			b.append(" --tae CLI --runsToBatch 200 --delayBetweenRequests 1 --idleLimit 15s" );
@@ -207,6 +203,7 @@ public class MySQLDBObserverTester {
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{
+				
 				continue;
 			}
 			assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
@@ -309,6 +306,7 @@ public class MySQLDBObserverTester {
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{
+				assertTrue("Run Result Killed",run.getRunResult().equals(RunResult.KILLED));
 				continue;
 			}
 			assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);

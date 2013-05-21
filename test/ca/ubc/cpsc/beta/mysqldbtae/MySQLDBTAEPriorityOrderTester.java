@@ -43,7 +43,7 @@ public class MySQLDBTAEPriorityOrderTester {
 	
 	private static MySQLConfig mysqlConfig;
 	
-	private static final String MYSQL_POOL = "juniting4";
+	private static final String MYSQL_POOL = "junit_priority_order";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 5;
@@ -60,14 +60,7 @@ public class MySQLDBTAEPriorityOrderTester {
 	@BeforeClass
 	public static void beforeClass()
 	{
-		
-		mysqlConfig = new MySQLConfig();
-		mysqlConfig.host = "arrowdb.cs.ubc.ca";
-		mysqlConfig.port = 4040;
-		mysqlConfig.password = "october-127";
-		mysqlConfig.databaseName = "mysql_db_tae";
-		mysqlConfig.username = "mysql_db_tae";
-		
+		mysqlConfig = MySQLDBUnitTestConfig.getMySQLConfig();
 		
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
 		configSpace = new ParamConfigurationSpace(paramFile);
@@ -88,6 +81,7 @@ public class MySQLDBTAEPriorityOrderTester {
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
+			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --timeLimit 1d");
 			b.append(" --tae PARAMECHO --runsToBatch 1 --delayBetweenRequests 3 --idleLimit 30s" );
 			proc = Runtime.getRuntime().exec(b.toString());

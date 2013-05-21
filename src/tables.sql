@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `runConfigs_ACLIB_POOL_NAME` (
  `retryAttempts` int(11) NOT NULL DEFAULT '0',
  `runPartition` int(11) NOT NULL,
  `noop` tinyint(1) NOT NULL DEFAULT '0',
- `runResult` enum('TIMEOUT','SAT','UNSAT','CRASHED','ABORT') NOT NULL DEFAULT 'ABORT',
+ `runResult` enum('TIMEOUT','SAT','UNSAT','CRASHED','ABORT','KILLED') NOT NULL DEFAULT 'ABORT',
 `runLength` double NOT NULL DEFAULT '0',
 `quality` double NOT NULL DEFAULT '0',
 `result_seed` bigint(20) NOT NULL DEFAULT 1,

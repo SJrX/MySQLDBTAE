@@ -71,12 +71,7 @@ public class MySQLDBTAELoadTest {
 	public static void beforeClass()
 	{
 		
-		mysqlConfig = new MySQLConfig();
-		mysqlConfig.host = "arrowdb.cs.ubc.ca";
-		mysqlConfig.port = 4040;
-		mysqlConfig.password = "october-127";
-		mysqlConfig.databaseName = "mysql_db_tae";
-		mysqlConfig.username = "mysql_db_tae";
+		mysqlConfig = MySQLDBUnitTestConfig.getMySQLConfig();
 		
 		
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
@@ -373,6 +368,7 @@ public class MySQLDBTAELoadTest {
 			}
 			final MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
 			
+			options.mysqlOptions = mysqlConfig;
 			options.pool = MYSQL_POOL+"processing";
 			options.timeLimit = 86400*1;
 			options.idleLimit = 10;

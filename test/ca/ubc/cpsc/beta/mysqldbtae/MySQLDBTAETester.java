@@ -39,6 +39,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.WaitableTAECallbac
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
+import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
@@ -59,7 +60,7 @@ public class MySQLDBTAETester {
 	
 	private static MySQLConfig mysqlConfig;
 	
-	private static final String MYSQL_POOL = "juniting2";
+	private static final String MYSQL_POOL = "junit_tae_test";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 50;
@@ -77,13 +78,7 @@ public class MySQLDBTAETester {
 	@BeforeClass
 	public static void beforeClass()
 	{
-		
-		mysqlConfig = new MySQLConfig();
-		mysqlConfig.host = "arrowdb.cs.ubc.ca";
-		mysqlConfig.port = 4040;
-		mysqlConfig.password = "october-127";
-		mysqlConfig.databaseName = "mysql_db_tae";
-		mysqlConfig.username = "mysql_db_tae";
+		mysqlConfig = MySQLDBUnitTestConfig.getMySQLConfig();
 		
 		try {
 			StringBuilder b = new StringBuilder();
@@ -93,6 +88,7 @@ public class MySQLDBTAETester {
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
+			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --timeLimit 1d --idleLimit 10s");
 			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 " );
 			proc = Runtime.getRuntime().exec(b.toString());
@@ -118,7 +114,7 @@ public class MySQLDBTAETester {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
+		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFileWithKilled.txt");
 		configSpace = new ParamConfigurationSpace(paramFile);
 		execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
 		rand = new MersenneTwister();
@@ -256,8 +252,10 @@ public class MySQLDBTAETester {
 	public void testRunPartitions()
 	{
 		
+		
 			
 			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
+			
 			try {
 			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 			} catch(RuntimeException e)
@@ -332,6 +330,10 @@ public class MySQLDBTAETester {
 
 			
 			//Different RunPartition
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			runs = tae.evaluateRun(runConfigs);			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			
 			runs = tae.evaluateRun(runConfigs);
 			for(AlgorithmRun run : runs)
 			{
@@ -342,7 +344,7 @@ public class MySQLDBTAETester {
 				assertDEquals(config.get("runtime"), run.getRuntime()+1, 0.1);
 				} catch(AssertionError e)
 				{
-					System.err.println("Make sure to run this configuration to fix the database (after truncating the table and one failed run) UPDATE runConfigs_" + MYSQL_POOL + " SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1));
+					System.err.println("Make sure to run this configuration to fix the database (after truncating the table and one failed run) UPDATE "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1));
 					throw e;
 				}
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);

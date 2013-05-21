@@ -58,12 +58,7 @@ public class MySQLDBTAEKillRetryTester {
 	public static void beforeClass()
 	{
 		
-		mysqlConfig = new MySQLConfig();
-		mysqlConfig.host = "arrowdb.cs.ubc.ca";
-		mysqlConfig.port = 4040;
-		mysqlConfig.password = "october-127";
-		mysqlConfig.databaseName = "mysql_db_tae";
-		mysqlConfig.username = "mysql_db_tae";
+		mysqlConfig = MySQLDBUnitTestConfig.getMySQLConfig();
 		
 		
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
@@ -94,8 +89,9 @@ public class MySQLDBTAEKillRetryTester {
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
+			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --timeLimit 1d");
-			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 3 --idleLimit 10s " );
+			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 1 --idleLimit 60s " );
 			
 			
 			System.out.println(b.toString());
@@ -130,26 +126,23 @@ public class MySQLDBTAEKillRetryTester {
 		
 			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
 			
-			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
+			do
 			{
 				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
 				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 				{
 					//Only want good configurations
-					i--;
 					continue;
 				} else
 				{
-					config.put("runtime", "30");
+					config.put("runtime", "10");
 					config.put("solved", "SAT");
 					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance","SLEEP"), Long.valueOf(config.get("seed"))), 1001, config);
 					
 					runConfigs.add(rc);
 					break;
 				}
-				
-				
-			}
+			} while(true);
 			
 			long time = System.currentTimeMillis();
 			
@@ -160,7 +153,7 @@ public class MySQLDBTAEKillRetryTester {
 						List<? extends KillableAlgorithmRun> runs) {
 						
 					
-					if(runs.get(0).getRuntime() > 10)
+					if(runs.get(0).getRuntime() > 3)
 					{
 						System.err.println("Killing Run");
 						runs.get(0).kill();
@@ -168,26 +161,12 @@ public class MySQLDBTAEKillRetryTester {
 					
 				} });
 			 
-			
+
 			assertEquals(RunResult.KILLED, runs.get(0).getRunResult());
-			
-			try {
-				Thread.sleep(30000);
-			} catch (InterruptedException e) {
-				Thread.currentThread();
-			}
-			
-			
+		
 			runs = highMySQLTAE.evaluateRun(runConfigs);			
 			
 			assertEquals(RunResult.SAT, runs.get(0).getRunResult());
-			
-			try {
-				Thread.sleep(30000);
-			} catch (InterruptedException e) {
-				Thread.currentThread();
-			}
-			
 			
 			highMySQLTAE.notifyShutdown();
 			
