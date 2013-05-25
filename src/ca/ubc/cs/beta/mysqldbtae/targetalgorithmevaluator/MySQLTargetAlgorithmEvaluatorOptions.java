@@ -5,12 +5,14 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 
 import ca.ubc.cs.beta.aclib.misc.jcommander.validator.FixedPositiveInteger;
+import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterFile;
 
+@UsageTextField(title="MySQL Target Algorithm Evaluator Options", description="Options that control the MySQL Target Algorithm Evaluator")
 public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 
 	@Parameter(names="--mysqldbtae-pool", description="Pool to take tasks from")
