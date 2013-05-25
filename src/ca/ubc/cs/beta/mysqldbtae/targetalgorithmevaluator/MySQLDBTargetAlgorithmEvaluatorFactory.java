@@ -22,7 +22,7 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		TargetAlgorithmEvaluatorFactory {
 
-	private Logger log = LoggerFactory.getLogger(this.getClass());
+	
 	
 	
 	@Override
@@ -30,10 +30,15 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory implements
 		return "MYSQLDB";
 	}
 
+	//DO NOT SET A LOGGER HERE OR IT WILL BREAK LOGGING
+	private Logger log;
+	
 	
 	@Override
 	public TargetAlgorithmEvaluator getTargetAlgorithmEvaluator(
 			AlgorithmExecutionConfig execConfig, AbstractOptions options) {
+		
+		log = LoggerFactory.getLogger(this.getClass());
 		
 		MySQLTargetAlgorithmEvaluatorOptions opts = (MySQLTargetAlgorithmEvaluatorOptions) options;                                        
 		/**
