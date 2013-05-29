@@ -11,6 +11,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
+import ca.ubc.cs.beta.aclib.concurrent.threadfactory.SequentiallyNamedThreadFactory;
+
 /***
  * A basic wrapper class
  * 
@@ -70,7 +72,7 @@ public class DangerZoneWrapper {
 			
 			
 			
-			ExecutorService execService = Executors.newCachedThreadPool();
+			ExecutorService execService = Executors.newCachedThreadPool(new SequentiallyNamedThreadFactory("Danger Zone Queue Thread"));
 			
 			
 			String output = argString.get("SHOWOUTPUT").trim();
