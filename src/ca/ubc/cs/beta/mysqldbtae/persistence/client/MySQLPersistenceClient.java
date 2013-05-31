@@ -42,7 +42,7 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
@@ -127,7 +127,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores a mapping from the Run Token to the observer
 	 */
-	private final Map<RunToken, CurrentRunStatusObserver> runTokenToObserverMap = new ConcurrentHashMap<RunToken,CurrentRunStatusObserver>();
+	private final Map<RunToken, TargetAlgorithmEvaluatorRunObserver> runTokenToObserverMap = new ConcurrentHashMap<RunToken,TargetAlgorithmEvaluatorRunObserver>();
 	
 	/**
 	 * Stores our current mapping of RunToken to OutstandingRuns
@@ -491,7 +491,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 		}
 
-	public RunToken enqueueRunConfigs(List<RunConfig> runConfigs, CurrentRunStatusObserver obs)
+	public RunToken enqueueRunConfigs(List<RunConfig> runConfigs, TargetAlgorithmEvaluatorRunObserver obs)
 	{
 
 		AutoStartStopWatch completeInsertionTime = new AutoStartStopWatch();
@@ -513,7 +513,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			
 			if(obs == null)
 			{
-				obs = new CurrentRunStatusObserver()
+				obs = new TargetAlgorithmEvaluatorRunObserver()
 				{
 
 					@Override

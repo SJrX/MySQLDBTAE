@@ -15,14 +15,14 @@ import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aclib.exceptions.TargetAlgorithmAbortException;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.AbstractDeferredTargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractAsyncTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TAEShutdownException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 
-public class MySQLTargetAlgorithmEvaluator extends AbstractDeferredTargetAlgorithmEvaluator {
+public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmEvaluator {
 
 
 	private final MySQLPersistenceClient persistence;
@@ -54,23 +54,11 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractDeferredTargetAlgorit
 		requestWatcher.shutdownNow();
 	}
 
-	@Override
-	public void evaluateRunsAsync(RunConfig runConfig, TAECallback handler) {
-		evaluateRunsAsync(Collections.singletonList(runConfig), handler);
-	}
-
 	
 	@Override
 	@SuppressWarnings("unchecked")
 	public void evaluateRunsAsync(List<RunConfig> runConfigs,
-			TAECallback handler) {
-				evaluateRunsAsync(runConfigs, handler, null);
-			}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void evaluateRunsAsync(List<RunConfig> runConfigs,
-			TAECallback handler, CurrentRunStatusObserver obs) {
+			TargetAlgorithmEvaluatorCallback handler, TargetAlgorithmEvaluatorRunObserver obs) {
 		
 		if(runConfigs.size() == 0)
 		{
@@ -97,9 +85,9 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractDeferredTargetAlgorit
 	class MySQLRequestWatcher implements Runnable
 	{
 		private final RunToken token;
-		private final TAECallback handler; 
+		private final TargetAlgorithmEvaluatorCallback handler; 
 		
-		public MySQLRequestWatcher(RunToken token, TAECallback handler)
+		public MySQLRequestWatcher(RunToken token, TargetAlgorithmEvaluatorCallback handler)
 		{
 			this.token = token;
 			this.handler = handler;

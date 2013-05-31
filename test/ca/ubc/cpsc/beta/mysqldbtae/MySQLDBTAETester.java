@@ -31,12 +31,12 @@ import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.BoundedTargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.EqualTargetAlgorithmEvaluatorTester;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.WaitableTAECallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.WaitableTAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.debug.EqualTargetAlgorithmEvaluatorTester;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.helpers.BoundedTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
@@ -220,7 +220,7 @@ public class MySQLDBTAETester {
 			System.out.println("Performing " + runConfigs.size() + " runs");
 			TargetAlgorithmEvaluator tae = mysqlDBTae;
 			final AtomicBoolean onFailure = new AtomicBoolean(false);
-			TAECallback callback = new TAECallback()
+			TargetAlgorithmEvaluatorCallback callback = new TargetAlgorithmEvaluatorCallback()
 			{
 
 				@Override
@@ -405,7 +405,7 @@ public class MySQLDBTAETester {
 					}
 				}
 				
-				mysqlDBTae.evaluateRunsAsync(runConfigs, new TAECallback() {
+				mysqlDBTae.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 
 					@Override
 					public void onSuccess(List<AlgorithmRun> runs) {
@@ -790,7 +790,7 @@ public class MySQLDBTAETester {
 			
 	
 			
-			TAECallback tae = new TAECallback()
+			TargetAlgorithmEvaluatorCallback tae = new TargetAlgorithmEvaluatorCallback()
 			{
 	
 				@Override

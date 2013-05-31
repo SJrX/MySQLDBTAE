@@ -22,9 +22,9 @@ import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
@@ -162,7 +162,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							
 							try {									
 								
-								CurrentRunStatusObserver obs = new CurrentRunStatusObserver() {
+								TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver() {
 									private long lastDBUpdate = System.currentTimeMillis();
 									@Override
 									public void currentStatus( List<? extends KillableAlgorithmRun> runs) {

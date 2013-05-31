@@ -24,7 +24,7 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -145,7 +145,7 @@ public class MySQLDBTAEPriorityOrderTester {
 				{
 					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
 					
-					normalMySQLTAE.evaluateRunsAsync(Collections.singletonList(rc), new TAECallback() {
+					normalMySQLTAE.evaluateRunsAsync(Collections.singletonList(rc), new TargetAlgorithmEvaluatorCallback() {
 
 						@Override
 						public void onSuccess(List<AlgorithmRun> runs) {
@@ -177,7 +177,7 @@ public class MySQLDBTAEPriorityOrderTester {
 			ref.set(goodRun);
 			System.out.println("High Priority Run is: " + goodRun);
 						
-			highMySQLTAE.evaluateRunsAsync(Collections.singletonList(goodRun), new TAECallback() {
+			highMySQLTAE.evaluateRunsAsync(Collections.singletonList(goodRun), new TargetAlgorithmEvaluatorCallback() {
 
 				@Override
 				public void onSuccess(List<AlgorithmRun> runs) {

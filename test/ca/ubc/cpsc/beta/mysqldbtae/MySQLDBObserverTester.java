@@ -24,9 +24,9 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.BoundedTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.helpers.BoundedTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -164,7 +164,7 @@ public class MySQLDBObserverTester {
 		//PrintStream out = System.out;
 		//System.setOut(new PrintStream(bout));
 		
-		CurrentRunStatusObserver obs = new CurrentRunStatusObserver()
+		TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver()
 		{
 			
 			@Override
@@ -267,7 +267,7 @@ public class MySQLDBObserverTester {
 		//PrintStream out = System.out;
 		//System.setOut(new PrintStream(bout));
 		
-		CurrentRunStatusObserver obs = new CurrentRunStatusObserver()
+		TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver()
 		{
 			
 			@Override
@@ -369,7 +369,7 @@ public class MySQLDBObserverTester {
 		//PrintStream out = System.out;
 		//System.setOut(new PrintStream(bout));
 		
-		CurrentRunStatusObserver obs = new CurrentRunStatusObserver()
+		TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver()
 		{
 			
 			@Override
@@ -471,7 +471,7 @@ public class MySQLDBObserverTester {
 		//PrintStream out = System.out;
 		//System.setOut(new PrintStream(bout));
 		
-		CurrentRunStatusObserver obs = new CurrentRunStatusObserver()
+		TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver()
 		{
 			
 			@Override
@@ -581,7 +581,7 @@ public class MySQLDBObserverTester {
 		//PrintStream out = System.out;
 		//System.setOut(new PrintStream(bout));
 		
-		CurrentRunStatusObserver obs = new CurrentRunStatusObserver()
+		TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver()
 		{
 			
 			@Override
@@ -690,7 +690,7 @@ public class MySQLDBObserverTester {
 		//PrintStream out = System.out;
 		//System.setOut(new PrintStream(bout));
 		
-		CurrentRunStatusObserver obs = new CurrentRunStatusObserver()
+		TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver()
 		{
 			
 			@Override

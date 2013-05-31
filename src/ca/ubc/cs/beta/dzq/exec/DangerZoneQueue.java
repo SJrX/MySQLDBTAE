@@ -29,12 +29,12 @@ import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.WaitableTAECallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.WaitableTAECallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.dzq.options.DangerZoneQueueOptions;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
@@ -115,7 +115,7 @@ public class DangerZoneQueue {
 				}
 				
 				
-				TAECallback callback = new TAECallback()
+				TargetAlgorithmEvaluatorCallback callback = new TargetAlgorithmEvaluatorCallback()
 				{
 	
 					@Override
@@ -145,7 +145,7 @@ public class DangerZoneQueue {
 				final boolean showDetailedStatus = dzOpts.showDetailed;
 				final boolean showStatusOverview = dzOpts.showOverview;
 				
-				CurrentRunStatusObserver obs = new CurrentRunStatusObserver()
+				TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver()
 				{
 	
 					long lastUpdate = -1;

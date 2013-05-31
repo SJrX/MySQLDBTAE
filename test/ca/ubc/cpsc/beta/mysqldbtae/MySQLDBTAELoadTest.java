@@ -30,8 +30,8 @@ import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.deferred.TAECallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.loader.TargetAlgorithmEvaluatorLoader;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
@@ -175,7 +175,7 @@ public class MySQLDBTAELoadTest {
 				}
 				
 				long time = System.currentTimeMillis();
-				highMySQLTAE.evaluateRunsAsync(runConfigs, new TAECallback() {
+				highMySQLTAE.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 
 					@Override
 					public void onSuccess(List<AlgorithmRun> runs) {
@@ -336,7 +336,7 @@ public class MySQLDBTAELoadTest {
 					}
 					
 					long time = System.currentTimeMillis();
-					highMySQLTAE.evaluateRunsAsync(runConfigs, new TAECallback() {
+					highMySQLTAE.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 		
 						@Override
 						public void onSuccess(List<AlgorithmRun> runs) {

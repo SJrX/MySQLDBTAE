@@ -20,8 +20,8 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
@@ -172,7 +172,7 @@ public class MySQLDBTAEPoolSwitchTester {
 			tae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
 
 			final MySQLPersistence sqlExec = mysqlPersistence;
-			runs = tae.evaluateRun(runConfigs,new CurrentRunStatusObserver()
+			runs = tae.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver()
 			{
 
 				boolean poolSwitchAttempted = false;

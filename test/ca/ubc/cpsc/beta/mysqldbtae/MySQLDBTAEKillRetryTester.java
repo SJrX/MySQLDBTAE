@@ -20,7 +20,7 @@ import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.currentstatus.CurrentRunStatusObserver;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -146,7 +146,7 @@ public class MySQLDBTAEKillRetryTester {
 			
 			long time = System.currentTimeMillis();
 			
-			List<AlgorithmRun> runs = highMySQLTAE.evaluateRun(runConfigs, new CurrentRunStatusObserver() {
+			List<AlgorithmRun> runs = highMySQLTAE.evaluateRun(runConfigs, new TargetAlgorithmEvaluatorRunObserver() {
 
 				@Override
 				public void currentStatus(
