@@ -75,15 +75,11 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		RunToken token = persistence.enqueueRunConfigs(runConfigs,obs);
 		if(this.wakeUpWorkers) persistence.wakeWorkers();
 		
-		CountDownLatch latch = new CountDownLatch(1);
-		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler, latch);
+		
+		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler);
 		
 		requestWatcher.execute(mysqlWatcher);
-		try {
-			latch.await();
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
+		
 
 	}
 
@@ -101,26 +97,22 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	{
 		private final RunToken token;
 		private final TargetAlgorithmEvaluatorCallback handler; 
-		//Latch to release so that the async caller can go
-		//Release it once we know there are no results ready in the db, or after we have completed the onSuccess method
-		private final CountDownLatch asyncLatch;
 	
-		public MySQLRequestWatcher(RunToken token, TargetAlgorithmEvaluatorCallback handler, CountDownLatch asyncLatch)
+		public MySQLRequestWatcher(RunToken token, TargetAlgorithmEvaluatorCallback handler)
 		{
 			this.token = token;
 			this.handler = handler;
-			this.asyncLatch = asyncLatch;
+			
 		}
 		
 		@Override
 		public void run() {
-			try {
+			
 				List<AlgorithmRun> runs = null;
 				try {
 					while((runs = persistence.pollRunResults(token)) == null)
 					{
-						this.asyncLatch.countDown();
-						
+				
 						if(shutdownRequested.get())
 						{
 							return;
@@ -162,10 +154,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 					handler.onFailure(e);
 				}
 				return;
-			} finally
-			{
-				asyncLatch.countDown();
-			}
+			
 				
 		}
 		

@@ -528,7 +528,7 @@ public class MySQLDBTAETester {
 	@Test(expected=IllegalArgumentException.class)
 	public void testAutoDeleteFailOfNegativeRunPartition()
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION,true, priority);
+		new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION,true, priority);
 	}
 	
 	
