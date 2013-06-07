@@ -10,6 +10,7 @@ import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
+import ca.ubc.cs.beta.aclib.spi.SPIClassLoaderHelper;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import com.beust.jcommander.JCommander;
@@ -50,7 +51,7 @@ public class MySQLTAEWorker {
 			}
 			
 			
-			VersionTracker.setClassLoader(TargetAlgorithmEvaluatorLoader.getClassLoader());
+			VersionTracker.setClassLoader(SPIClassLoaderHelper.getClassLoader());
 			VersionTracker.logVersions();
 		
 			

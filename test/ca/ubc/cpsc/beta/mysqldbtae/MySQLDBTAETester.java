@@ -48,7 +48,7 @@ import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerTaskProcessor;
 import ca.ubc.cs.beta.targetalgorithmevaluator.EchoTargetAlgorithmEvaluator;
 import ec.util.MersenneTwister;
 
-
+@SuppressWarnings("unused")
 public class MySQLDBTAETester {
 
 	

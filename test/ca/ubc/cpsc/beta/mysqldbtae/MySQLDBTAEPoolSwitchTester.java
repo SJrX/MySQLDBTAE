@@ -30,7 +30,7 @@ import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEv
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ec.util.MersenneTwister;
 
-
+@SuppressWarnings("unused")
 public class MySQLDBTAEPoolSwitchTester {
 
 	

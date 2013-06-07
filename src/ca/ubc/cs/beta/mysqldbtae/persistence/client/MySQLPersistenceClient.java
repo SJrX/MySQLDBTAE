@@ -45,7 +45,6 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
-import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
 import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
 

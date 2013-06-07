@@ -40,6 +40,7 @@ import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerTaskProcessor;
 import ec.util.MersenneTwister;
 
+@SuppressWarnings("unused")
 public class MySQLDBTAELoadTest {
 
 

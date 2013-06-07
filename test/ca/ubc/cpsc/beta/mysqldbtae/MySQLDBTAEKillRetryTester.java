@@ -28,6 +28,7 @@ import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.ParamEchoExecutor;
 import ec.util.MersenneTwister;
 
+@SuppressWarnings("unused")
 public class MySQLDBTAEKillRetryTester {
 
 

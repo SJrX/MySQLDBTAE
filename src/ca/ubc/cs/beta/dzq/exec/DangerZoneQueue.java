@@ -29,6 +29,7 @@ import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.spi.SPIClassLoaderHelper;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
@@ -56,7 +57,7 @@ public class DangerZoneQueue {
 				
 			jcom.parse(args);
 
-			VersionTracker.setClassLoader(TargetAlgorithmEvaluatorLoader.getClassLoader());
+			VersionTracker.setClassLoader(SPIClassLoaderHelper.getClassLoader());
 			VersionTracker.logVersions();
 		
 			
@@ -73,7 +74,6 @@ public class DangerZoneQueue {
 	
 			ParamConfigurationSpace configSpace = ParamConfigurationSpace.getSingletonConfigurationSpace();
 			
-			MySQLTargetAlgorithmEvaluatorOptions c;
 			
 			
 			PathStripper ps  = new PathStripper("!!!!!");
@@ -292,7 +292,7 @@ public class DangerZoneQueue {
 						commands.add(line);
 					}
 				}
-				
+				reader.close();
 				
 				
 			} catch (IOException e) {

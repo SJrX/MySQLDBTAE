@@ -35,7 +35,7 @@ import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 
 import ec.util.MersenneTwister;
 
-
+@SuppressWarnings("unused")
 public class MySQLDBObserverTester {
 
 	
@@ -51,6 +51,7 @@ public class MySQLDBObserverTester {
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 50;
+	
 	private static final int BATCH_INSERT_SIZE = TARGET_RUNS_IN_LOOPS/10;
 	
 	private static final int MYSQL_RUN_PARTITION = 0;
