@@ -162,7 +162,6 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 
 	@Override
 	public boolean areRunsObservable() {
-		// TODO Auto-generated method stub
 		return true;
 	}
 	
