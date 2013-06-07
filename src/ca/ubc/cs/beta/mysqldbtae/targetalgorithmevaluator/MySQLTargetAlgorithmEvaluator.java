@@ -2,6 +2,7 @@ package ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -29,10 +30,17 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	private final Logger log = LoggerFactory.getLogger(MySQLTargetAlgorithmEvaluator.class);
 	private final ExecutorService requestWatcher = Executors.newCachedThreadPool();
 	
+	private final boolean wakeUpWorkers;
 
 	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence) {
+		this(execConfig, persistence, false);
+	}
+
+	
+	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence, boolean wakeUpWorkers) {
 		super(execConfig);
 		this.persistence = persistence;
+		this.wakeUpWorkers = wakeUpWorkers;
 	}
 
 
@@ -65,10 +73,17 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 			handler.onSuccess(Collections.EMPTY_LIST);
 		}
 		RunToken token = persistence.enqueueRunConfigs(runConfigs,obs);
+		if(this.wakeUpWorkers) persistence.wakeWorkers();
 		
-		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler);
+		CountDownLatch latch = new CountDownLatch(1);
+		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler, latch);
 		
 		requestWatcher.execute(mysqlWatcher);
+		try {
+			latch.await();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 
 	}
 
@@ -86,61 +101,71 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	{
 		private final RunToken token;
 		private final TargetAlgorithmEvaluatorCallback handler; 
-		
-		public MySQLRequestWatcher(RunToken token, TargetAlgorithmEvaluatorCallback handler)
+		//Latch to release so that the async caller can go
+		//Release it once we know there are no results ready in the db, or after we have completed the onSuccess method
+		private final CountDownLatch asyncLatch;
+	
+		public MySQLRequestWatcher(RunToken token, TargetAlgorithmEvaluatorCallback handler, CountDownLatch asyncLatch)
 		{
 			this.token = token;
 			this.handler = handler;
+			this.asyncLatch = asyncLatch;
 		}
 		
 		@Override
 		public void run() {
-	
-			List<AlgorithmRun> runs = null;
 			try {
-				while((runs = persistence.pollRunResults(token)) == null)
-				{
-					
-					if(shutdownRequested.get())
+				List<AlgorithmRun> runs = null;
+				try {
+					while((runs = persistence.pollRunResults(token)) == null)
 					{
-						return;
-					}
-					try {
-						Thread.sleep(2000);
-					} catch(InterruptedException e)
-					{
-						Thread.currentThread().interrupt();
-						//We were interrupted, we will abort
-						handler.onFailure(new TAEShutdownException(e));
-						return;
-					}
-					
-				}
-				
-				for(AlgorithmRun run : runs)
-				{
-					if(run.getRunResult().equals(RunResult.ABORT))
-					{
-						log.info("Um this was an abort {} : {} ", run.getRunConfig(), run);
+						this.asyncLatch.countDown();
 						
-						handler.onFailure(new TargetAlgorithmAbortException(run));
-						return;
+						if(shutdownRequested.get())
+						{
+							return;
+						}
+						try {
+							
+							Thread.sleep(2000);
+						} catch(InterruptedException e)
+						{
+							Thread.currentThread().interrupt();
+							//We were interrupted, we will abort
+							handler.onFailure(new TAEShutdownException(e));
+							return;
+						}
+						
 					}
+					
+					for(AlgorithmRun run : runs)
+					{
+						if(run.getRunResult().equals(RunResult.ABORT))
+						{
+							log.info("Um this was an abort {} : {} ", run.getRunConfig(), run);
+							
+							handler.onFailure(new TargetAlgorithmAbortException(run));
+							return;
+						}
+					}
+		
+				} catch(RuntimeException e)
+				{
+					handler.onFailure(e);
+					return;
 				}
-	
-			} catch(RuntimeException e)
-			{
-				handler.onFailure(e);
+				try {
+					handler.onSuccess(runs);
+				} catch(RuntimeException e)
+				{
+					log.error("RuntimeException occurred during invocation of onSuccess(), calling onFailure()", e);
+					handler.onFailure(e);
+				}
 				return;
-			}
-			try {
-				handler.onSuccess(runs);
-			} catch(RuntimeException e)
+			} finally
 			{
-				log.error("RuntimeException occurred during invocation of onSuccess(), calling onFailure()", e);
-				handler.onFailure(e);
+				asyncLatch.countDown();
 			}
-			return;
 				
 		}
 		

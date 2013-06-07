@@ -291,13 +291,14 @@ public class MySQLTAEWorkerTaskProcessor {
 					 
 					log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
 					
-					try {
-						if(waitTime > 0.0)
-						{
-							Thread.sleep((int) (waitTime * 1000));
-						}
+					
+					if(waitTime > 0.0)
+					{
+						mysqlPersistence.sleep(waitTime);
+					}
 						
-					} catch (InterruptedException e) {
+					if(Thread.interrupted())
+					{
 						Thread.currentThread().interrupt();
 						return;
 					}

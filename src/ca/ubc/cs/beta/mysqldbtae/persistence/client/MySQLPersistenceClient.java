@@ -45,6 +45,7 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
 import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
 
@@ -507,7 +508,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 		RunToken runToken = new RunToken(runTokenKeys.incrementAndGet());
 		
-		boolean firstRun = true;
 		Connection conn = null;
 		try {
 			
@@ -865,6 +865,59 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		}
 	}
 
+	private final AtomicInteger sqlErrorsWhileKillingQueries  = new AtomicInteger(0); 
+	
+	public void wakeWorkers()
+	{
+		
+		StringBuilder sb = new StringBuilder("SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB=? AND STATE=\"User Sleep\" AND INFO LIKE ?");
+	
+		try {
+			Connection conn = null;
+			try {
+				conn = getConnection();
+			
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+				stmt.setString(1, this.DATABASE);
+				stmt.setString(2,"%"+ this.SLEEP_COMMENT_TEXT + "%");
+				ResultSet rs = stmt.executeQuery();
+				int rowCount = 0;
+				int errorCount = 0;
+				while(rs.next())
+				{
+					int id = rs.getInt(1);
+					rowCount++;
+					try {
+						conn.createStatement().executeQuery("KILL QUERY  " + id);
+					} catch(SQLException e)
+					{
+						//Query may be gone
+						int errors = sqlErrorsWhileKillingQueries.incrementAndGet();
+						errorCount++;
+						if(errors == 1)
+						{
+							log.debug("Exception occurred while killing queries, if this is an Unknown Thread Id issue you can ignore it ", e);
+						}
+						
+					}
+					
+					
+				}
+				log.info("Attempted wake up of {} workers succeeded on {} ", rowCount, rowCount-errorCount);
+			} finally
+			{
+				if(conn != null) conn.close();
+				
+			}
+			
+		} catch(SQLException e)
+		{
+			log.error("Failed writing worker Information to database, something very bad is happening");
+			throw new IllegalStateException(e);
+		}
+		
+	}
 	/**
 	 * Invoke this method prior to shutting down the client. 
 	 */

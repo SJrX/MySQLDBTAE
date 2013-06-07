@@ -62,6 +62,9 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@Parameter(names={"--mysqldbtae-get-addl-run-data", "--mysqldbtae-get-additional-run-data", "--mysqldbtae-get-full-run"}, description="Get the Additional Run Data field from the database")
 	public boolean additionalRunData = true;
 
+	@Parameter(names={"--mysqldbtae-wake-up-on-submit"}, description="Wake the workers up when new jobs are submitted")
+	public boolean wakeUpWorkersOnSubmit;
+
 	public Connection getConnection()
 	{
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;

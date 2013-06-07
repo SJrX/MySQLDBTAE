@@ -29,6 +29,8 @@ public class MySQLPersistence {
 
 	//private final Connection conn;
 	
+	private static final String SLEEP_STRING = "MySQLWorker Sleeping on pool: ";
+	
 	protected final String TABLE_COMMAND;
 	protected final String TABLE_EXECCONFIG;
 	protected final String TABLE_RUNCONFIG;
@@ -36,6 +38,9 @@ public class MySQLPersistence {
 	protected final String TABLE_WORKERS;
 	
 	protected final String TABLE_VERSION;
+	
+	
+	protected final String POOL;
 	
 	
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -51,14 +56,11 @@ public class MySQLPersistence {
 		}
 	}
 	
-	
-	
-	
-	private final String url;
-	private final String username;
-	private final String password;
 	ComboPooledDataSource cpds = new ComboPooledDataSource();
+
+	protected final String SLEEP_COMMENT_TEXT;
 	
+	protected final String DATABASE;
 	
 	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, boolean createTables)
 	{
@@ -73,11 +75,6 @@ public class MySQLPersistence {
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
 		
 		try {
-			//Class.forName("com.mysql.jdbc.Driver").newInstance();
-			this.url = url; 
-			this.username = username;
-			this.password = password;
-			//conn = DriverManager.getConnection(url,username, password);
 			
 			
 			cpds.setDriverClass( "com.mysql.jdbc.Driver" ); //loads the jdbc driver            
@@ -155,7 +152,9 @@ public class MySQLPersistence {
 			 TABLE_RUNCONFIG = "runConfigs_"+ pool;
 			 TABLE_WORKERS = "workers_" + pool;
 			 TABLE_VERSION = "version_" + pool;
-			 
+			 POOL = pool;
+			 this.SLEEP_COMMENT_TEXT = SLEEP_STRING + POOL;
+			 this.DATABASE = databaseName;
 			 
 			 checkVersion(versionHash);
 			 

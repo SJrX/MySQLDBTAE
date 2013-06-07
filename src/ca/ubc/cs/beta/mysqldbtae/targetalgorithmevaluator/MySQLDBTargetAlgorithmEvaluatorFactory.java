@@ -155,7 +155,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		}
 		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 
-		return new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+		return new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence, opts.wakeUpWorkersOnSubmit);
 		
 	}
 	

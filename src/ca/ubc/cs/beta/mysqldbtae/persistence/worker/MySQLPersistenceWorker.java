@@ -605,4 +605,35 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
+	/**
+	 * Sleeps via the database the amount of time required
+	 * @param sleeptime
+	 */
+	public void sleep(double sleeptime)
+	{
+		
+		StringBuilder sb = new StringBuilder("SELECT SLEEP(").append(sleeptime).append("); /* " + SLEEP_COMMENT_TEXT + " */" );
+				
+				
+				try {
+					Connection conn = getConnection();
+					
+					try {
+						PreparedStatement stmt = conn.prepareStatement(sb.toString());
+						
+						stmt.execute();
+					} finally
+					{
+						conn.close();
+					}
+					
+				}catch(SQLException e)
+				{
+					log.error("Failed writing abort to database, something very bad is happening");
+					
+					throw new IllegalStateException(e);
+				}
+				
+				
+	}
 }
