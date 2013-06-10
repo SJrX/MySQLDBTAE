@@ -7,9 +7,9 @@ import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
 import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
-import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
+import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.aclib.options.TargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.aclib.misc.jcommander.converter.WritableDirectoryConverter;
 
@@ -18,7 +18,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 
 	@ParametersDelegate
-	public MySQLConfig mysqlOptions = new MySQLConfig();
+	public MySQLOptions mysqlOptions = new MySQLOptions();
 	
 	@ParametersDelegate
 	public TargetAlgorithmEvaluatorOptions taeOptions = new TargetAlgorithmEvaluatorOptions();

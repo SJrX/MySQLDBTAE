@@ -2,6 +2,7 @@ package ca.ubc.cs.beta.dzq.options;
 
 import java.io.File;
 
+import ca.ubc.cs.beta.aclib.misc.file.HomeFileUtils;
 import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
@@ -17,7 +18,12 @@ import ca.ubc.cs.beta.aclib.misc.jcommander.validator.*;
 @UsageTextField(title="Danger Zone Queue Options", description="Options that control the execution of the queue")
 public class DangerZoneQueueOptions extends AbstractOptions {
 
-
+	@UsageTextField(defaultValues="~/.aclib/mysql.opt")
+	@Parameter(names="--dzqDefaultsFile", description="file that contains default settings for DZQ")
+	@ParameterFile(ignoreFileNotExists = true) 
+	public File dzqDefaults = HomeFileUtils.getHomeFile(".aclib" + File.separator  + "dzq.opt");
+	
+	
 	@ParametersDelegate
 	public TargetAlgorithmEvaluatorOptions taeOptions = new TargetAlgorithmEvaluatorOptions();
 	

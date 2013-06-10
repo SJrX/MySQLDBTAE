@@ -1,13 +1,13 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
-import ca.ubc.cs.beta.aclib.misc.options.MySQLConfig;
+import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 
 public class MySQLDBUnitTestConfig {
 
-	public static MySQLConfig getMySQLConfig()
+	public static MySQLOptions getMySQLConfig()
 	{
 		
-		MySQLConfig mysqlConfig = new MySQLConfig();
+		MySQLOptions mysqlConfig = new MySQLOptions();
 		mysqlConfig.host = "arrowdb.cs.ubc.ca";
 		mysqlConfig.port = 4040;
 		mysqlConfig.password = "october-127";

@@ -4,6 +4,7 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
+import ca.ubc.cs.beta.aclib.misc.file.HomeFileUtils;
 import ca.ubc.cs.beta.aclib.misc.jcommander.validator.FixedPositiveInteger;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
@@ -15,6 +16,12 @@ import com.beust.jcommander.ParameterFile;
 @UsageTextField(title="MySQL Target Algorithm Evaluator Options", description="Options that control the MySQL Target Algorithm Evaluator")
 public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 
+	@UsageTextField(defaultValues="~/.aclib/mysqldbtae.opt")
+	@Parameter(names="--mysqlTaeDefaultsFile", description="file that contains default settings for MySQL")
+	@ParameterFile(ignoreFileNotExists = true) 
+	public File smacDefaults = HomeFileUtils.getHomeFile(".aclib" + File.separator  + "mysqldbtae.opt");
+	
+	
 	@Parameter(names="--mysqldbtae-pool", description="Pool to take tasks from")
 	public String pool;
 	
@@ -35,21 +42,21 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	
 
 	@Parameter(names="--mysqldbtae-hostname", description="Hostname of database server" )
-	public String host = "arrowdb.cs.ubc.ca";
+	public String host;
 	
 	
 	@Parameter(names="--mysqldbtae-password", description="Password of database server" )
-	public String password = "";
+	public String password;
 	
 	@Parameter(names="--mysqldbtae-database", description="Name of Database" )
-	public String databaseName = "mysql_db_tae";
+	public String databaseName = "mysql_db_tae_" + System.getProperty("user.name");
 	
 	
 	@Parameter(names="--mysqldbtae-username", description="Username of the Database")
-	public String username = "hutter";
+	public String username;
 	
 	@Parameter(names="--mysqldbtae-port", description="Port of database server")
-	public int port=4040;
+	public int port = 3306;
 	
 	@Parameter(names="--mysqldbtae-options", description="MySQL Configuration Option File")
 	@ParameterFile
