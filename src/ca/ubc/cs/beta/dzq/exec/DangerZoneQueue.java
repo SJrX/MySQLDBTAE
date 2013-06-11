@@ -60,6 +60,10 @@ public class DangerZoneQueue {
 			VersionTracker.setClassLoader(SPIClassLoaderHelper.getClassLoader());
 			VersionTracker.logVersions();
 		
+			for(String name : jcom.getParameterFilesToRead())
+			{
+				log.info("Parsing (default) options from file: {} ", name);
+			}
 			
 			log.debug("Abort on Crash and abort on First Run Crash are disabled, as is verifySAT");
 			dzOpts.taeOptions.abortOnCrash = false;

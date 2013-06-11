@@ -38,6 +38,7 @@ public class MySQLTAEWorker {
 		
 		try {
 			try {
+				
 			com.parse(args);
 			} finally
 			{
@@ -47,7 +48,11 @@ public class MySQLTAEWorker {
 				System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");
 				
 				log = LoggerFactory.getLogger(MySQLTAEWorker.class);;
-
+				for(String name : com.getParameterFilesToRead())
+				{
+					log.info("Parsing (default) options from file: {} ", name);
+				}
+				
 			}
 			
 			

@@ -3,6 +3,7 @@ package ca.ubc.cs.beta.mysqldbtae.worker;
 import java.io.File;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterFile;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
@@ -16,7 +17,11 @@ import ca.ubc.cs.beta.aclib.misc.jcommander.converter.WritableDirectoryConverter
 @UsageTextField(title="MySQL TAE Worker Options", description="Options that describe and control the MySQL TAE Worker Process ")
 public class MySQLTAEWorkerOptions extends AbstractOptions {
 
-
+	
+	@UsageTextField(defaultValues="~/.aclib/mysqlworker.opt")
+	@Parameter(names="--mysqlWorkerDefaultsFile", description="file that contains default settings for MySQL Workers")
+	@ParameterFile(ignoreFileNotExists = true) 
+	
 	@ParametersDelegate
 	public MySQLOptions mysqlOptions = new MySQLOptions();
 	
