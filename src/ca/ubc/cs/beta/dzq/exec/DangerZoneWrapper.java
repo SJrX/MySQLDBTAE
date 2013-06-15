@@ -134,7 +134,7 @@ public class DangerZoneWrapper {
 						while(true)
 						{
 							try {
-								Thread.currentThread().sleep(1000);
+								Thread.sleep(1000);
 								if ((System.currentTimeMillis() / 1000.0  - startTime / 1000.0) > Double.valueOf(cutoffTime) + 1)
 								{
 									if(timeoutReference.compareAndSet(null, true));
