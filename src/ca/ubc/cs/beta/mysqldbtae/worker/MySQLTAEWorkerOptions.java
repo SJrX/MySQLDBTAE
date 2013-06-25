@@ -7,6 +7,7 @@ import com.beust.jcommander.ParameterFile;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
+import ca.ubc.cs.beta.aclib.misc.file.HomeFileUtils;
 import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
@@ -21,6 +22,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@UsageTextField(defaultValues="~/.aclib/mysqlworker.opt")
 	@Parameter(names="--mysqlWorkerDefaultsFile", description="file that contains default settings for MySQL Workers")
 	@ParameterFile(ignoreFileNotExists = true) 
+	public File mysqlworkerDefaults = HomeFileUtils.getHomeFile(".aclib" + File.separator  + "mysqlworker.opt");
 	
 	@ParametersDelegate
 	public MySQLOptions mysqlOptions = new MySQLOptions();
