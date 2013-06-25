@@ -15,11 +15,6 @@
 			<attribute name="optional" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/opt/eclipse/plugins/org.junit_4.10.0.v4_10_0_v20120426-0900/junit.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="http://www.junit.org/junit/javadoc/4.5"/>
-		</attributes>
-	</classpathentry>
 	<classpathentry kind="lib" path="lib/c3p0-oracle-thin-extras-0.9.2-pre8.jar"/>
 	<classpathentry kind="lib" path="lib/mchange-commons-java-0.2.3.3.jar"/>
 	<classpathentry kind="lib" path="/AutomaticConfiguratorLibrary/lib/jcip-annotations.jar" sourcepath="/AutomaticConfiguratorLibrary/lib/jcip-annotations-src.jar"/>
@@ -28,5 +23,6 @@
 	<classpathentry kind="lib" path="/AutomaticConfiguratorLibrary/lib/logback-core-1.0.0.jar"/>
 	<classpathentry kind="lib" path="/AutomaticConfiguratorLibrary/lib/slf4j-api-1.6.4.jar"/>
 	<classpathentry kind="lib" path="/AutomaticConfiguratorLibrary/lib/jcommander.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
