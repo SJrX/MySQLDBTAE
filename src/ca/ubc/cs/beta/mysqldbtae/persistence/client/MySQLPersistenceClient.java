@@ -111,13 +111,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	
 	
 	/**
-	 * Stores a mapping from RunConfig to RunConfigUUI
-	 * Not sure if this map will be particularly useful
-	 */
-	@Deprecated
-	private final Map<RunConfig, String> runConfigToRunConfigID = new ConcurrentHashMap<RunConfig, String>();
-	
-	/**
 	 * Stores a mapping from runTokenToCompletedRuns 
 	 */
 	private final Map<RunToken, Map<RunConfig, AlgorithmRun>> runTokenToCompletedRuns = new ConcurrentHashMap<RunToken, Map<RunConfig, AlgorithmRun>>();
@@ -562,7 +555,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				sb.setCharAt(sb.length()-1, ' ');
 				
 				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\",retryAttempts=0, runtime=IF(killJob=1,0,runtime), status=IF(killJob = 1,\"NEW\",status), killJob=0");
-				System.out.println(sb.toString());
+
 				try {
 					PreparedStatement stmt = null;
 					StopWatch stopWatch = new StopWatch();
@@ -570,7 +563,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						stmt = conn.prepareStatement(sb.toString());
 					
 					
-						log.debug("SQL INSERT: {} ", sb);
+						log.trace("SQL INSERT: {} ", sb);
 						
 						log.trace("Preparing for insertion of {} rows into DB", listUpperBound-listLowerBound);
 			
