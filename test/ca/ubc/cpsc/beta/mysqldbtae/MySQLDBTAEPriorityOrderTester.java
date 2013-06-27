@@ -84,6 +84,7 @@ public class MySQLDBTAEPriorityOrderTester {
 			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --timeLimit 1d");
 			b.append(" --tae PARAMECHO --runsToBatch 1 --delayBetweenRequests 3 --idleLimit 30s" );
+			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc);

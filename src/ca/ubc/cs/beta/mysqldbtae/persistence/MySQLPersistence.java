@@ -72,9 +72,22 @@ public class MySQLPersistence {
 		{
 			throw new ParameterException("Pool name can only consist of alpha numeric characters underscores and $");
 		}
+		
+		if(databaseName == null)
+		{
+			throw new ParameterException("Must specify a valid database name");
+		}
+		
+		if(username == null)
+		{
+			throw new ParameterException("Must specify a valid username");
+		}
+		
+		
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
 		
 		try {
+			
 			
 			
 			cpds.setDriverClass( "com.mysql.jdbc.Driver" ); //loads the jdbc driver            
@@ -127,8 +140,8 @@ public class MySQLPersistence {
 					{ //If this fails it's okay we just use it to output to the log
 						
 					}
-				Object args[] = { hostname, host, port };
-				log.info("Attempting database connection, if nothing is happening it probably means the database is inaccessible. Please try connecting to the database from host {} to {} : {}",args );
+				Object args[] = { url, hostname, host, port };
+				log.info("Attempting database connection to {} , if nothing is happening it probably means the database is inaccessible. Please try connecting to the database from host {} to {} : {}",args );
 				Connection conn = cpds.getConnection();
 				for(String sqlStatement : chunks)
 				{

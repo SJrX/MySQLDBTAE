@@ -90,10 +90,10 @@ public class MySQLDBTAEKillRetryTester {
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
-			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
+			
 			b.append(" --timeLimit 1d");
 			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 1 --idleLimit 60s " );
-			
+			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
 			proc = Runtime.getRuntime().exec(b.toString());

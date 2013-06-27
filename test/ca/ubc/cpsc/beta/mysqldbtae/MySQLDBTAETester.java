@@ -91,6 +91,9 @@ public class MySQLDBTAETester {
 			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --timeLimit 1d --idleLimit 10s");
 			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 " );
+			
+			b.append("--mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
+			
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc, "WORKER>", new InputReader.LineHandler() 
