@@ -333,9 +333,9 @@ public class MySQLDBTAETester {
 
 			
 			//Different RunPartition
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
 			runs = tae.evaluateRun(runConfigs);			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
 			
 			runs = tae.evaluateRun(runConfigs);
 			for(AlgorithmRun run : runs)

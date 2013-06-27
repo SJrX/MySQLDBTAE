@@ -1,12 +1,12 @@
 
-CREATE TABLE IF NOT EXISTS `commandTable_ACLIB_POOL_NAME` (
+CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_commandTable` (
   `commandID` int(11) NOT NULL AUTO_INCREMENT,
   `commandString` text COLLATE utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`commandID`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci AUTO_INCREMENT=1 ;
 
 
-CREATE TABLE IF NOT EXISTS `execConfig_ACLIB_POOL_NAME` (
+CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_execConfig` (
   `algorithmExecutionConfigID` int(11) NOT NULL AUTO_INCREMENT,
   `algorithmExecutionConfigHashCode` char(40) COLLATE utf8_unicode_ci NOT NULL,
   `algorithmExecutable` varchar(4096) COLLATE utf8_unicode_ci NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `execConfig_ACLIB_POOL_NAME` (
 
 
 
-CREATE TABLE IF NOT EXISTS `runConfigs_ACLIB_POOL_NAME` (
+CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
  `runConfigID` int(11) NOT NULL AUTO_INCREMENT,
  `runConfigUUID` char(48) NOT NULL,
  `execConfigID` int(11) NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `runConfigs_ACLIB_POOL_NAME` (
 ) ENGINE=InnoDB;
 
 
-CREATE TABLE IF NOT EXISTS `workers_ACLIB_POOL_NAME` (
+CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `workerUUID` char(40) COLLATE utf8_unicode_ci NOT NULL,
 `hostname` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
 `jobID` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
@@ -72,7 +72,7 @@ CURRENT_TIMESTAMP,
 PRIMARY KEY (`workerUUID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `version_ACLIB_POOL_NAME` (
+CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_version` (
 `id` int(11) NOT NULL AUTO_INCREMENT,
 `version` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
 `hash` varchar(128) COLLATE utf8_unicode_ci NOT NULL,

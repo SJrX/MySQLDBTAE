@@ -160,11 +160,11 @@ public class MySQLPersistence {
 				log.info("Skipping table creation");
 			}
 			
-			 TABLE_COMMAND = "commandTable_" + pool;
-			 TABLE_EXECCONFIG = "execConfig_"+ pool;
-			 TABLE_RUNCONFIG = "runConfigs_"+ pool;
-			 TABLE_WORKERS = "workers_" + pool;
-			 TABLE_VERSION = "version_" + pool;
+			 TABLE_COMMAND = pool + "_commandTable";
+			 TABLE_EXECCONFIG = pool + "_execConfig";
+			 TABLE_RUNCONFIG = pool + "_runConfigs";
+			 TABLE_WORKERS = pool + "_workers";
+			 TABLE_VERSION = pool + "_version";
 			 POOL = pool;
 			 this.SLEEP_COMMENT_TEXT = SLEEP_STRING + POOL;
 			 this.DATABASE = databaseName;

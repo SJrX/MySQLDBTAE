@@ -194,7 +194,7 @@ public class MySQLDBTAEPoolSwitchTester {
 						e.printStackTrace();
 					}
 				
-					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0", sqlExec);
+					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+1 + "_workers SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0", sqlExec);
 				}
 				
 			});
