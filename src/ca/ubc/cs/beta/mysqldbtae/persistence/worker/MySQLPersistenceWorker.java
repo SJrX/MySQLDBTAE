@@ -449,15 +449,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, String version)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE,upToDate, version)  VALUES (?,?,?,?,NOW(),?,?,?,1,?)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID,endTime, startTime, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE,upToDate, version)  VALUES (?,?,?,?,?,NOW(),?,?,?,1,?)");
 		
 		
 		try {
 			Connection conn = getConnection();
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());
 			
-	
+
 			String hostname = null;
+			String username = null;
 			
 			try {
 				  InetAddress addr = InetAddress.getLocalHost();
@@ -468,18 +469,21 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				  //This shouldn't happen cause we are asking for local host.
 				  throw new DeveloperMadeABooBooException(e);
 			  }
+			
+			username = System.getProperty("user.name");
 		
 			stmt.setString(1, workerUUID.toString());
 			stmt.setString(2, hostname);
-			stmt.setString(3, jobID +"/" + ManagementFactory.getRuntimeMXBean().getName());
+			stmt.setString(3, username);
+			stmt.setString(4, jobID +"/" + ManagementFactory.getRuntimeMXBean().getName());
 			
 			
-			stmt.setTimestamp(4, new java.sql.Timestamp(endDateTime.getTime()));
+			stmt.setTimestamp(5, new java.sql.Timestamp(endDateTime.getTime()));
 			
-			stmt.setInt(5,runsToBatch);
-			stmt.setInt(6, delayBetweenRequests);
-			stmt.setString(7, pool);
-			stmt.setString(8,version);
+			stmt.setInt(6,runsToBatch);
+			stmt.setInt(7, delayBetweenRequests);
+			stmt.setString(8, pool);
+			stmt.setString(9,version);
 			stmt.execute();
 			stmt.close();
 			conn.close();

@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `workerUUID` char(40) COLLATE utf8_unicode_ci NOT NULL,
 `hostname` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
+`username` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
 `jobID` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
 `status` enum('RUNNING','DONE') COLLATE utf8_unicode_ci NOT NULL DEFAULT 'RUNNING',
 `startTime` datetime NOT NULL,
