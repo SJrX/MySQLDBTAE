@@ -1,24 +1,24 @@
 
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_commandTable` (
   `commandID` int(11) NOT NULL AUTO_INCREMENT,
-  `commandString` text COLLATE utf8_unicode_ci NOT NULL,
+  `commandString` text NOT NULL,
   PRIMARY KEY (`commandID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci AUTO_INCREMENT=1 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
 
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_execConfig` (
   `algorithmExecutionConfigID` int(11) NOT NULL AUTO_INCREMENT,
-  `algorithmExecutionConfigHashCode` char(40) COLLATE utf8_unicode_ci NOT NULL,
-  `algorithmExecutable` varchar(4096) COLLATE utf8_unicode_ci NOT NULL,
-  `algorithmExecutableDirectory` varchar(4096) COLLATE utf8_unicode_ci NOT NULL,
-  `parameterFile` varchar(4096) COLLATE utf8_unicode_ci NOT NULL,
+  `algorithmExecutionConfigHashCode` char(40) NOT NULL,
+  `algorithmExecutable` varchar(4096) NOT NULL,
+  `algorithmExecutableDirectory` varchar(4096) NOT NULL,
+  `parameterFile` varchar(4096) NOT NULL,
   `executeOnCluster` tinyint(1) NOT NULL,
   `deterministicAlgorithm` tinyint(1) NOT NULL,
   `cutoffTime` double NOT NULL,
   `lastModified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`algorithmExecutionConfigID`),
   UNIQUE KEY `algorithmExecutionConfigHashCode` (`algorithmExecutionConfigHashCode`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci AUTO_INCREMENT=1 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
 
 
@@ -54,28 +54,28 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 
 
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
-`workerUUID` char(40) COLLATE utf8_unicode_ci NOT NULL,
-`hostname` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-`username` varchar(256) COLLATE utf8_unicode_ci NOT NULL,
-`jobID` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
-`status` enum('RUNNING','DONE') COLLATE utf8_unicode_ci NOT NULL DEFAULT 'RUNNING',
+`workerUUID` char(40) NOT NULL,
+`hostname` varchar(256) NOT NULL,
+`username` varchar(256) NOT NULL,
+`jobID` varchar(64) NOT NULL,
+`status` enum('RUNNING','DONE') NOT NULL DEFAULT 'RUNNING',
 `startTime` datetime NOT NULL,
 `endTime` datetime NOT NULL,
-`version` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'UNKNOWN',
-`crashInfo` text COLLATE utf8_unicode_ci,
+`version` varchar(255) NOT NULL DEFAULT 'UNKNOWN',
+`crashInfo` text,
 `runsToBatch_UPDATEABLE` int(11) NOT NULL,
 `delayBetweenRequests_UPDATEABLE` int(11) NOT NULL,
-`pool_UPDATEABLE` varchar(64) COLLATE utf8_unicode_ci NOT NULL,
+`pool_UPDATEABLE` varchar(64) NOT NULL,
 `upToDate` tinyint(1) NOT NULL,
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`workerUUID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_version` (
 `id` int(11) NOT NULL AUTO_INCREMENT,
-`version` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
-`hash` varchar(128) COLLATE utf8_unicode_ci NOT NULL,
+`version` varchar(255) NOT NULL,
+`hash` varchar(128) NOT NULL,
 PRIMARY KEY (`id`),
 UNIQUE KEY `hash` (`hash`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
