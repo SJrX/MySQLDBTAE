@@ -272,8 +272,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						{
 							StringBuilder sb = new StringBuilder();	
 							
-							String addlRunData = (this.getAdditionalRunData) ? ", additional_run_data" : "";
-							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, result_seed"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+							String addlRunData = (this.getAdditionalRunData) ? ", additionalRunData" : "";
+							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, resultSeed"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 							
 						
 							int querySize = 0;

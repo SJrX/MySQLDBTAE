@@ -182,10 +182,10 @@ public class MySQLDBTAEPoolSwitchTester {
 				public void currentStatus(
 						List<? extends KillableAlgorithmRun> runs) {
 					/*
-					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
-					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
-					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
-					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0");
+					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
+					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
+					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
+					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
 					*/
 					try {
 						Thread.sleep(500);
@@ -194,7 +194,7 @@ public class MySQLDBTAEPoolSwitchTester {
 						e.printStackTrace();
 					}
 				
-					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+1 + "_workers SET pool=\"" + MYSQL_POOL+2 +"\", upToDate=0", sqlExec);
+					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+1 + "_workers SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0", sqlExec);
 				}
 				
 			});

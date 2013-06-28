@@ -316,7 +316,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	{
 	
 		
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, result_seed=?, runtime=?, additional_run_data=?, status='COMPLETE'  WHERE runConfigID=?");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, resultSeed=?, runtime=?, additionalRunData=?, status='COMPLETE'  WHERE runConfigID=?");
 		
 		try {
 			
@@ -449,7 +449,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, String version)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime, runsToBatch, delayBetweenRequests, pool,upToDate, version)  VALUES (?,?,?,?,NOW(),?,?,?,1,?)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE,upToDate, version)  VALUES (?,?,?,?,NOW(),?,?,?,1,?)");
 		
 		
 		try {
@@ -517,7 +517,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	}
 	
 	public UpdatedWorkerParameters getUpdatedParameters() {
-		StringBuilder sb = new StringBuilder("SELECT runsToBatch, delayBetweenRequests,pool FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+		StringBuilder sb = new StringBuilder("SELECT runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
