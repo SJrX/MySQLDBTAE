@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `version` varchar(255) NOT NULL DEFAULT 'UNKNOWN',
 `crashInfo` text,
 `startTime` datetime NOT NULL,
-`endTime` datetime NOT NULL,
+`original_endTime` datetime NOT NULL,
 `endTime_UPDATEABLE` datetime NOT NULL,
 `runsToBatch_UPDATEABLE` int(11) NOT NULL,
 `delayBetweenRequests_UPDATEABLE` int(11) NOT NULL,

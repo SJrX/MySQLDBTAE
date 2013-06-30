@@ -449,7 +449,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, String version)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID,endTime, startTime, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE,upToDate, version)  VALUES (?,?,?,?,?,NOW(),?,?,?,1,?)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID,original_endTime, startTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE,upToDate, version)  VALUES (?,?,?,?,?,NOW(),?,?,?,?,1,?)");
 		
 		
 		try {
@@ -477,13 +477,14 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			stmt.setString(3, username);
 			stmt.setString(4, jobID +"/" + ManagementFactory.getRuntimeMXBean().getName());
 			
-			
+
 			stmt.setTimestamp(5, new java.sql.Timestamp(endDateTime.getTime()));
+			stmt.setTimestamp(6, new java.sql.Timestamp(endDateTime.getTime()));
 			
-			stmt.setInt(6,runsToBatch);
-			stmt.setInt(7, delayBetweenRequests);
-			stmt.setString(8, pool);
-			stmt.setString(9,version);
+			stmt.setInt(7,runsToBatch);
+			stmt.setInt(8, delayBetweenRequests);
+			stmt.setString(9, pool);
+			stmt.setString(10,version);
 			stmt.execute();
 			stmt.close();
 			conn.close();
@@ -521,7 +522,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	}
 	
 	public UpdatedWorkerParameters getUpdatedParameters() {
-		StringBuilder sb = new StringBuilder("SELECT runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+		StringBuilder sb = new StringBuilder("SELECT startTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
@@ -543,7 +544,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				log.debug("Flushing blacklist which previously had {} entries", this.blacklistedKeys.size());
 				this.blacklistedKeys.clear();
 				
-				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(rs.getInt(1), rs.getInt(2), rs.getString(3));
+				long timeLimit = rs.getDate(2).getTime()-rs.getDate(1).getTime();
+				
+				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(3), rs.getInt(4), rs.getString(5));
 				stmt.close();
 				
 				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET upToDate=1 WHERE workerUUID=\""+workerUUID.toString()+"\" ");

@@ -251,10 +251,12 @@ public class MySQLTAEWorkerTaskProcessor {
 						
 						log.info("Checking for new parameters");
 						UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters();
+						
 						if(params != null)
 						{
 							options.delayBetweenRequests = params.getDelayBetweenRequests();
 							options.runsToBatch = params.getBatchSize();
+							options.timeLimit = params.getTimeLimit();
 							
 							log.info("New Delay {} and Batch Size {}", options.delayBetweenRequests, options.runsToBatch);
 							
