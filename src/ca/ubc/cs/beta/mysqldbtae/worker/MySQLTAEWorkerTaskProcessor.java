@@ -198,7 +198,9 @@ public class MySQLTAEWorkerTaskProcessor {
 								
 								if(runConfig.getCutoffTime() < getSecondsLeft())
 								{
-									algorithmRuns.addAll(tae.evaluateRun(Collections.singletonList(runConfig), obs));
+									List<AlgorithmRun> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
+									mysqlPersistence.setRunResults(finishedRuns);
+									algorithmRuns.addAll(finishedRuns);
 								} else
 								{
 									log.info("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft() );
@@ -235,8 +237,8 @@ public class MySQLTAEWorkerTaskProcessor {
 						log.info("No jobs in database");
 					} else
 					{
-						log.info("Saving results");
-						mysqlPersistence.setRunResults(algorithmRuns);
+						log.info("Resetting unfinished runs");
+						//mysqlPersistence.setRunResults(algorithmRuns);
 						mysqlPersistence.resetUnfinishedRuns();
 						lastJobFinished = System.currentTimeMillis();
 					}

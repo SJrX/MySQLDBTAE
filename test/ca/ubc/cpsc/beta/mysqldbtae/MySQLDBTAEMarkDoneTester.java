@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -27,6 +29,7 @@ import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
@@ -36,10 +39,11 @@ import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEv
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.ParamEchoExecutor;
+import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
-public class MySQLDBTAEEndTimeTester {
+public class MySQLDBTAEMarkDoneTester {
 
 
 	
@@ -47,9 +51,11 @@ public class MySQLDBTAEEndTimeTester {
 
 	private static  ParamConfigurationSpace configSpace;
 	
+	private static List<RunConfig> runConfigs;
+	
 	private static MySQLOptions mysqlConfig;
 	
-	private static final String MYSQL_POOL = "junit_endtimetest";
+	private static final String MYSQL_POOL = "junit_markCompleteTest";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 5000;
@@ -77,12 +83,27 @@ public class MySQLDBTAEEndTimeTester {
 		b.append("java -cp ");
 		b.append(System.getProperty("java.class.path"));
 		b.append(" ");
-		b.append(ParamEchoExecutor.class.getCanonicalName());
+		b.append(TrueSleepyParamEchoExecutor.class.getCanonicalName());
 		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
 		
-		
-		
 		rand = new MersenneTwister();
+		
+		runConfigs= new ArrayList<RunConfig>(1);
+		for(int i=0; i < 5; i++)
+		{
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			config.put("runtime", "5");
+			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
+			{
+				//Only want good configurations
+				i--;
+				continue;
+			} else
+			{
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config);
+				runConfigs.add(rc);
+			}
+		}
 
 		
 	}
@@ -102,7 +123,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			b.append(" --timeLimit " ).append(limit);
 			b.append(" --jobID ").append(jobID);
-			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 0 --updateFrequency 0 --shutdownBuffer 0 --idleLimit " ).append(idle);
+			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --shutdownBuffer 0 --idleLimit " ).append(idle);
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
@@ -119,116 +140,47 @@ public class MySQLDBTAEEndTimeTester {
 	}
 	
 	@Test
-	public void testIdleTime()
+	public void testMarkDone()
 	{
-			
 		try {
-			Process proc1 = setupWorker("120s","3s","CLI");
-			Process proc2 = setupWorker("120s","6s","CLI");
-			System.out.println("Launching proc1, proc2");
-
-			Thread.sleep(2000);
+			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
 			
-			assertTrue(isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("Both still running");
+			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+				
+			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 			
-			Thread.sleep(3000);
+			MySQLTargetAlgorithmEvaluator mySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);		
 			
-			assertTrue(!isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("proc1 terminates");
+			Process proc1 = setupWorker("180s","5s","proc1");
+			
+			long startTime = System.currentTimeMillis();
+			
+			
+			List<AlgorithmRun> runs = mySQLTAE.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver() {
 
-			Thread.sleep(3000);
-
-			assertTrue(!isRunning(proc1));
-			assertTrue(!isRunning(proc2));
-			System.out.println("proc2 terminates");
-
-		} catch (InterruptedException e) {
+				@Override
+				public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+					if(runs.get(0).isRunCompleted())
+					{
+						for(KillableAlgorithmRun run: runs)
+						{
+							System.err.println("Killing Run");
+							run.kill();
+						}
+					}	
+				} });
+			
+			long endTime = System.currentTimeMillis();
+			assertTrue(runs.get(0).isRunCompleted());
+			assertTrue((endTime-startTime)<20000);
+		
+		} catch(RuntimeException e)
+		{
 			e.printStackTrace();
-		}	
+			throw e;
+		}
 			
 	}
-	
-	@Test
-	public void testEndTime()
-	{
-			
-		try {
-			Process proc1 = setupWorker("3s","120s","CLI");
-			Process proc2 = setupWorker("6s","120s","CLI");
-			System.out.println("Launching proc1, proc2");
-
-			Thread.sleep(2000);
-			
-			assertTrue(isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("Both still running");
-			
-			Thread.sleep(3000);
-			
-			assertTrue(!isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("proc1 terminates");
-
-			Thread.sleep(3000);
-
-			assertTrue(!isRunning(proc1));
-			assertTrue(!isRunning(proc2));
-			System.out.println("proc2 terminates");
-
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}	
-			
-	}	
-	
-	@Test
-	public void testEndTimeUpdate()
-	{
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-		
-		try {
-			long startTime = System.currentTimeMillis();
-			Process proc1 = setupWorker("120s","120s","proc1");
-			Process proc2 = setupWorker("120s","120s","proc2");
-			System.out.println("Launching proc1, proc2");
-
-			Thread.sleep(4000);
-			assertTrue(isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("Both still running");
-			
-			long endTime = System.currentTimeMillis() + 1000;
-			Calendar calendar = Calendar.getInstance();
-			calendar.setTimeInMillis(endTime);
-			java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			String sqlTime = sdf.format(calendar.getTime());
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc1%\"", mysqlPersistence);
-				
-			Thread.sleep(2000);
-			
-			assertTrue(!isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("proc1 terminates");
-
-			endTime = System.currentTimeMillis() + 1000;
-			calendar.setTimeInMillis(endTime);
-			sqlTime = sdf.format(calendar.getTime());
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc2%\"", mysqlPersistence);
-			
-			Thread.sleep(2000);
-			
-			assertTrue(!isRunning(proc1));
-			assertTrue(!isRunning(proc2));
-			System.out.println("proc2 terminates");
-
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}	
-			
-	}	
 	
 	public boolean isRunning(Process process) {
 	    try {
