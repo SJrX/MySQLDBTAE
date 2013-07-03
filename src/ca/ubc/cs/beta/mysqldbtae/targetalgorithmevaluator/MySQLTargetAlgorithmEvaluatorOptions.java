@@ -72,6 +72,14 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@Parameter(names={"--mysqldbtae-wake-up-on-submit"}, description="Wake the workers up when new jobs are submitted")
 	public boolean wakeUpWorkersOnSubmit;
 
+	@UsageTextField(defaultValues="Twice the number of available processors")
+	@Parameter(names={"--mysqldbtae-poll-threads"}, description="How many threads will be used to manage the outstanding requests")
+	public int pollPoolSize = Runtime.getRuntime().availableProcessors() * 2;
+
+	@Parameter(names="--mysqldbtae-poll-delay", description="How often (in milliseconds) to poll the database for new results")
+	public long delayBetweenPolls = 2000;
+
+	
 	public Connection getConnection()
 	{
 		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;

@@ -4,14 +4,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+import net.jcip.annotations.ThreadSafe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
+import ca.ubc.cs.beta.aclib.concurrent.threadfactory.SequentiallyNamedThreadFactory;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractAsyncTargetAlgorithmEvaluator;
@@ -22,24 +27,33 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TargetAlgorithmE
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 
+@ThreadSafe
 public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmEvaluator {
 
 
 	private final MySQLPersistenceClient persistence;
 	private final Logger log = LoggerFactory.getLogger(MySQLTargetAlgorithmEvaluator.class);
-	private final ExecutorService requestWatcher = Executors.newCachedThreadPool();
+	private final ScheduledExecutorService requestWatcher;
 	
 	private final boolean wakeUpWorkers;
+	private final long delayInMS;
+	private final AtomicLong lastWarning; 
+	
 
 	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence) {
-		this(execConfig, persistence, false);
+		//We set the number of thread pools to twice the number of available processors because we believe the tasks will be IO bound and not CPU bound
+		this(execConfig, persistence, false, Runtime.getRuntime().availableProcessors()*2, 2000);
+		
 	}
 
 	
-	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence, boolean wakeUpWorkers) {
+	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence, boolean wakeUpWorkers, int poolSize, long delayInMS) {
 		super(execConfig);
 		this.persistence = persistence;
 		this.wakeUpWorkers = wakeUpWorkers;
+		this.delayInMS = delayInMS;
+		requestWatcher = Executors.newScheduledThreadPool(poolSize, (new SequentiallyNamedThreadFactory("MySQL Request Watching Thread")));
+		lastWarning = new AtomicLong(delayInMS);
 	}
 
 
@@ -79,6 +93,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		
 		requestWatcher.execute(mysqlWatcher);
 		
+		
 
 	}
 
@@ -95,7 +110,9 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	class MySQLRequestWatcher implements Runnable
 	{
 		private final RunToken token;
-		private final TargetAlgorithmEvaluatorCallback handler; 
+		private final TargetAlgorithmEvaluatorCallback handler;
+		private long lastRun = System.currentTimeMillis();
+		
 	
 		public MySQLRequestWatcher(RunToken token, TargetAlgorithmEvaluatorCallback handler)
 		{
@@ -105,27 +122,29 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		}
 		
 		@Override
-		public void run() {
+		public synchronized void run() {
 			
 				List<AlgorithmRun> runs = null;
 				try {
-					while((runs = persistence.pollRunResults(token)) == null)
+					
+					if((runs = persistence.pollRunResults(token)) == null)
 					{
 				
-						if(shutdownRequested.get())
+						if(!shutdownRequested.get())
 						{
-							return;
+							requestWatcher.schedule(this, delayInMS, TimeUnit.MILLISECONDS);
 						}
-						try {
-							
-							Thread.sleep(2000);
-						} catch(InterruptedException e)
+						
+						
+						if(((System.currentTimeMillis() - lastRun)) > lastWarning.get() * 2)
 						{
-							Thread.currentThread().interrupt();
-							//We were interrupted, we will abort
-							handler.onFailure(new TargetAlgorithmEvaluatorShutdownException(e));
-							return;
+							log.info("MySQL Request Watcher has fallen behind in polling and it took {} ms to execute, next warning at {} ms", (System.currentTimeMillis() - lastRun), lastWarning.get()*4 );
+							lastWarning.getAndSet(lastWarning.get() * 2);
 						}
+						lastRun = System.currentTimeMillis();
+						
+						return;
+						
 						
 					}
 					
@@ -152,7 +171,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 					log.error("RuntimeException occurred during invocation of onSuccess(), calling onFailure()", e);
 					handler.onFailure(e);
 				}
-				return;
+				
 			
 				
 		}
