@@ -577,18 +577,18 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority) VALUES ");
+				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority, additional_run_data) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
 				{				
-						 sb.append(" (?,?,?,?,?,?,?,?,?,?),");
+						 sb.append(" (?,?,?,?,?,?,?,?,?,?,''),");
 				
 				}
 		
 				sb.setCharAt(sb.length()-1, ' ');
 				
-				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\",retryAttempts=0, runtime=IF(killJob=1,0,runtime), status=IF(killJob = 1,\"NEW\",status), killJob=0");
+				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\",retryAttempts=0, runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),0,runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),\"NEW\",status), killJob=0");
 
 				try {
 					PreparedStatement stmt = null;

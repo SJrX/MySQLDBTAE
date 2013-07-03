@@ -11,7 +11,8 @@ import org.junit.runners.Suite;
 	MySQLDBTAEPoolSwitchTester.class,
 	MySQLDBTAEPriorityOrderTester.class,
 	MySQLDBTAEKillRetryTester.class,
-	MySQLClientKillTester.class
+	MySQLClientKillTester.class,
+	MySQLDBTAEAbortRetryTester.class
 	
 })
 
