@@ -58,6 +58,8 @@ public class MySQLDBObserverTester {
 	
 	private  static Random rand;
 	
+	private final boolean DELETE_ON_SHUTDOWN = true;
+	
 	private JobPriority priority = JobPriority.HIGH;
 	
 	@BeforeClass
@@ -114,6 +116,7 @@ public class MySQLDBObserverTester {
 	}
 	
 	
+	
 
 
 	/**
@@ -127,7 +130,7 @@ public class MySQLDBObserverTester {
 		
 		
 		
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
 		try {
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 		} catch(RuntimeException e)
@@ -230,7 +233,7 @@ public class MySQLDBObserverTester {
 	@Test
 	public void testDynamicAdaptiveCappingSingleRunBounded()
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
 		try {
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 		} catch(RuntimeException e)
@@ -332,7 +335,7 @@ public class MySQLDBObserverTester {
 	@Test
 	public void testDynamicAdaptiveCappingMultiRunBoundedtoOne()
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
 		try {
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 		} catch(RuntimeException e)
@@ -434,7 +437,7 @@ public class MySQLDBObserverTester {
 	@Test
 	public void testDynamicAdaptiveCappingMultiRunBoundedtoTwo()
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
 		try {
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 		} catch(RuntimeException e)
@@ -531,7 +534,6 @@ public class MySQLDBObserverTester {
 	}
 	
 	
-	
 
 	/**
 	 * Tests whether warnings are generated for Algorithms exceeding there runtime
@@ -543,7 +545,7 @@ public class MySQLDBObserverTester {
 		
 	
 		
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
 		try {
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 		} catch(RuntimeException e)
@@ -652,7 +654,7 @@ public class MySQLDBObserverTester {
 	{
 		
 	
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
+		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
 		try {
 		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
 		} catch(RuntimeException e)

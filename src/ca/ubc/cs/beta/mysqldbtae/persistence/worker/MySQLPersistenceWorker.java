@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -232,6 +233,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				Map<AlgorithmExecutionConfig, List<RunConfig>> myMap = new LinkedHashMap<AlgorithmExecutionConfig, List<RunConfig>>();
 				
+				
 			
 				while(rs.next())
 				{
@@ -239,6 +241,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					RunConfig rc = null;
 					int execConfigID = -1;
 					String rcID = "?";
+					boolean killJob = false;
 					try {
 					
 						rcID = rs.getString(1);
@@ -262,17 +265,20 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						double cutoffTime = rs.getDouble(6);
 						String paramConfiguration = rs.getString(7);
 						boolean cutoffLessThanMax = rs.getBoolean(8);
-						boolean killJob = rs.getBoolean(9);
-						if(killJob)
-						{
-							cutoffTime = 0;
-						}
+						killJob = rs.getBoolean(9);
+						
+						
 						
 						ProblemInstance pi = new ProblemInstance(problemInstance, instanceSpecificInformation);
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
 						ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
 						
 						rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
+						if(killJob)
+						{
+							log.warn("Run {} was killed when we pulled it, this version of the workers will start processing this job then abort, if this keeps happening we may want to improve the logic on the worker. This log message just gives us an idea of how often this is happening" , rc);
+						}
+						
 						runConfigIDMap.put(rc, rcID);
 					} catch(RuntimeException e)
 					{
@@ -283,7 +289,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						
 						continue;
 					}
-							
+					
+				
 					if(myMap.get(execConfig) == null)
 					{
 						myMap.put(execConfig, new ArrayList<RunConfig>(n));
@@ -294,6 +301,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				}
 				rs.close();
 				conn.close();
+				
+					
+				
 				return myMap;
 			} finally
 			{
@@ -310,7 +320,6 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		}
 		
 	}
-	
 
 	public void setRunResults(List<AlgorithmRun> runResult)
 	{
