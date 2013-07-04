@@ -44,6 +44,8 @@ public class MySQLTAEWorkerTaskProcessor {
 	private volatile long totalRunFetchTimeInMS = 0;
 	
 	private volatile RuntimeException crashReason = null;
+	
+	private volatile int workerIdleTime = 0;
 
 
 	private volatile int totalRunFetchRequests = 0;
@@ -95,7 +97,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			log.error("Couldn't get version information ", e);
 		}
 		
-		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests , version,options.createTables);
+		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables);
 	
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			
@@ -123,7 +125,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
 				
 				log.info("Waiting for Work");
-				
+
 				while(true)
 				{
 					
@@ -253,12 +255,14 @@ public class MySQLTAEWorkerTaskProcessor {
 						
 						log.info("Checking for new parameters");
 						UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters();
+						mysqlPersistence.updateIdleTime(workerIdleTime);
 						
 						if(params != null)
 						{
 							options.delayBetweenRequests = params.getDelayBetweenRequests();
 							options.runsToBatch = params.getBatchSize();
 							options.timeLimit = params.getTimeLimit();
+							options.poolIdleTimeLimit = params.getPoolIdleTimeLimit();
 							
 							log.info("New Delay {} and Batch Size {}", options.delayBetweenRequests, options.runsToBatch);
 							
@@ -280,6 +284,8 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 					double idleTime = (int) (System.currentTimeMillis()/1000.0 - lastJobFinished/1000.0);
 					
+					int sumWorkerIdleTimes = mysqlPersistence.sumIdleTimes();
+					
 					log.info("Seconds left for worker is {} seconds and idle limit left is {} seconds ",getSecondsLeft(), (int) ( options.idleLimit - idleTime));
 					
 					
@@ -291,6 +297,10 @@ public class MySQLTAEWorkerTaskProcessor {
 					{
 						log.info("We have been idle too long {}, finishing up", idleTime );
 						return;
+					} else if(sumWorkerIdleTimes > options.poolIdleTimeLimit)
+					{
+						log.info("Aggregate pool idle time too long {}, finishing up", sumWorkerIdleTimes );
+						return;
 					}
 					 
 					log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
@@ -298,7 +308,9 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 					if(waitTime > 0.0)
 					{
-						mysqlPersistence.sleep(waitTime);
+						int woke = mysqlPersistence.sleep(waitTime);
+						if(zeroJobs && woke==0)
+							workerIdleTime+=Math.round(waitTime);
 					}
 						
 					if(Thread.interrupted())

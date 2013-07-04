@@ -43,6 +43,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
 	public String pool;
 	
+	@Parameter(names="--poolIdleTimeLimit", description="Amount of idle time allowed to accumulate in the pool before shutdown", converter=DurationConverter.class)
+	public int poolIdleTimeLimit = 14400000;
+	
 	@Parameter(names="--timeLimit", description="Amount of time to work for", required = true, converter=DurationConverter.class)
 	public int timeLimit;
 	

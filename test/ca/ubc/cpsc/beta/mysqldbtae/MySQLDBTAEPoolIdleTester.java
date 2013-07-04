@@ -43,19 +43,17 @@ import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
-public class MySQLDBTAEMarkDoneTester {
+public class MySQLDBTAEPoolIdleTester {
 
 
 	
 	private static AlgorithmExecutionConfig execConfig;
 
 	private static  ParamConfigurationSpace configSpace;
-	
-	private static List<RunConfig> runConfigs;
-	
+		
 	private static MySQLOptions mysqlConfig;
 	
-	private static final String MYSQL_POOL = "junit_markCompleteTest";
+	private static final String MYSQL_POOL = "junit_poolIdleTimeTest";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 5000;
@@ -87,29 +85,10 @@ public class MySQLDBTAEMarkDoneTester {
 		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
 		
 		rand = new MersenneTwister();
-		
-		runConfigs= new ArrayList<RunConfig>(1);
-		for(int i=0; i < 5; i++)
-		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
-			config.put("runtime", "5");
-			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
-			{
-				//Only want good configurations
-				i--;
-				continue;
-			} else
-			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config);
-				runConfigs.add(rc);
-			}
-		}
-
-		
 	}
 	
 	
-	public Process setupWorker(String limit, String idle, String jobID)
+	public Process setupWorker()
 	{
 		Process proc;
 		try {
@@ -121,9 +100,8 @@ public class MySQLDBTAEMarkDoneTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			
-			b.append(" --timeLimit " ).append(limit);
-			b.append(" --jobID ").append(jobID);
-			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --shutdownBuffer 0 --idleLimit " ).append(idle);
+			b.append(" --timeLimit 120");
+			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --poolIdleTimeLimit 20  --shutdownBuffer 0 --idleLimit 120" );
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
@@ -140,46 +118,122 @@ public class MySQLDBTAEMarkDoneTester {
 	}
 	
 	@Test
-	public void testMarkDone()
+	public void testPoolIdleTime()
 	{
 		try {
 			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
 			
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-				
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);		
-			
-			Process proc1 = setupWorker("180s","5s","proc1");
-			
-			long startTime = System.currentTimeMillis();
-			
-			
-			List<AlgorithmRun> runs = mySQLTAE.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver() {
-
-				@Override
-				public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
-					if(runs.get(0).isRunCompleted())
-					{
-						for(KillableAlgorithmRun run: runs)
-						{
-							System.err.println("Killing Run");
-							run.kill();
-						}
-					}	
-				} });
-			
-			long endTime = System.currentTimeMillis();
-			assertTrue(runs.get(0).isRunCompleted());
-			assertTrue((endTime-startTime)<20000);
+			Process proc1 = setupWorker();
+			Process proc2 = setupWorker();
+			Process proc3 = setupWorker();
+			Process proc4 = setupWorker();
+			Process proc5 = setupWorker();
 		
+			Thread.sleep(2000);
+			assertTrue(isRunning(proc1));
+			assertTrue(isRunning(proc2));
+			assertTrue(isRunning(proc3));
+			assertTrue(isRunning(proc4));
+			assertTrue(isRunning(proc5));
+			
+			Thread.sleep(8000);
+			assertTrue(!isRunning(proc1));
+			assertTrue(!isRunning(proc2));
+			assertTrue(!isRunning(proc3));
+			assertTrue(!isRunning(proc4));
+			assertTrue(!isRunning(proc5));
 		} catch(RuntimeException e)
 		{
 			e.printStackTrace();
 			throw e;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 			
+	}
+	
+	@Test
+	public void testPoolIdleTimeUpdate()
+	{
+		try {
+			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			Process proc1 = setupWorker();
+			Process proc2 = setupWorker();
+			
+			Thread.sleep(4000);
+			assertTrue(isRunning(proc1));
+			assertTrue(isRunning(proc2));
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=\"8\", upToDate=0", mysqlPersistence);
+			
+			Thread.sleep(5000);
+			assertTrue(!isRunning(proc1));
+			assertTrue(!isRunning(proc2));
+			
+		} catch(RuntimeException e)
+		{
+			e.printStackTrace();
+			throw e;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+			
+	}
+	
+	@Test
+	public void testPoolIdleTimeWeekYear()
+	{
+		try {
+			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			Process proc1 = setupWorker();
+			Thread.sleep(4000);
+
+			assertTrue(isRunning(proc1));
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=0, upToDate=0, startWeekYear=0", mysqlPersistence);
+			
+			Thread.sleep(2000);
+			assertTrue(isRunning(proc1));
+			
+			Process proc2 = setupWorker();
+			Thread.sleep(6000);
+			
+			assertTrue(!isRunning(proc1));
+			assertTrue(isRunning(proc2));
+			
+			Calendar cal = Calendar.getInstance();
+			cal.add(Calendar.WEEK_OF_YEAR, -2);
+			int current = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=10, upToDate=0, startWeekYear="+current, mysqlPersistence);
+			
+			Thread.sleep(2000);
+			
+			assertTrue(!isRunning(proc1));
+			assertTrue(!isRunning(proc2));
+			
+		} catch(RuntimeException e)
+		{
+			e.printStackTrace();
+			throw e;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+			
+	}
+	
+	public boolean isRunning(Process process) {
+	    try {
+	        process.exitValue();
+	        return false;
+	    } catch (Exception e) {
+	        return true;
+	    }
 	}
 	
 	public void assertDEquals(String d1, double d2, double delta)
