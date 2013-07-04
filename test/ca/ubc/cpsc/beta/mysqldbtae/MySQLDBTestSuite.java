@@ -12,8 +12,14 @@ import org.junit.runners.Suite;
 	MySQLDBTAEPriorityOrderTester.class,
 	MySQLDBTAEKillRetryTester.class,
 	MySQLClientKillTester.class,
-	MySQLDBTAEAbortRetryTester.class
+	MySQLDBTAEAbortRetryTester.class,
+	MySQLAsyncThreadPoolTester.class,
+	MySQLDBTAEEndTimeTester.class,
+	MySQLDBTAEMarkDoneTester.class,
+	MySQLDBTAEPoolIdleTester.class
 	
+	//Do not add this test!  May kill database
+	//MySQLDBTAELoadTest.class
 })
 
 public class MySQLDBTestSuite

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
@@ -141,7 +142,6 @@ public class MySQLTAEWorkerTaskProcessor {
 					StopWatch loopStart = new AutoStartStopWatch();
 					
 				
-					List<AlgorithmRun> algorithmRuns = new ArrayList<AlgorithmRun>(options.runsToBatch);
 					boolean zeroJobs = true;
 					for(Entry<AlgorithmExecutionConfig, List<RunConfig>> ent : runs.entrySet())
 					{
@@ -202,7 +202,7 @@ public class MySQLTAEWorkerTaskProcessor {
 								{
 									List<AlgorithmRun> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
 									mysqlPersistence.setRunResults(finishedRuns);
-									algorithmRuns.addAll(finishedRuns);
+									
 								} else
 								{
 									log.info("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft() );
@@ -226,7 +226,7 @@ public class MySQLTAEWorkerTaskProcessor {
 								
 								String addlRunData = sb.substring(0, Math.min(2000,sb.length()));
 								
-								algorithmRuns.add(new ExistingAlgorithmRun(execConfig,runConfig,"ABORT, 0.0 ,0 ,0, " + runConfig.getProblemInstanceSeedPair().getSeed() + "," + addlRunData , runWatch.stop()));
+								mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRun)new ExistingAlgorithmRun(execConfig,runConfig,RunResult.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
 							}
 							
 							
@@ -239,8 +239,6 @@ public class MySQLTAEWorkerTaskProcessor {
 						log.info("No jobs in database");
 					} else
 					{
-						log.info("Resetting unfinished runs");
-						//mysqlPersistence.setRunResults(algorithmRuns);
 						mysqlPersistence.resetUnfinishedRuns();
 						lastJobFinished = System.currentTimeMillis();
 					}

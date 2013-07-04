@@ -94,10 +94,10 @@ public class MySQLDBTAEAbortRetryTester {
 			b.append(" --pool ").append(MYSQL_POOL);
 			
 			b.append(" --timeLimit 1d");
-			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 1 --idleLimit 60s " );
+			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 1 --idleLimit 10s " );
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
-			System.out.println(b.toString());
+			//System.out.println(b.toString());
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc);
@@ -158,6 +158,7 @@ public class MySQLDBTAEAbortRetryTester {
 			{
 				try {
 					 runs = highMySQLTAE.evaluateRun(runConfigs);
+	
 					if(i == 0)
 					{
 						System.err.println("First Test Result was a pass so we need to try again, recursively");
