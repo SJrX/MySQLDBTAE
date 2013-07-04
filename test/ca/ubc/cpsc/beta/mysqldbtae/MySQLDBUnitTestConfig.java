@@ -28,8 +28,8 @@ public class MySQLDBUnitTestConfig {
 			fileLocation = jcom.getClass().getClassLoader().getResource("mysql.opt").getFile().toString();
 		} catch(NullPointerException e)
 		{
-			System.err.println("Could not find database file named mysql.opt on the classpath. Check the conf/ source, which has an example to folder when running unit tests");
-			throw new IllegalArgumentException("Could not find database file named mysql.opt on the classpath. Check the conf/ source, which has an example to folder when running unit tests");
+			System.err.println("Could not find database file named mysql.opt on the classpath. Check the conf/ source, which has an example file to use when running unit tests");
+			throw new IllegalArgumentException("Could not find database file named mysql.opt on the classpath. Check the conf/ source, which has an example to use when running unit tests");
 		}
 		System.out.println("Reading " + fileLocation);
 		//System.exit(100);

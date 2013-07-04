@@ -366,16 +366,50 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							}
 							
 							
-							
 							if(runsToKill.size() > 0)
 							{
+								
+								//=== Kill all the NEW jobs by marking them as complete
 								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1 WHERE (status=\"NEW\" || status=\"ASSIGNED\") AND runConfigUUID IN (");
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, result_seed=seed, status=\"COMPLETE\",runResult=\"KILLED\", additional_run_data=\"Killed By Client While New\"  WHERE status=\"NEW\" AND runConfigUUID IN (");
+								
+								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
+								{
+									//Only jobs upto the QUERY_SIZE_LIMIT will be killed, other jobs will wait until next poll
+									if(i!=0)
+									{
+										sb.append(",");
+									}
+									sb.append("\""+runsToKill.get(i)+"\"");
+									killedJobs.add(runsToKill.get(i));
+								}
+								
+								
+								
+								sb.append(")");
+								
+								
+								try {
+									stmt = conn.prepareStatement(sb.toString());
+									System.out.println(sb.toString());
+									stmt.execute();
+								
+								} finally
+								{
+									if(stmt != null) stmt.close();
+								}
+								
+								
+								
+								//== Kill all the assigned jobs by setting the flag 
+								sb = new StringBuilder();
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1 WHERE (status=\"ASSIGNED\") AND runConfigUUID IN (");
 								
 								
 								
 								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
 								{
+									//Only jobs upto the QUERY_SIZE_LIMIT will be killed, other jobs will wait until next poll
 									if(i!=0)
 									{
 										sb.append(",");
@@ -543,18 +577,18 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority) VALUES ");
+				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority, additional_run_data) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
 				{				
-						 sb.append(" (?,?,?,?,?,?,?,?,?,?),");
+						 sb.append(" (?,?,?,?,?,?,?,?,?,?,''),");
 				
 				}
 		
 				sb.setCharAt(sb.length()-1, ' ');
 				
-				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\",retryAttempts=0, runtime=IF(killJob=1,0,runtime), status=IF(killJob = 1,\"NEW\",status), killJob=0");
+				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\",retryAttempts=0, runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),0,runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),\"NEW\",status), killJob=0");
 
 				try {
 					PreparedStatement stmt = null;
