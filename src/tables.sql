@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
  PRIMARY KEY (`runConfigID`),
  UNIQUE KEY `runConfigUUID` (`runConfigUUID`),
  KEY `status2` (`status`,`priority`),
- KEY `status` (`status`,`workerUUID`,`priority`,`retryAttempts`)
+ KEY `status` (`status`,`workerUUID`,`priority`,`retryAttempts`),
+ KEY `statusCutoff` (`status`,`cutoffTime`)
 ) ENGINE=InnoDB;
 
 
@@ -72,7 +73,8 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `workerIdleTime_UPDATEABLE` int(11) NOT NULL,
 `upToDate` tinyint(1) NOT NULL,
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
-PRIMARY KEY (`workerUUID`)
+PRIMARY KEY (`workerUUID`),
+KEY `sumIdleTime` (`startWeekYear`,`workerIdleTime_UPDATEABLE`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_version` (

@@ -627,6 +627,40 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
+	public int getMinCutoff() {
+		
+		StringBuilder sb = new StringBuilder("SELECT MIN(cutoffTime) FROM ").append(TABLE_RUNCONFIG).append(" WHERE status='NEW'");
+	
+		try {
+			Connection conn = null;
+			try {
+				conn = getConnection();
+			
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+				ResultSet rs = stmt.executeQuery();
+				
+				if(!rs.next())
+				{
+					stmt.close();
+					return -1;
+				}				
+				
+				return rs.getInt(1);
+			} finally
+			{
+				if(conn != null) conn.close();
+				
+			}
+			
+		} catch(SQLException e)
+		{
+			log.error("Failed writing worker Information to database, something very bad is happening");
+			throw new IllegalStateException(e);
+		}
+		
+	}
+	
 	
 	public void updateIdleTime(int idleTime) {
 		

@@ -231,7 +231,7 @@ public class MySQLDBTAEPoolIdleTester {
 	    try {
 	        process.exitValue();
 	        return false;
-	    } catch (Exception e) {
+	    } catch (IllegalThreadStateException e) {
 	        return true;
 	    }
 	}

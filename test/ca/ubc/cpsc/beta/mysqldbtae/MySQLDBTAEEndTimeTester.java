@@ -234,7 +234,7 @@ public class MySQLDBTAEEndTimeTester {
 	    try {
 	        process.exitValue();
 	        return false;
-	    } catch (Exception e) {
+	    } catch (IllegalThreadStateException e) {
 	        return true;
 	    }
 	}
