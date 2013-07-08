@@ -2,7 +2,6 @@ package ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +22,6 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractAsyncTargetAlgorith
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TargetAlgorithmEvaluatorShutdownException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 

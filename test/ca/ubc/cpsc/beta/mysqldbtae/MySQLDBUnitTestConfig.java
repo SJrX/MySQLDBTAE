@@ -5,6 +5,7 @@ import java.util.Collections;
 import com.beust.jcommander.JCommander;
 
 import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
+import ca.ubc.cs.beta.aclib.options.AbstractOptions;
 import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 
@@ -22,7 +23,7 @@ public class MySQLDBUnitTestConfig {
 		mysqlConfig.databaseName = "mysql_db_tae_junit";
 		mysqlConfig.username = "mysql_db_tae";
 		*/
-		JCommander jcom = JCommanderHelper.getJCommander(mysqlConfig, Collections.EMPTY_MAP);
+		JCommander jcom = JCommanderHelper.getJCommander(mysqlConfig, Collections.<String, AbstractOptions>emptyMap());
 		String fileLocation;
 		try {
 			fileLocation = jcom.getClass().getClassLoader().getResource("mysql.opt").getFile().toString();

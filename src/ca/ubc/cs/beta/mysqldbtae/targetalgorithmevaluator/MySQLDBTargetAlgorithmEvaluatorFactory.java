@@ -170,7 +170,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		{
 			if(ent.getKey().equals(mysqlSuppressKey))
 			{
-				String key = ent.getKey();
+				//String key = ent.getKey();
 				
 				try {
 					boolean suppress = stringToBoolean(ent.getValue());

@@ -35,9 +35,9 @@ public class DangerZoneWrapper {
 			//Get arguments
 			System.out.println(Arrays.toString(args));
 			String instanceName = args[0];
-			String instanceSpecificInfo = args[1];
+			//String instanceSpecificInfo = args[1];
 			final double cutoffTime = Double.valueOf(args[2]);
-			String cutoffLength = args[3];
+			//String cutoffLength = args[3];
 			seed = args[4];
 			
 			
@@ -220,7 +220,7 @@ public class DangerZoneWrapper {
 	static public class InputReader implements Runnable
 	{
 		private final InputStream t;
-		private final String prefix;
+		
 		private final LineHandler h;
 
 		
@@ -260,7 +260,7 @@ public class DangerZoneWrapper {
 		public InputReader(InputStream t, String prefix, LineHandler h)
 		{
 			this.t = t;
-			this.prefix=prefix;
+			//this.prefix=prefix;
 			this.h = h;
 			if(h == null)
 			{

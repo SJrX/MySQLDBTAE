@@ -763,13 +763,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			conn = getConnection();
 			
 			File f = new File(execConfig.getParamFile().getParamFileName());
-			
-			String paramFile = execConfig.getParamFile().getParamFileName();
-			
-			if(execConfig.getParamFile().equals(ParamConfigurationSpace.getSingletonConfigurationSpace()))
-			{
-				paramFile = ParamConfigurationSpace.SINGLETON_ABSOLUTE_NAME;
-			} else
+
+			if(!execConfig.getParamFile().equals(ParamConfigurationSpace.getSingletonConfigurationSpace()))
 			{
 				if(!f.isAbsolute() || !f.exists())
 				{
