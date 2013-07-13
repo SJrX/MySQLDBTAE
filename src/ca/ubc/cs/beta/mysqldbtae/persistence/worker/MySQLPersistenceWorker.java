@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,7 @@ import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aclib.exceptions.DeveloperMadeABooBooException;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
+import ca.ubc.cs.beta.aclib.misc.associatedvalue.Pair;
 import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
@@ -44,13 +47,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	/**
 	 * Stores primary keys of execution configurations
 	 */
-	private final Map<Integer, AlgorithmExecutionConfig> execConfigMap = new HashMap<Integer, AlgorithmExecutionConfig>();
+	private final Map<Integer, AlgorithmExecutionConfig> execConfigMap = new ConcurrentHashMap<Integer, AlgorithmExecutionConfig>();
 	
 	
 	/**
 	 * Stores a mapping of RunConfigs to the actual runConfigIDs in the database.
 	 */
-	private final Map<RunConfig, String> runConfigIDMap = new HashMap<RunConfig, String>();
+	private final Map<RunConfig, String> runConfigIDMap = new ConcurrentHashMap<RunConfig, String>();
 	
 	/**
 	 * UUID of Worker
@@ -177,7 +180,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param n number of runs to attempt to get
 	 * @return runs
 	 */
-	public Map<AlgorithmExecutionConfig, List<RunConfig>> getRuns(int n)
+	public List<Pair<AlgorithmExecutionConfig, RunConfig>> getRuns(int n)
 	{
 	
 		StringBuffer sb = new StringBuffer();
@@ -232,9 +235,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				ResultSet rs = stmt.executeQuery();
 				
-				Map<AlgorithmExecutionConfig, List<RunConfig>> myMap = new LinkedHashMap<AlgorithmExecutionConfig, List<RunConfig>>();
-				
-				
+				List<Pair<AlgorithmExecutionConfig, RunConfig>> configList = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
 			
 				while(rs.next())
 				{
@@ -291,13 +292,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						continue;
 					}
 					
-				
-					if(myMap.get(execConfig) == null)
-					{
-						myMap.put(execConfig, new ArrayList<RunConfig>(n));
-					}
-					
-					myMap.get(execConfig).add(rc);
+					configList.add(new Pair(execConfig, rc));
 					
 				}
 				rs.close();
@@ -305,7 +300,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 					
 				
-				return myMap;
+				return configList;
 			} finally
 			{
 				if(stmt != null) stmt.close();
@@ -449,7 +444,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 		}catch(SQLException e)
 		{
-			log.error("Failed writing abort to database, something very bad is happening");
+			log.error("Failed writing unfinished runs to database, something very bad is happening");
 			
 			throw new IllegalStateException(e);
 		}
@@ -643,9 +638,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				if(!rs.next())
 				{
 					stmt.close();
+
 					return -1;
 				}				
-				
+
 				return rs.getInt(1);
 			} finally
 			{
@@ -688,6 +684,38 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		}
 	}
 
+	
+	public void resetRunConfigs(List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns) {
+		if(extraRuns.isEmpty())
+			return;
+		
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  status='NEW', workerUUID=0 WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\" AND runConfigID IN (" );
+
+		for(Pair<AlgorithmExecutionConfig, RunConfig> ent : extraRuns)
+		{
+			sb.append(this.runConfigIDMap.get(ent.getSecond())+",");
+		}
+		sb.setCharAt(sb.length()-1, ')');
+
+		try {
+			Connection conn = getConnection();
+			
+			try {
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				stmt.executeUpdate();
+				stmt.close();
+			} finally
+			{
+				conn.close();
+			}
+			
+		}catch(SQLException e)
+		{
+			log.error("Failed writing pushed back runs to database, something very bad is happening"+e.toString());
+			
+			throw new IllegalStateException(e);
+		}
+	}
 
 	/**
 	 * Updates the run in the database
@@ -721,7 +749,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 		}catch(SQLException e)
 		{
-			log.error("Failed writing abort to database, something very bad is happening");
+			log.error("Failed writing run status to database, something very bad is happening");
 			
 			throw new IllegalStateException(e);
 		}
@@ -761,7 +789,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					
 				}catch(SQLException e)
 				{
-					log.error("Failed writing abort to database, something very bad is happening");
+					log.error("Failed sleeping through the database, something very bad is happening");
 					
 					throw new IllegalStateException(e);
 				}

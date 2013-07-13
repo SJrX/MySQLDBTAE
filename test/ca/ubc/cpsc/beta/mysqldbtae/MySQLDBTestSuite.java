@@ -17,7 +17,8 @@ import org.junit.runners.Suite;
 	MySQLDBTAEEndTimeTester.class,
 	MySQLDBTAEMarkDoneTester.class,
 	MySQLDBTAEPoolIdleTester.class,
-	MySQLDBTAECutoffIdleTester.class
+	MySQLDBTAECutoffIdleTester.class,
+	MySQLDBTAEJobPushBackTester.class
 	
 	//Do not add this test!  May kill database
 	//MySQLDBTAELoadTest.class

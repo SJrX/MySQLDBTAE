@@ -137,7 +137,7 @@ public class MySQLDBTAEPoolIdleTester {
 			assertTrue(isRunning(proc4));
 			assertTrue(isRunning(proc5));
 			
-			Thread.sleep(8000);
+			Thread.sleep(10000);
 			assertTrue(!isRunning(proc1));
 			assertTrue(!isRunning(proc2));
 			assertTrue(!isRunning(proc3));

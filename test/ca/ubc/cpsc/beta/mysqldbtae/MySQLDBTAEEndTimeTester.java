@@ -123,27 +123,16 @@ public class MySQLDBTAEEndTimeTester {
 	{
 			
 		try {
-			Process proc1 = setupWorker("120s","3s","CLI");
-			Process proc2 = setupWorker("120s","6s","CLI");
-			System.out.println("Launching proc1, proc2");
+			Process proc1 = setupWorker("120s","2s","CLI");
+			System.out.println("Launching proc1");
 
-			Thread.sleep(2000);
+			Thread.sleep(1000);
 			
 			assertTrue(isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("Both still running");
 			
-			Thread.sleep(3000);
+			Thread.sleep(5000);
 			
 			assertTrue(!isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("proc1 terminates");
-
-			Thread.sleep(3000);
-
-			assertTrue(!isRunning(proc1));
-			assertTrue(!isRunning(proc2));
-			System.out.println("proc2 terminates");
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -156,27 +145,15 @@ public class MySQLDBTAEEndTimeTester {
 	{
 			
 		try {
-			Process proc1 = setupWorker("3s","120s","CLI");
-			Process proc2 = setupWorker("6s","120s","CLI");
-			System.out.println("Launching proc1, proc2");
+			Process proc1 = setupWorker("2s","120s","CLI");
 
-			Thread.sleep(2000);
+			Thread.sleep(1000);
 			
 			assertTrue(isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("Both still running");
 			
-			Thread.sleep(3000);
+			Thread.sleep(5000);
 			
 			assertTrue(!isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("proc1 terminates");
-
-			Thread.sleep(3000);
-
-			assertTrue(!isRunning(proc1));
-			assertTrue(!isRunning(proc2));
-			System.out.println("proc2 terminates");
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -192,15 +169,11 @@ public class MySQLDBTAEEndTimeTester {
 		try {
 			long startTime = System.currentTimeMillis();
 			Process proc1 = setupWorker("120s","120s","proc1");
-			Process proc2 = setupWorker("120s","120s","proc2");
-			System.out.println("Launching proc1, proc2");
 
-			Thread.sleep(4000);
+			Thread.sleep(5000);
 			assertTrue(isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("Both still running");
 			
-			long endTime = System.currentTimeMillis() + 1000;
+			long endTime = System.currentTimeMillis() + 5000;
 			Calendar calendar = Calendar.getInstance();
 			calendar.setTimeInMillis(endTime);
 			java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -208,21 +181,11 @@ public class MySQLDBTAEEndTimeTester {
 			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc1%\"", mysqlPersistence);
 				
 			Thread.sleep(2000);
-			
-			assertTrue(!isRunning(proc1));
-			assertTrue(isRunning(proc2));
-			System.out.println("proc1 terminates");
+			assertTrue(isRunning(proc1));
 
-			endTime = System.currentTimeMillis() + 1000;
-			calendar.setTimeInMillis(endTime);
-			sqlTime = sdf.format(calendar.getTime());
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc2%\"", mysqlPersistence);
-			
-			Thread.sleep(2000);
+			Thread.sleep(5000);
 			
 			assertTrue(!isRunning(proc1));
-			assertTrue(!isRunning(proc2));
-			System.out.println("proc2 terminates");
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();

@@ -43,7 +43,7 @@ import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
-public class MySQLDBTAECutoffIdleTester {
+public class MySQLDBTAEJobPushBackTester {
 
 
 	
@@ -55,8 +55,9 @@ public class MySQLDBTAECutoffIdleTester {
 	
 	private static MySQLOptions mysqlConfig;
 	
-	private static final String MYSQL_POOL = "junit_CutoffIdleTest";
+	private static final String MYSQL_POOL = "junit_JobPushBackTest";
 	
+
 	private static final int TARGET_RUNS_IN_LOOPS = 5000;
 	private static final int BATCH_INSERT_SIZE = TARGET_RUNS_IN_LOOPS/10;
 	
@@ -99,7 +100,7 @@ public class MySQLDBTAECutoffIdleTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 600, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config);
 				runConfigs.add(rc);
 			}
 		}
@@ -108,7 +109,7 @@ public class MySQLDBTAECutoffIdleTester {
 	}
 	
 	
-	public Process setupWorker(boolean checkMinCutoff, int minCutoffDeathTime)
+	public Process setupWorker()
 	{
 		Process proc;
 		try {
@@ -120,11 +121,8 @@ public class MySQLDBTAECutoffIdleTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			
-			b.append(" --timeLimit 20s");
-			b.append(" --jobID CLI");
-			b.append(" --minCutoffDeathTime ").append(minCutoffDeathTime);
-			b.append(" --checkMinCutoff ").append(checkMinCutoff);
-			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --shutdownBuffer 0 --idleLimit 20s");
+			b.append(" --timeLimit 60");
+			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --shutdownBuffer 0 --idleLimit 10");
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
@@ -141,7 +139,7 @@ public class MySQLDBTAECutoffIdleTester {
 	}
 	
 	@Test
-	public void testMinCutoffIdle()
+	public void testPushBack()
 	{
 		try {
 			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
@@ -152,31 +150,26 @@ public class MySQLDBTAECutoffIdleTester {
 			
 			MySQLTargetAlgorithmEvaluator mySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);		
 			
-			Process proc1 = setupWorker(true, 3);
+			Process proc1 = setupWorker();
+			Process proc2 = setupWorker();
+			Process proc3 = setupWorker();
+			Process proc4 = setupWorker();
+			Process proc5 = setupWorker();
 			
-			mySQLTAE.evaluateRunsAsync(runConfigs, null, null);
+			long startTime = System.currentTimeMillis();
 			
-			Thread.sleep(11000);
 			
-			assertTrue(!isRunning(proc1));
+			List<AlgorithmRun> runs = mySQLTAE.evaluateRun(runConfigs,null);
+			
+			long endTime = System.currentTimeMillis();
+			assertTrue((endTime-startTime)<22000);
 		
 		} catch(RuntimeException e)
 		{
 			e.printStackTrace();
 			throw e;
-		} catch (InterruptedException e) {
-			e.printStackTrace();
 		}
 			
-	}
-	
-	public boolean isRunning(Process process) {
-	    try {
-	        process.exitValue();
-	        return false;
-	    } catch (IllegalThreadStateException e) {
-	        return true;
-	    }
 	}
 	
 	public void assertDEquals(String d1, double d2, double delta)
