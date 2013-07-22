@@ -180,7 +180,6 @@ public class MySQLDBTAEEndTimeTester {
 			String sqlTime = sdf.format(calendar.getTime());
 			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc1%\"", mysqlPersistence);
 				
-			Thread.sleep(2000);
 			assertTrue(isRunning(proc1));
 
 			Thread.sleep(5000);

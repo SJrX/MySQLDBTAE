@@ -727,7 +727,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		//This query is designed to update the database IF and only IF
 		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
 		//This saves us another trip to the database
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=? WHERE runConfigID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=?, worstCaseEndtime=? WHERE runConfigID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
 		
 		
 		try {
@@ -737,7 +737,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				stmt.setDouble(1, run.getRuntime());
 				stmt.setDouble(2, run.getRunLength());
-				stmt.setString(3, this.runConfigIDMap.get(run.getRunConfig()));
+				stmt.setDouble(3, run.getRunConfig().getCutoffTime()*1.5-run.getRuntime()+120);
+				stmt.setString(4, this.runConfigIDMap.get(run.getRunConfig()));
 				boolean shouldKill = (stmt.executeUpdate() == 0);
 
 				stmt.close();
