@@ -187,7 +187,7 @@ public class MySQLDBTAEEndTimeTester {
 			Thread.sleep(5000);
 			assertTrue(isRunning(proc1));
 			
-			long endTime = System.currentTimeMillis() + 5000;
+			long endTime = System.currentTimeMillis() + 2000;
 			Calendar calendar = Calendar.getInstance();
 			calendar.setTimeInMillis(endTime);
 			java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

@@ -94,8 +94,10 @@ public class MySQLTAEWorkerTaskProcessor {
 		long lastUpdateTime = System.currentTimeMillis();
 		long lastJobFinished = System.currentTimeMillis();
 		
-		Calendar calendar = Calendar.getInstance();
-		calendar.setTimeInMillis(endTime);
+		Calendar endCalendar = Calendar.getInstance();
+		endCalendar.setTimeInMillis(endTime);
+		Calendar startCalendar = Calendar.getInstance();
+		startCalendar.setTimeInMillis(startTimeSecs*1000);
 	
 		String version = "<Error getting version>";
 		try
@@ -109,7 +111,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		ScheduledExecutorService executePushBack = Executors.newSingleThreadScheduledExecutor(new SequentiallyNamedThreadFactory("pushBackThread", true));
 		
-		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables);
+		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables);
 	
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			
