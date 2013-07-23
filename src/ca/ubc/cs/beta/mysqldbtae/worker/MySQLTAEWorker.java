@@ -10,7 +10,7 @@ import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aclib.misc.spi.SPIClassLoaderHelper;
 import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
+
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import com.beust.jcommander.JCommander;
@@ -32,7 +32,7 @@ public class MySQLTAEWorker {
 		MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
 		Map<String,AbstractOptions> taeOptions = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
 		
-		JCommander com = JCommanderHelper.getJCommander(options, taeOptions);
+		JCommander com = JCommanderHelper.parseCheckingForHelpAndVersion(args, options, taeOptions);
 		com.setProgramName("mysqltaeworker");
 		int exceptionCount = 0;
 		
@@ -117,13 +117,8 @@ public class MySQLTAEWorker {
 		
 		}catch(ParameterException e)
 		{
-			try {
-				ConfigToLaTeX.usage(ConfigToLaTeX.getParameters(options, taeOptions));
-			} catch (IllegalArgumentException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			} 
-			System.out.flush();
+		
+		
 			
 			log.error("Error occured parsing arguments: {}", e.getMessage());
 			

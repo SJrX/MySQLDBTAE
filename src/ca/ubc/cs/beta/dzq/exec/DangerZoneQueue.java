@@ -26,7 +26,7 @@ import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aclib.misc.spi.SPIClassLoaderHelper;
 import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-import ca.ubc.cs.beta.aclib.options.ConfigToLaTeX;
+
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
@@ -51,11 +51,11 @@ public class DangerZoneQueue {
 		
 		Map<String, AbstractOptions> taeOpts = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
 		
-		JCommander jcom = JCommanderHelper.getJCommander(dzOpts, taeOpts);
+		JCommander jcom = JCommanderHelper.parseCheckingForHelpAndVersion(args, dzOpts, taeOpts);
 
 		try {
 				
-			jcom.parse(args);
+			
 
 			VersionTracker.setClassLoader(SPIClassLoaderHelper.getClassLoader());
 			VersionTracker.logVersions();
@@ -248,8 +248,6 @@ public class DangerZoneQueue {
 			
 		} catch(ParameterException t)
 		{
-			
-			ConfigToLaTeX.usage(ConfigToLaTeX.getParameters(dzOpts,taeOpts));
 			log.error(t.getMessage());
 		}
 		

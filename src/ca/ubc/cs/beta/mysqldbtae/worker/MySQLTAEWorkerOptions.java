@@ -7,6 +7,7 @@ import com.beust.jcommander.ParameterFile;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
+import ca.ubc.cs.beta.aclib.help.HelpOptions;
 import ca.ubc.cs.beta.aclib.misc.file.HomeFileUtils;
 import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
 import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
@@ -73,5 +74,8 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@UsageTextField(defaultValues="10 days")
 	@Parameter(names="--idleLimit", description="Amount of time to not have a task before shutting down (by default this limit is set to 10 days)" , converter=DurationConverter.class)
 	public int idleLimit = 86400*10;
+	
+	@ParametersDelegate
+	public HelpOptions help = new HelpOptions();
 	
 }
