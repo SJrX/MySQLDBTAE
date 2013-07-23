@@ -109,7 +109,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			if(!execConfigMap.containsKey(execConfigID)) 
 			{
 			 StringBuilder sb = new StringBuilder();
-			 sb.append("SELECT algorithmExecutable, algorithmExecutableDIrectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
+			 sb.append("SELECT algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
 			 Connection conn = null;
 			 try {
 				 conn = getConnection();
@@ -317,6 +317,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 
+	/**
+	 * add run results to the database
+	 * @param runResult a List of AlgorithmRuns to add to the database
+	 */
 	public void setRunResults(List<AlgorithmRun> runResult)
 	{
 	
@@ -371,6 +375,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
+	/**
+	 * Attempts to execute an SQL statement with increasingly spaced out retry attempts on failure
+	 * @param stmt  PreparedStatment to execute
+	 * @throws SQLException
+	 */
 	private void execute(PreparedStatement stmt) throws SQLException
 	{
 		long sleepMS = BASIC_SLEEP_MS;
@@ -395,6 +404,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		}
 		throw new SQLException("After 25 attempts we could not get a successful Transaction");
 	}
+	
+	/**
+	 * Take a given runConfig and set it to ABORT
+	 * @param runConfigUUID  String with the UUID of the runConfig
+	 */
 	private void setAbortRun(String runConfigUUID)
 	{
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult='ABORT', status='COMPLETE'  WHERE runConfigID=?");
@@ -423,6 +437,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	}
 	
 
+	/**
+	 * Take assigned runs that have not completed and reset them to an unassigned state as well as setting their priority to 'LOW'
+	 */
 	public void resetUnfinishedRuns()
 	{
 		log.info("Resetting Unfinished Runs");
@@ -452,6 +469,14 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	}
 
+	/**
+	 * Inserts the worker info into the database
+	 * @param runsToBatch
+	 * @param delayBetweenRequests
+	 * @param pool
+	 * @param poolIdleTimeLimit
+	 * @param version
+	 */
 	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, int poolIdleTimeLimit, String version)
 	{
 		
@@ -505,9 +530,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	}
 
 
+	/**
+	 * Set a worker's status to 'DONE' and record relevant crash info
+	 * @param crashInfo  String to record to crashInfo in the database
+	 */
 	public void markWorkerCompleted(String crashInfo) {
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='DONE', crashInfo=? WHERE status='RUNNING' AND workerUUID=\""+workerUUID.toString()+"\" ");
-		
 		
 		try {
 			Connection conn = getConnection();
@@ -525,10 +553,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			log.error("Failed writing worker Information to database, something very bad is happening");
 			throw new IllegalStateException(e);
 		}
-		
-		
 	}
 	
+	/**
+	 * If the worker parameters have been changed in the database since our last update, retrieve these new parameters
+	 * @return UpdatedWorkerParameters
+	 */
 	public UpdatedWorkerParameters getUpdatedParameters() {
 		StringBuilder sb = new StringBuilder("SELECT startTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
@@ -579,8 +609,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
-	
+	/**
+	 * Sums the idle times of all workers in the pool, launched within the last 3 weeks
+	 * @return int representing the summed idle times
+	 */
 	public int sumIdleTimes() {
+		//Calendar.add method saves state.  This retrieves the current week and the previous 2 weeks
 		Calendar cal = Calendar.getInstance();
 		int current = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
 		
@@ -622,6 +656,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
+	
+	/**
+	 * Gets the minimum cutoffTime of all 'NEW' runConfigs
+	 * @return int representing the minimum cutoffTime of all 'NEW' runConfigs
+	 */
 	public int getMinCutoff() {
 		
 		StringBuilder sb = new StringBuilder("SELECT MIN(cutoffTime) FROM ").append(TABLE_RUNCONFIG).append(" WHERE status='NEW'");
@@ -657,7 +696,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
-	
+	/**
+	 * Updates the workerIdleTime_UPDATEABLE field in the workers table
+	 * @param idleTime  the value to place in the database field
+	 */
 	public void updateIdleTime(int idleTime) {
 		
 		try {
@@ -685,6 +727,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	}
 
 	
+	/**
+	 * Takes a list of runs to reset to an unassigned state
+	 * @param extraRuns  List of AlgorithmExecutionConfig and RunConfig Pairs
+	 */
 	public void resetRunConfigs(List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns) {
 		if(extraRuns.isEmpty())
 			return;
@@ -732,12 +778,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 		try {
 			Connection conn = getConnection();
-			
+			Calendar worstCaseEndTime = Calendar.getInstance();
+			if(run.getRuntime()==0)
+				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getRunConfig().getCutoffTime()*1.5-run.getWallclockExecutionTime()+120));
+			else
+				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getRunConfig().getCutoffTime()*1.5-run.getRuntime()+120));
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				stmt.setDouble(1, run.getRuntime());
 				stmt.setDouble(2, run.getRunLength());
-				stmt.setDouble(3, run.getRunConfig().getCutoffTime()*1.5-run.getRuntime()+120);
+				stmt.setTimestamp(3, new java.sql.Timestamp(worstCaseEndTime.getTime().getTime()));
 				stmt.setString(4, this.runConfigIDMap.get(run.getRunConfig()));
 				boolean shouldKill = (stmt.executeUpdate() == 0);
 
@@ -761,7 +811,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * Sleeps via the database the amount of time required
 	 * @param sleeptime
 	 */
-	public int sleep(double sleeptime)
+	public boolean sleep(double sleeptime)
 	{
 		
 		StringBuilder sb = new StringBuilder("SELECT SLEEP(").append(sleeptime).append("); /* " + SLEEP_COMMENT_TEXT + " */" );
@@ -778,10 +828,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						if(!rs.next())
 						{
 							stmt.close();
-							return 0;
+							return false;
 						}
 						
-						return rs.getInt(1);
+						if(rs.getInt(1)==0)
+							return true;
+						else
+							return false;
 						
 					} finally
 					{

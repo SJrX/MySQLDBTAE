@@ -140,6 +140,13 @@ public class MySQLDBTAECutoffIdleTester {
 		return null;
 	}
 	
+	/**
+	 * Test creates a worker that lives for 20 seconds.
+	 * It then then creates 5 jobs with a 600 seconds 
+	 * cutoff time.  Since no jobs fall within the 
+	 * workers lifetime, it will die within 3 seconds
+	 * as specified by a parameter.  Test verifies this.
+	 */
 	@Test
 	public void testMinCutoffIdle()
 	{

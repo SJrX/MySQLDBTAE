@@ -139,6 +139,15 @@ public class MySQLDBTAEMarkDoneTester {
 		return null;
 	}
 	
+	/**
+	 * Test creates a worker and gives it 5 jobs, each
+	 * 5 seconds long.  Its observer is set to terminate
+	 * all other runs when the first completes.  It
+	 * tests that the entire procedure takes less than
+	 * 20 seconds which means the jobs must be marked as
+	 * completed one by one as they finish rather than
+	 * in batch. 
+	 */
 	@Test
 	public void testMarkDone()
 	{

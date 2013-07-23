@@ -117,6 +117,11 @@ public class MySQLDBTAEPoolIdleTester {
 		return null;
 	}
 	
+	/**
+	 * Test creates 5 workers with a poolIdleTimeLimit of 20.
+	 * After 12 seconds have passed, it ensures they have all
+	 * died because the pool idle usage will exceed the limit.
+	 */
 	@Test
 	public void testPoolIdleTime()
 	{
@@ -152,7 +157,13 @@ public class MySQLDBTAEPoolIdleTester {
 		}
 			
 	}
-	
+
+	/**
+	 * Test creates 2 workers with a poolIdleTimeLimit of 20.
+	 * After 4 seconds have passed, it updates the
+	 * poolIdleTimeLimit to 8 seconds and in 5 seconds checks
+	 * that both have died.
+	 */
 	@Test
 	public void testPoolIdleTimeUpdate()
 	{
@@ -183,6 +194,15 @@ public class MySQLDBTAEPoolIdleTester {
 			
 	}
 	
+	/**
+	 * Test creates a worker and changes its poolIdleTimeLimit
+	 * to 0 and sets its startWeekYear to 0.  Because it was
+	 * not launched within the past 3 weeks, it is not counted
+	 * towards pool idle time.  It is verified to be running.
+	 * Another worker is added and both have their startWeekYear
+	 * set to 2 weeks previous and are then shortly tested for 
+	 * termination.
+	 */
 	@Test
 	public void testPoolIdleTimeWeekYear()
 	{
