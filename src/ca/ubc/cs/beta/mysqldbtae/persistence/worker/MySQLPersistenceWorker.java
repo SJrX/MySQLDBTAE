@@ -454,7 +454,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				if(stmt.executeUpdate()>0)
-					log.error("Some runs were not completed and are being reset");
+					log.warn("Some runs were not completed and are being reset");
 
 				stmt.close();
 			} finally
