@@ -60,10 +60,14 @@ public class MySQLTAEWorker {
 			VersionTracker.logVersions();
 		
 			
-			log.info("Abort on Crash and abort on First Run Crash are disabled, as is verifySAT");
+			log.info("Abort on Crash,Abort on First Run Crash, Verify SAT, and use Walltime if no Runtime are DISABLED as these options generally don't work well as a worker.");
 			options.taeOptions.abortOnCrash = false;
 			options.taeOptions.abortOnFirstRunCrash = false;
 			options.taeOptions.verifySAT = false;
+			options.taeOptions.observeWalltimeIfNoRuntime = false;
+			options.taeOptions.checkSATConsistency = true;
+			options.taeOptions.checkSATConsistencyException = false;
+			
 			
 			for(String name : taeOptions.keySet())
 			{
