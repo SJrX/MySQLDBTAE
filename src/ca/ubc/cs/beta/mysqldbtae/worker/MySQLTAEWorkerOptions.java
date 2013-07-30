@@ -20,6 +20,11 @@ import ca.ubc.cs.beta.aclib.misc.jcommander.converter.WritableDirectoryConverter
 public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
 	@UsageTextField(defaultValues="~/.aclib/mysqlworker.opt")
 	@Parameter(names="--mysqlWorkerDefaultsFile", description="file that contains default settings for MySQL Workers")
 	@ParameterFile(ignoreFileNotExists = true) 

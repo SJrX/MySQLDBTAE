@@ -326,7 +326,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	{
 	
 		
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, resultSeed=?, runtime=?, additionalRunData=?, status='COMPLETE'  WHERE runConfigID=?");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, resultSeed=?, runtime=?, additionalRunData=?, walltime=?, status='COMPLETE' WHERE workerUUID = ? AND runConfigID=?");
 		
 		try {
 			
@@ -348,8 +348,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						stmt.setLong(4,run.getResultSeed());
 						stmt.setDouble(5, run.getRuntime());
 						stmt.setString(6, run.getAdditionalRunData());
-						
-						stmt.setString(7,runConfigID);
+
+						stmt.setDouble(7, run.getWallclockExecutionTime());
+						stmt.setString(8, workerUUID.toString());
+						stmt.setString(9,runConfigID);
 						
 						execute(stmt);
 					} catch(SQLException e)
@@ -776,7 +778,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		//This query is designed to update the database IF and only IF
 		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
 		//This saves us another trip to the database
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=?, worstCaseEndtime=? WHERE runConfigID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=?, worstCaseEndtime=?, walltime=? WHERE runConfigID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
 		
 		
 		try {
@@ -791,7 +793,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				stmt.setDouble(1, run.getRuntime());
 				stmt.setDouble(2, run.getRunLength());
 				stmt.setTimestamp(3, new java.sql.Timestamp(worstCaseEndTime.getTime().getTime()));
-				stmt.setString(4, this.runConfigIDMap.get(run.getRunConfig()));
+				stmt.setDouble(4, run.getWallclockExecutionTime());
+				stmt.setString(5, this.runConfigIDMap.get(run.getRunConfig()));
 				boolean shouldKill = (stmt.executeUpdate() == 0);
 
 				stmt.close();

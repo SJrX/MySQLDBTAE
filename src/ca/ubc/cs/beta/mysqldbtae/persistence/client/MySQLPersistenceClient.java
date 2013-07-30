@@ -273,7 +273,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							StringBuilder sb = new StringBuilder();	
 							
 							String addlRunData = (this.getAdditionalRunData) ? ", additionalRunData" : "";
-							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, resultSeed"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, resultSeed, walltime"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 							
 						
 							int querySize = 0;
@@ -307,8 +307,17 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									{
 										
 										
-										String addlRunDataStr = (this.getAdditionalRunData) ? "," + rs.getString(8) : "";
-										String resultLine = rs.getString(3) + "," + rs.getDouble(4) + "," + rs.getDouble(5) + "," + rs.getDouble(6) + "," + rs.getLong(7) + addlRunDataStr;
+										String addlRunDataStr = (this.getAdditionalRunData) ? "," + rs.getString(9) : "";
+										
+										
+										
+										RunResult result = RunResult.valueOf(rs.getString(3));
+										double runtime = rs.getDouble(4);
+										double runlength = rs.getDouble(5);
+										double quality = rs.getDouble(6);
+										long seed = rs.getLong(7);
+										
+										double walltime = rs.getDouble(8);
 										
 										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
 										incompleteRuns.remove(rs.getString(1));
@@ -317,7 +326,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
 										 */
 											
-										AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, resultLine, 0.0);
+										AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, result, runtime, runlength, quality, seed, walltime);
 										
 										if(run.getRunResult().equals(RunResult.ABORT))
 										{
@@ -331,7 +340,22 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									{
 										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
 										
-										outstandingRuns.put(runConfig, new RunningAlgorithmRun(execConfig, runConfig, "RUNNING," + rs.getDouble(4)+",0,0,"+ runConfig.getProblemInstanceSeedPair().getSeed() , killHandlers.get(runConfig)));
+										String addlRunDataStr = (this.getAdditionalRunData) ? "," + rs.getString(9) : "";
+										
+										
+										
+										/*RunResult result = RunResult.valueOf(rs.getString(3));*/
+										double runtime = rs.getDouble(4);
+										/*
+										double runlength = rs.getDouble(5);
+										double quality = rs.getDouble(6);
+										*/
+										long seed = rs.getLong(7);
+										
+										double walltime = rs.getDouble(8);
+										
+										
+										outstandingRuns.put(runConfig, new RunningAlgorithmRun(execConfig, runConfig, rs.getDouble(4),0,0,seed, walltime , killHandlers.get(runConfig)));
 									} else
 									{	
 										throw new IllegalStateException("Must have some new status that we don't know what do with in the database");
@@ -371,7 +395,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								//=== Kill all the NEW jobs by marking them as complete
 								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, status=\"COMPLETE\",runResult=\"KILLED\", additionalRunData=\"Killed By Client While New\"  WHERE status=\"NEW\" AND runConfigUUID IN (");
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, status=\"COMPLETE\",runResult=\"KILLED\", additionalRunData=\"Killed By Client While New\"  WHERE status=\"NEW\" OR status=\"ASSIGNED\" AND runConfigUUID IN (");
 								
 								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
 								{
@@ -401,7 +425,9 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								
 								
-								//== Kill all the assigned jobs by setting the flag 
+								//== Kill all the assigned jobs by setting the flag
+								/*
+								 * This doesn't actually work
 								sb = new StringBuilder();
 								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1 WHERE (status=\"ASSIGNED\") AND runConfigUUID IN (");
 								
@@ -432,6 +458,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								{
 									if(stmt != null) stmt.close();
 								}
+								*/
 								
 							}
 							

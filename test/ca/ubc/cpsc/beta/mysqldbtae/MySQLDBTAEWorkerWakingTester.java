@@ -63,6 +63,7 @@ public class MySQLDBTAEWorkerWakingTester {
 			b.append(" --timeLimit 1d --updateFrequency 2");
 			b.append(" --tae PARAMECHO --delayBetweenRequests 240 --idleLimit 300s --runsToBatch 100" );
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
+			System.out.println(b.toString());
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc);

@@ -32,14 +32,13 @@ public class MySQLTAEWorker {
 		MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
 		Map<String,AbstractOptions> taeOptions = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
 		
-		JCommander com = JCommanderHelper.parseCheckingForHelpAndVersion(args, options, taeOptions);
-		com.setProgramName("mysqltaeworker");
+		JCommander com = null;
 		int exceptionCount = 0;
-		
 		try {
 			try {
+				 com = JCommanderHelper.parseCheckingForHelpAndVersion(args, options, taeOptions);
+				com.setProgramName("mysqltaeworker");
 				
-			com.parse(args);
 			} finally
 			{
 				String workerID = options.jobID  + "/" + ManagementFactory.getRuntimeMXBean().getName();
@@ -48,11 +47,13 @@ public class MySQLTAEWorker {
 				System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");
 				
 				log = LoggerFactory.getLogger(MySQLTAEWorker.class);;
-				for(String name : com.getParameterFilesToRead())
+				if(com != null)
 				{
-					log.info("Parsing (default) options from file: {} ", name);
+					for(String name : com.getParameterFilesToRead())
+					{
+						log.info("Parsing (default) options from file: {} ", name);
+					}
 				}
-				
 			}
 			
 			
@@ -101,17 +102,17 @@ public class MySQLTAEWorker {
 						break;
 					} else
 					{
+						exceptionCount++;
+						log.error("Exception occured",e);
 						
+						log.info("Uncaught exceptions used {} out of {}", exceptionCount, options.uncaughtExceptionLimit);
 						try {
 							Thread.sleep( (long) (( 120 + Math.random()*60.0) * 1000) );
 						} catch (InterruptedException e1) {
 							Thread.interrupted();
 							return;
 						}
-						exceptionCount++;
-						log.error("Exception occured",e);
-						
-						log.info("Uncaught exceptions used {} out of {}", exceptionCount, options.uncaughtExceptionLimit);
+					
 					}
 					
 				}
@@ -125,8 +126,10 @@ public class MySQLTAEWorker {
 		
 			
 			log.error("Error occured parsing arguments: {}", e.getMessage());
-			
-			
+			if(log.isDebugEnabled())
+			{
+				log.debug("Stack trace", e);
+			}
 		}
 		log.info("Main Method Ended");
 	}

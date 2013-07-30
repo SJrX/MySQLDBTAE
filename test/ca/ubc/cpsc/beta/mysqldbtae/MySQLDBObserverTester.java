@@ -27,6 +27,7 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.helpers.BoundedTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.helpers.WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -140,9 +141,11 @@ public class MySQLDBObserverTester {
 		}
 		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 		
-		MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
+		TargetAlgorithmEvaluator mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence));	
+		
 		
 		assertTrue(mysqlDBTae.areRunsObservable());
+		
 		
 		
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
@@ -180,7 +183,9 @@ public class MySQLDBObserverTester {
 				for(AlgorithmRun run : runs)
 				{
 					runtimeSum += run.getRuntime();
+					System.out.println(run);
 				}
+				
 				
 				//System.out.println(runtimeSum);
 				if(runtimeSum > 1)
@@ -245,6 +250,7 @@ public class MySQLDBObserverTester {
 		
 		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence), 1, execConfig);	
 		
+		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
@@ -347,6 +353,7 @@ public class MySQLDBObserverTester {
 		
 		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence), 1, execConfig);	
 		
+		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
@@ -449,6 +456,7 @@ public class MySQLDBObserverTester {
 		
 		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence), 2, execConfig);	
 		
+		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
@@ -555,8 +563,8 @@ public class MySQLDBObserverTester {
 		}
 		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 		
-		MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
-		
+		TargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
+		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
@@ -664,8 +672,8 @@ public class MySQLDBObserverTester {
 		}
 		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 		
-		MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
-		
+		TargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
+		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
