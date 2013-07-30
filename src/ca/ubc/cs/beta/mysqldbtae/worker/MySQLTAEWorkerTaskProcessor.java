@@ -46,8 +46,6 @@ public class MySQLTAEWorkerTaskProcessor {
 	private final Map<String, AbstractOptions> taeOptions;
 
 	private  final long startTimeSecs;
-	
-	private final long MAX_LONG = 9223372036854775807L;
 
 	private final CountDownLatch latch;
 	private final Semaphore sem;
@@ -92,7 +90,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		}
 		
 		long endTime = (startTimeSecs + getSecondsLeft()) * 1000;
-		long minCutoffDeathTime = MAX_LONG;
+		long minCutoffDeathTime = Long.MAX_VALUE;
 		long lastUpdateTime = System.currentTimeMillis();
 		long lastJobFinished = System.currentTimeMillis();
 		
@@ -249,14 +247,14 @@ public class MySQLTAEWorkerTaskProcessor {
 					{
 						log.info("No jobs in database");
 
-						if(mysqlPersistence.getMinCutoff()>getSecondsLeft() && minCutoffDeathTime==MAX_LONG)
+						if(mysqlPersistence.getMinCutoff()>getSecondsLeft() && minCutoffDeathTime==Long.MAX_VALUE)
 						{
 							minCutoffDeathTime = System.currentTimeMillis()+options.minCutoffDeathTime*1000;
 						}
 					} else
 					{
 						lastJobFinished = System.currentTimeMillis();
-						minCutoffDeathTime = MAX_LONG;
+						minCutoffDeathTime = Long.MAX_VALUE;
 					}
 					
 					
@@ -300,7 +298,7 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 					int sumWorkerIdleTimes = mysqlPersistence.sumIdleTimes();
 					
-					String killWindow = (minCutoffDeathTime == MAX_LONG) ? "inf" : ""+(minCutoffDeathTime-System.currentTimeMillis())/1000;
+					String killWindow = (minCutoffDeathTime == Long.MAX_VALUE) ? "inf" : ""+(minCutoffDeathTime-System.currentTimeMillis())/1000;
 					log.info("Worker life remaining: {} seconds, worker idle limit remaining: {} seconds, ",getSecondsLeft(), (int) ( options.idleLimit - idleTime));
 					log.info("pool idle limit remaining: {} seconds, jobs too long kill window: {} seconds" ,(int)(options.poolIdleTimeLimit-sumWorkerIdleTimes), killWindow);
 					
@@ -414,4 +412,7 @@ public class MySQLTAEWorkerTaskProcessor {
 	{
 		return crashReason;
 	}
+
+
+
 }
