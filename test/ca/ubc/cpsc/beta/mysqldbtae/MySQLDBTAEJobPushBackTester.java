@@ -1,11 +1,19 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
 import static org.junit.Assert.*;
+
 import java.io.File;
 import java.io.IOException;
+import java.sql.Date;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -20,30 +28,34 @@ import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
+import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.ParamEchoExecutor;
-import ca.ubc.cs.beta.targetalgorithmevaluator.ParamEchoExecutorNineTenthChanceAbort;
+import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
-public class MySQLDBTAEAbortRetryTester {
+public class MySQLDBTAEJobPushBackTester {
 
 
-	
-	private static Process proc;
 	
 	private static AlgorithmExecutionConfig execConfig;
 
 	private static  ParamConfigurationSpace configSpace;
 	
+	private static List<RunConfig> runConfigs;
+	
 	private static MySQLOptions mysqlConfig;
 	
-	private static final String MYSQL_POOL = "junit_aborttest";
+	private static final String MYSQL_POOL = "junit_JobPushBackTest";
 	
 
 	private static final int TARGET_RUNS_IN_LOOPS = 5000;
@@ -71,19 +83,35 @@ public class MySQLDBTAEAbortRetryTester {
 		b.append("java -cp ");
 		b.append(System.getProperty("java.class.path"));
 		b.append(" ");
-		b.append(ParamEchoExecutorNineTenthChanceAbort.class.getCanonicalName());
+		b.append(TrueSleepyParamEchoExecutor.class.getCanonicalName());
 		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
 		
-		
-		
 		rand = new MersenneTwister();
+		
+		runConfigs= new ArrayList<RunConfig>(1);
+		for(int i=0; i < 5; i++)
+		{
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			config.put("runtime", "5");
+			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
+			{
+				//Only want good configurations
+				i--;
+				continue;
+			} else
+			{
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config);
+				runConfigs.add(rc);
+			}
+		}
 
 		
 	}
 	
 	
-	public void setupWorker()
+	public Process setupWorker()
 	{
+		Process proc;
 		try {
 			StringBuilder b = new StringBuilder();
 			
@@ -93,104 +121,56 @@ public class MySQLDBTAEAbortRetryTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			
-			b.append(" --timeLimit 1d");
-			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 1 --idleLimit 60s " );
+			b.append(" --timeLimit 60");
+			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --shutdownBuffer 0 --idleLimit 10");
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
-			//System.out.println(b.toString());
+			System.out.println(b.toString());
 			proc = Runtime.getRuntime().exec(b.toString());
 			
 			InputReader.createReadersForProcess(proc);
 			
-			
+			return proc;
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		return null;
 	}
 	
 	@Test
-	/**
-	 * This unit test either passes because a run result that was ABORT is now SAT 
-	 * or never returns
-	 */
-	public void testAbortRetry()
+	public void testPushBack()
 	{
-			setupWorker();
+		try {
+			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
+			
+			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+				
+			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			
+			MySQLTargetAlgorithmEvaluator mySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);		
+			
+			Process proc1 = setupWorker();
+			Process proc2 = setupWorker();
+			Process proc3 = setupWorker();
+			Process proc4 = setupWorker();
+			Process proc5 = setupWorker();
+			
+			long startTime = System.currentTimeMillis();
+			
+			
+			List<AlgorithmRun> runs = mySQLTAE.evaluateRun(runConfigs,null);
+			
+			long endTime = System.currentTimeMillis();
+			assertTrue((endTime-startTime)<22000);
 		
-		
-			MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 1500, true,MYSQL_RUN_PARTITION,false, JobPriority.HIGH);
-			try {
-			highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);		
-		
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
-			
-			
-			do
-			{
-				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
-				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
-				{
-					//Only want good configurations
-					continue;
-				} else
-				{
-					config.put("runtime", "0.5");
-					config.put("solved", "SAT");
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance","SLEEP"), Long.valueOf(config.get("seed"))), 1001, config);
-					
-					runConfigs.add(rc);
-					break;
-				}
-			} while(true);
-			
-			long time = System.currentTimeMillis();
-			List<AlgorithmRun> runs = null;
-			for(int i=0; i < 50; i++)
-			{
-				try {
-					assertTrue(isRunning(proc));
-					 runs = highMySQLTAE.evaluateRun(runConfigs);
-	
-					if(i == 0)
-					{
-						System.err.println("First Test Result was a pass so we need to try again, recursively");
-						testAbortRetry();
-						return;
-					}
-					break;
-				} catch(TargetAlgorithmAbortException e)
-				{
-					System.err.println("Good got abort");
-					
-					
-				}
-			}
-
-			assertEquals(RunResult.SAT, runs.get(0).getRunResult());
-		
-			highMySQLTAE.notifyShutdown();
-			
+		} catch(RuntimeException e)
+		{
+			e.printStackTrace();
+			throw e;
+		}
 			
 	}
-	
-	
-	public boolean isRunning(Process process) {
-	    try {
-	        process.exitValue();
-	        return false;
-	    } catch (IllegalThreadStateException e) {
-	        return true;
-	    }
-	}	
 	
 	public void assertDEquals(String d1, double d2, double delta)
 	{
@@ -211,5 +191,3 @@ public class MySQLDBTAEAbortRetryTester {
 	
 	
 }
-
-

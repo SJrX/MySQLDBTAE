@@ -271,7 +271,7 @@ public class MySQLDBTAELoadTest {
 		{	
 		
 			
-			if(System.currentTimeMillis() < 0)
+			if(System.currentTimeMillis() > 0)
 			{
 			
 				MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.NORMAL);

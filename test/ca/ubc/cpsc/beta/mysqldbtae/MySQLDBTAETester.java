@@ -1,6 +1,7 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
 import static org.junit.Assert.*;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -22,6 +24,7 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
+import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
@@ -36,6 +39,10 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.WaitableTAECallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.debug.EqualTargetAlgorithmEvaluatorTester;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.helpers.BoundedTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.experimental.queuefacade.basic.BasicTargetAlgorithmEvaluatorQueue;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.experimental.queuefacade.basic.BasicTargetAlgorithmEvaluatorQueueResultContext;
+import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.experimental.queuefacade.general.TargetAlgorithmEvaluatorQueueFacade;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
@@ -333,9 +340,9 @@ public class MySQLDBTAETester {
 
 			
 			//Different RunPartition
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
 			runs = tae.evaluateRun(runConfigs);			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
 			
 			runs = tae.evaluateRun(runConfigs);
 			for(AlgorithmRun run : runs)
@@ -532,6 +539,88 @@ public class MySQLDBTAETester {
 	public void testAutoDeleteFailOfNegativeRunPartition()
 	{
 		new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION,true, priority);
+	}
+	
+	@Test
+	public void testAbortDetect() throws InterruptedException
+	{		
+		
+		MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 1500, true,MYSQL_RUN_PARTITION,false, JobPriority.HIGH);
+		try {
+		highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
+		} catch(RuntimeException e)
+		{
+			e.printStackTrace();
+			throw e;
+		}
+		highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+		
+		MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);		
+	
+		List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+		
+		
+		do
+		{
+			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
+			{
+				//Only want good configurations
+				continue;
+			} else
+			{
+				config.put("runtime", "0.5");
+				config.put("solved", "ABORT");
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance","SLEEP"), Long.valueOf(config.get("seed"))), 1001, config);
+				
+				runConfigs.add(rc);
+				break;
+			}
+		} while(true);
+		
+		BasicTargetAlgorithmEvaluatorQueue taeQueue = new BasicTargetAlgorithmEvaluatorQueue(highMySQLTAE, false);
+		
+		long time = System.currentTimeMillis();
+		List<AlgorithmRun> runs = null;
+		taeQueue.evaluateRunAsync(runConfigs);
+		
+		while(true)
+		{
+			BasicTargetAlgorithmEvaluatorQueueResultContext result = taeQueue.poll(1, TimeUnit.SECONDS);
+			if(result == null)
+			{
+				System.out.flush();
+				System.err.flush();
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+				System.err.println("IF THIS TEST IS NOT STOPPING, IT HAS FAILED!!");
+
+				System.out.flush();
+				System.err.flush();
+			}
+			else
+			{
+				assertEquals("Expected aborted exception",TargetAlgorithmAbortException.class,result.getRuntimeException().getClass());
+				assertEquals("Expected no results",null, result.getAlgorithmRuns());
+				break;
+			}
+		}
+				 //runs = highMySQLTAE.evaluateRun(runConfigs);
+			
+		
+
+		highMySQLTAE.notifyShutdown();
+		
+		
 	}
 	
 	

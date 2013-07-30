@@ -272,8 +272,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						{
 							StringBuilder sb = new StringBuilder();	
 							
-							String addlRunData = (this.getAdditionalRunData) ? ", additional_run_data" : "";
-							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, result_seed"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+							String addlRunData = (this.getAdditionalRunData) ? ", additionalRunData" : "";
+							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, resultSeed"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 							
 						
 							int querySize = 0;
@@ -371,7 +371,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								//=== Kill all the NEW jobs by marking them as complete
 								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, result_seed=seed, status=\"COMPLETE\",runResult=\"KILLED\", additional_run_data=\"Killed By Client While New\"  WHERE status=\"NEW\" AND runConfigUUID IN (");
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, status=\"COMPLETE\",runResult=\"KILLED\", additionalRunData=\"Killed By Client While New\"  WHERE status=\"NEW\" AND runConfigUUID IN (");
 								
 								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
 								{
@@ -577,7 +577,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority, additional_run_data) VALUES ");
+				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority, additionalRunData) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )

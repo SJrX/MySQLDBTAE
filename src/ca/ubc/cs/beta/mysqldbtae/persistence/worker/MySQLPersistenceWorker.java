@@ -9,12 +9,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +31,7 @@ import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aclib.exceptions.DeveloperMadeABooBooException;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
+import ca.ubc.cs.beta.aclib.misc.associatedvalue.Pair;
 import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
@@ -42,13 +46,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	/**
 	 * Stores primary keys of execution configurations
 	 */
-	private final Map<Integer, AlgorithmExecutionConfig> execConfigMap = new HashMap<Integer, AlgorithmExecutionConfig>();
+	private final Map<Integer, AlgorithmExecutionConfig> execConfigMap = new ConcurrentHashMap<Integer, AlgorithmExecutionConfig>();
 	
 	
 	/**
 	 * Stores a mapping of RunConfigs to the actual runConfigIDs in the database.
 	 */
-	private final Map<RunConfig, String> runConfigIDMap = new HashMap<RunConfig, String>();
+	private final Map<RunConfig, String> runConfigIDMap = new ConcurrentHashMap<RunConfig, String>();
 	
 	/**
 	 * UUID of Worker
@@ -59,9 +63,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 	
 	
-	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version, boolean createTables)
+	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest, version, createTables);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables);
 	}
 	
 
@@ -76,14 +80,14 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Date endDateTime;
 	
 	public MySQLPersistenceWorker(String host, int port,
-			String databaseName, String username, String password, String pool,String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, String version, boolean createTables) {
+			String databaseName, String username, String password, String pool,String jobID, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables) {
 		super(host, port, databaseName, username, password, pool, createTables);
 
 		log.info("My Worker ID is " + workerUUID.toString());
 		this.jobID = jobID;
 		this.endDateTime = endDateTime;
 		
-		logWorker(runsToBatch, delayBetweenRequest, pool, version);
+		logWorker(runsToBatch, delayBetweenRequest, pool, poolIdleTimeLimit, version);
 	}
 
 	private final long BASIC_SLEEP_MS = 50;
@@ -175,7 +179,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param n number of runs to attempt to get
 	 * @return runs
 	 */
-	public Map<AlgorithmExecutionConfig, List<RunConfig>> getRuns(int n)
+	public List<Pair<AlgorithmExecutionConfig, RunConfig>> getRuns(int n)
 	{
 	
 		StringBuffer sb = new StringBuffer();
@@ -230,9 +234,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				ResultSet rs = stmt.executeQuery();
 				
-				Map<AlgorithmExecutionConfig, List<RunConfig>> myMap = new LinkedHashMap<AlgorithmExecutionConfig, List<RunConfig>>();
-				
-				
+				List<Pair<AlgorithmExecutionConfig, RunConfig>> configList = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
 			
 				while(rs.next())
 				{
@@ -289,13 +291,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						continue;
 					}
 					
-				
-					if(myMap.get(execConfig) == null)
-					{
-						myMap.put(execConfig, new ArrayList<RunConfig>(n));
-					}
-					
-					myMap.get(execConfig).add(rc);
+					configList.add(new Pair(execConfig, rc));
 					
 				}
 				rs.close();
@@ -303,7 +299,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 					
 				
-				return myMap;
+				return configList;
 			} finally
 			{
 				if(stmt != null) stmt.close();
@@ -324,7 +320,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	{
 	
 		
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, result_seed=?, runtime=?, additional_run_data=?, status='COMPLETE'  WHERE runConfigID=?");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, resultSeed=?, runtime=?, additionalRunData=?, status='COMPLETE'  WHERE runConfigID=?");
 		
 		try {
 			
@@ -436,7 +432,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
-				execute(stmt);
+				if(stmt.executeUpdate()>0)
+					log.error("Some runs were not completed and are being reset");
 
 				stmt.close();
 			} finally
@@ -446,7 +443,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 		}catch(SQLException e)
 		{
-			log.error("Failed writing abort to database, something very bad is happening");
+			log.error("Failed writing unfinished runs to database, something very bad is happening");
 			
 			throw new IllegalStateException(e);
 		}
@@ -454,18 +451,19 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	}
 
-	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, String version)
+	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, int poolIdleTimeLimit, String version)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, jobID,endTime, startTime, runsToBatch, delayBetweenRequests, pool,upToDate, version)  VALUES (?,?,?,?,NOW(),?,?,?,1,?)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID, startTime, startWeekYear, originalEndTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE, poolIdleTimeLimit_UPDATEABLE, workerIdleTime_UPDATEABLE, upToDate, version)  VALUES (?,?,?,?,NOW(),?,?,?,?,?,?,?,0,1,?)");
 		
 		
 		try {
 			Connection conn = getConnection();
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());
 			
-	
+
 			String hostname = null;
+			String username = null;
 			
 			try {
 				  InetAddress addr = InetAddress.getLocalHost();
@@ -476,18 +474,24 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				  //This shouldn't happen cause we are asking for local host.
 				  throw new DeveloperMadeABooBooException(e);
 			  }
+			
+			username = System.getProperty("user.name");
 		
 			stmt.setString(1, workerUUID.toString());
 			stmt.setString(2, hostname);
-			stmt.setString(3, jobID +"/" + ManagementFactory.getRuntimeMXBean().getName());
+			stmt.setString(3, username);
+			stmt.setString(4, jobID +"/" + ManagementFactory.getRuntimeMXBean().getName());
 			
+			stmt.setInt(5, Integer.parseInt(Calendar.getInstance().get(Calendar.WEEK_OF_YEAR)+""+Calendar.getInstance().get(Calendar.YEAR)));
+						
+			stmt.setTimestamp(6, new java.sql.Timestamp(endDateTime.getTime()));
+			stmt.setTimestamp(7, new java.sql.Timestamp(endDateTime.getTime()));
 			
-			stmt.setTimestamp(4, new java.sql.Timestamp(endDateTime.getTime()));
-			
-			stmt.setInt(5,runsToBatch);
-			stmt.setInt(6, delayBetweenRequests);
-			stmt.setString(7, pool);
-			stmt.setString(8,version);
+			stmt.setInt(8,runsToBatch);
+			stmt.setInt(9, delayBetweenRequests);
+			stmt.setString(10, pool);
+			stmt.setLong(11, poolIdleTimeLimit);
+			stmt.setString(12,version);
 			stmt.execute();
 			stmt.close();
 			conn.close();
@@ -525,7 +529,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	}
 	
 	public UpdatedWorkerParameters getUpdatedParameters() {
-		StringBuilder sb = new StringBuilder("SELECT runsToBatch, delayBetweenRequests,pool FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+		StringBuilder sb = new StringBuilder("SELECT startTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
@@ -547,7 +551,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				log.debug("Flushing blacklist which previously had {} entries", this.blacklistedKeys.size());
 				this.blacklistedKeys.clear();
 				
-				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(rs.getInt(1), rs.getInt(2), rs.getString(3));
+				long timeLimit = rs.getTimestamp(2).getTime()-rs.getTimestamp(1).getTime();
+				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(3), rs.getInt(4), rs.getString(5), rs.getInt(6));
 				stmt.close();
 				
 				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET upToDate=1 WHERE workerUUID=\""+workerUUID.toString()+"\" ");
@@ -572,7 +577,144 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 		
 	}
+	
+	
+	public int sumIdleTimes() {
+		Calendar cal = Calendar.getInstance();
+		int current = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
+		
+		cal.add(Calendar.WEEK_OF_YEAR, -1);
+		int previous1 = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
+		
+		cal.add(Calendar.WEEK_OF_YEAR, -1);
+		int previous2 = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
+		
+		StringBuilder sb = new StringBuilder("SELECT SUM(workerIdleTime_UPDATEABLE) FROM ").append(TABLE_WORKERS).append(" WHERE startWeekYear IN ("+current+", "+previous1+", "+previous2+")");
+	
+		try {
+			Connection conn = null;
+			try {
+				conn = getConnection();
+			
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+				ResultSet rs = stmt.executeQuery();
+				
+				if(!rs.next())
+				{
+					stmt.close();
+					return -1;
+				}				
+				
+				return rs.getInt(1);
+			} finally
+			{
+				if(conn != null) conn.close();
+				
+			}
+			
+		} catch(SQLException e)
+		{
+			log.error("Failed writing worker Information to database, something very bad is happening");
+			throw new IllegalStateException(e);
+		}
+		
+	}
+	
+	public int getMinCutoff() {
+		
+		StringBuilder sb = new StringBuilder("SELECT MIN(cutoffTime) FROM ").append(TABLE_RUNCONFIG).append(" WHERE status='NEW'");
+	
+		try {
+			Connection conn = null;
+			try {
+				conn = getConnection();
+			
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+				ResultSet rs = stmt.executeQuery();
+				
+				if(!rs.next())
+				{
+					stmt.close();
 
+					return -1;
+				}				
+
+				return rs.getInt(1);
+			} finally
+			{
+				if(conn != null) conn.close();
+				
+			}
+			
+		} catch(SQLException e)
+		{
+			log.error("Failed writing worker Information to database, something very bad is happening");
+			throw new IllegalStateException(e);
+		}
+		
+	}
+	
+	
+	public void updateIdleTime(int idleTime) {
+		
+		try {
+			Connection conn = null;
+			try {
+				conn = getConnection();
+			
+				StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET workerIdleTime_UPDATEABLE=\""+idleTime+"\" WHERE workerUUID=\""+workerUUID.toString()+"\" ");
+				
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+				stmt.executeUpdate();
+				
+			} finally
+			{
+				if(conn != null) conn.close();
+				
+			}
+			
+		} catch(SQLException e)
+		{
+			log.error("Failed writing worker Information to database, something very bad is happening");
+			throw new IllegalStateException(e);
+		}
+	}
+
+	
+	public void resetRunConfigs(List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns) {
+		if(extraRuns.isEmpty())
+			return;
+		
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  status='NEW', workerUUID=0 WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\" AND runConfigID IN (" );
+
+		for(Pair<AlgorithmExecutionConfig, RunConfig> ent : extraRuns)
+		{
+			sb.append(this.runConfigIDMap.get(ent.getSecond())+",");
+		}
+		sb.setCharAt(sb.length()-1, ')');
+
+		try {
+			Connection conn = getConnection();
+			
+			try {
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				stmt.executeUpdate();
+				stmt.close();
+			} finally
+			{
+				conn.close();
+			}
+			
+		}catch(SQLException e)
+		{
+			log.error("Failed writing pushed back runs to database, something very bad is happening"+e.toString());
+			
+			throw new IllegalStateException(e);
+		}
+	}
 
 	/**
 	 * Updates the run in the database
@@ -584,7 +726,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		//This query is designed to update the database IF and only IF
 		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
 		//This saves us another trip to the database
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=? WHERE runConfigID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=?, worstCaseEndtime=? WHERE runConfigID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
 		
 		
 		try {
@@ -594,7 +736,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				stmt.setDouble(1, run.getRuntime());
 				stmt.setDouble(2, run.getRunLength());
-				stmt.setString(3, this.runConfigIDMap.get(run.getRunConfig()));
+				stmt.setDouble(3, run.getRunConfig().getCutoffTime()*1.5-run.getRuntime()+120);
+				stmt.setString(4, this.runConfigIDMap.get(run.getRunConfig()));
 				boolean shouldKill = (stmt.executeUpdate() == 0);
 
 				stmt.close();
@@ -606,7 +749,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 		}catch(SQLException e)
 		{
-			log.error("Failed writing abort to database, something very bad is happening");
+			log.error("Failed writing run status to database, something very bad is happening");
 			
 			throw new IllegalStateException(e);
 		}
@@ -617,7 +760,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * Sleeps via the database the amount of time required
 	 * @param sleeptime
 	 */
-	public void sleep(double sleeptime)
+	public int sleep(double sleeptime)
 	{
 		
 		StringBuilder sb = new StringBuilder("SELECT SLEEP(").append(sleeptime).append("); /* " + SLEEP_COMMENT_TEXT + " */" );
@@ -629,7 +772,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					try {
 						PreparedStatement stmt = conn.prepareStatement(sb.toString());
 						
-						stmt.execute();
+						ResultSet rs = stmt.executeQuery();
+						
+						if(!rs.next())
+						{
+							stmt.close();
+							return 0;
+						}
+						
+						return rs.getInt(1);
+						
 					} finally
 					{
 						conn.close();
@@ -637,7 +789,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					
 				}catch(SQLException e)
 				{
-					log.error("Failed writing abort to database, something very bad is happening");
+					log.error("Failed sleeping through the database, something very bad is happening");
 					
 					throw new IllegalStateException(e);
 				}

@@ -44,6 +44,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
 	public String pool;
 	
+	@Parameter(names="--poolIdleTimeLimit", description="Amount of idle time allowed to accumulate in the pool before shutdown", converter=DurationConverter.class)
+	public int poolIdleTimeLimit = 14400000;
+	
 	@Parameter(names="--timeLimit", description="Amount of time to work for", required = true, converter=DurationConverter.class)
 	public int timeLimit;
 	
@@ -61,6 +64,12 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 	@Parameter(names="--createPoolTables", description="Create the tables for the pool in the database")
 	public boolean createTables = true;
+	
+	@Parameter(names="--checkMinCutoff", description="Check if the minimum cutoff time of remaining jobs is greater than the remaining time.")
+	public boolean checkMinCutoff = true;
+	
+	@Parameter(names="--minCutoffDeathTime", description="Amount of time to wait after discovering all jobs exceed the remaining time.")
+	public int minCutoffDeathTime = 60;
 	
 	@UsageTextField(defaultValues="10 days")
 	@Parameter(names="--idleLimit", description="Amount of time to not have a task before shutting down (by default this limit is set to 10 days)" , converter=DurationConverter.class)
