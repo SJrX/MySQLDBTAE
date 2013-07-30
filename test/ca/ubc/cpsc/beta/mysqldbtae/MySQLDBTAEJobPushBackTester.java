@@ -138,6 +138,15 @@ public class MySQLDBTAEJobPushBackTester {
 		return null;
 	}
 	
+	/**
+	 * Test starts 5 workers and 5 jobs of 5 seconds each.
+	 * The workers are given a batch size of 5.  Initially
+	 * one worker will take all 5.  Without pushback, that
+	 * worker would keep all 5 jobs and terminate in 25+ 
+	 * seconds.  However, the extra jobs are pushed back 
+	 * and passed around to the other workers.  Verifies
+	 * termination in under 22 seconds.
+	 */
 	@Test
 	public void testPushBack()
 	{

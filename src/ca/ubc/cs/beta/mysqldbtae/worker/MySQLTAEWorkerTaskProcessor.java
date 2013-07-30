@@ -8,12 +8,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -48,7 +46,7 @@ public class MySQLTAEWorkerTaskProcessor {
 	private  final long startTimeSecs;
 
 	private final CountDownLatch latch;
-	private final Semaphore sem;
+	private final Object lock;
 	
 	private volatile long totalRunFetchTimeInMS = 0;
 	
@@ -77,7 +75,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		this.options = options;
 		this.taeOptions = taeOptions;
 		this.latch = latch;
-		this.sem = new Semaphore(1);
+		this.lock = new Object();
 	}
 	
 	public void process() throws PoolChangedException
@@ -94,8 +92,10 @@ public class MySQLTAEWorkerTaskProcessor {
 		long lastUpdateTime = System.currentTimeMillis();
 		long lastJobFinished = System.currentTimeMillis();
 		
-		Calendar calendar = Calendar.getInstance();
-		calendar.setTimeInMillis(endTime);
+		Calendar endCalendar = Calendar.getInstance();
+		endCalendar.setTimeInMillis(endTime);
+		Calendar startCalendar = Calendar.getInstance();
+		startCalendar.setTimeInMillis(startTimeSecs*1000);
 	
 		String version = "<Error getting version>";
 		try
@@ -109,7 +109,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		ScheduledExecutorService executePushBack = Executors.newSingleThreadScheduledExecutor(new SequentiallyNamedThreadFactory("pushBackThread", true));
 		
-		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,calendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables);
+		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables);
 	
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			
@@ -145,7 +145,12 @@ public class MySQLTAEWorkerTaskProcessor {
 						
 					for(Pair<AlgorithmExecutionConfig, RunConfig> ent : runs)
 					{
-						runsQueue.put(ent);
+						try{
+							runsQueue.put(ent);
+						}  catch (InterruptedException e) {
+							Thread.currentThread().interrupt();
+							return;
+						}
 					}
 					
 					executePushBack.schedule(new PushBack(mysqlPersistence, runsQueue), options.delayBetweenRequests, TimeUnit.SECONDS);
@@ -240,9 +245,9 @@ public class MySQLTAEWorkerTaskProcessor {
 						}
 					}
 						
-					sem.acquire();
-					mysqlPersistence.resetUnfinishedRuns();
-					sem.release();
+					synchronized(lock){
+						mysqlPersistence.resetUnfinishedRuns();
+					}
 					if(jobsEvaluated==0)
 					{
 						log.info("No jobs in database");
@@ -276,7 +281,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							options.timeLimit = params.getTimeLimit();
 							options.poolIdleTimeLimit = params.getPoolIdleTimeLimit();
 							
-							log.info("New Delay {} and Batch Size {}", options.delayBetweenRequests, options.runsToBatch);
+							log.info("Updated values -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+", Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
 							
 							if(!options.pool.trim().equals(params.getPool().trim()))
 							{
@@ -285,8 +290,6 @@ public class MySQLTAEWorkerTaskProcessor {
 								throw new PoolChangedException(null, options.pool);
 							}
 									
-							
-							
 						}
 						lastUpdateTime = System.currentTimeMillis();
 						
@@ -325,8 +328,8 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 					if(waitTime > 0.0)
 					{
-						int woke = mysqlPersistence.sleep(waitTime);
-						if(jobsEvaluated==0 && woke==0)
+						boolean fullSleep = mysqlPersistence.sleep(waitTime);
+						if(jobsEvaluated==0 && fullSleep)
 							workerIdleTime+=Math.round(waitTime);
 					}
 						
@@ -348,20 +351,26 @@ public class MySQLTAEWorkerTaskProcessor {
 				crashReason = t;
 				throw t;
 				
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
 			
 		} finally
 		{
-			mysqlPersistence.markWorkerCompleted("Normal Shutdown");
+			if(Thread.interrupted())
+			{
+				Thread.currentThread().interrupt();
+				mysqlPersistence.markWorkerCompleted("Interrupted");				
+			}
+			else
+				mysqlPersistence.markWorkerCompleted("Normal Shutdown");
 			mysqlPersistence.resetUnfinishedRuns();
 		}
 		
 	
 	}
 	
+	/**
+	 * Runnable which is executed on every loop of Process.  Pushes back any assigned jobs not yet run.
+	 */
 	public class PushBack implements Runnable
 	{
 		MySQLPersistenceWorker  mysqlPersistence;
@@ -377,14 +386,9 @@ public class MySQLTAEWorkerTaskProcessor {
 		@Override
 		public void run() {
 			List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
-			try {
-				sem.acquire();
+			synchronized(lock){
 				runsQueue.drainTo(extraRuns);
 				mysqlPersistence.resetRunConfigs(extraRuns);
-				sem.release();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
 		}
 	}

@@ -118,6 +118,9 @@ public class MySQLDBTAEEndTimeTester {
 		return null;
 	}
 	
+	/**
+	 * Test verifies workers die from idle time
+	 */
 	@Test
 	public void testIdleTime()
 	{
@@ -140,6 +143,10 @@ public class MySQLDBTAEEndTimeTester {
 			
 	}
 	
+	/**
+	 * Test verifies that workers die from
+	 * their set endTime
+	 */
 	@Test
 	public void testEndTime()
 	{
@@ -161,6 +168,13 @@ public class MySQLDBTAEEndTimeTester {
 			
 	}	
 	
+	/**
+	 * Test initially creates a worker with high
+	 * end and idle times and verifies that it 
+	 * is still alive.  Then the endTime is
+	 * updated to be much shorter and the worker
+	 * is verified to have terminated
+	 */
 	@Test
 	public void testEndTimeUpdate()
 	{
@@ -173,7 +187,7 @@ public class MySQLDBTAEEndTimeTester {
 			Thread.sleep(5000);
 			assertTrue(isRunning(proc1));
 			
-			long endTime = System.currentTimeMillis() + 5000;
+			long endTime = System.currentTimeMillis() + 2000;
 			Calendar calendar = Calendar.getInstance();
 			calendar.setTimeInMillis(endTime);
 			java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

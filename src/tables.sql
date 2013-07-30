@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 `resultSeed` bigint(20) NOT NULL DEFAULT 1,
 `runtime` double NOT NULL DEFAULT '0',
 `additionalRunData` varchar(2048) NOT NULL DEFAULT '',
-`worstCaseEndtime` double NOT NULL DEFAULT -1,
+`worstCaseEndtime`  datetime NOT NULL DEFAULT '1900-01-01 00:00:00',
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
  PRIMARY KEY (`runConfigID`),
  UNIQUE KEY `runConfigUUID` (`runConfigUUID`),
