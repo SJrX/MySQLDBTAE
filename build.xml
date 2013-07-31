@@ -69,6 +69,11 @@ dirty: ${git.dirty}</echo>
 				<include name="tables.sql"/>
 			</fileset>
 		</copy>
+		
+		<path id="build.classpath">
+					<path refid="compile.classpath"/>
+					<path location="build/classes"/>
+		</path>
 	</target>
 	
 	<target name="archive" depends="compile">
@@ -98,6 +103,26 @@ dirty: ${git.dirty}</echo>
 						<include name="*"/>
 					</fileset>	
 		</copy>
+		
+		<java classname="ca.ubc.cs.beta.aclib.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+					<arg value="--class"/>
+					<arg value="ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker"/>
+					<arg value="--name"/>
+					<arg value="mysql-worker"/>
+					<arg value="--file-to-write"/>
+					<arg value="dist/"/>	
+		</java>
+		
+		<java classname="ca.ubc.cs.beta.aclib.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+					<arg value="--class"/>
+					<arg value="ca.ubc.cs.beta.dzq.exec.DangerZoneQueue"/>
+					<arg value="--name"/>
+					<arg value="dzq"/>
+					<arg value="--file-to-write"/>
+					<arg value="dist/"/>	
+		</java>
+				
+		
 	</target>			
 	<target name="zip" depends="archive" description="Makes tarball for this release">
 		
