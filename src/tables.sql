@@ -88,3 +88,5 @@ PRIMARY KEY (`id`),
 UNIQUE KEY `hash` (`hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE VIEW ACLIB_POOL_NAME_workers_alive AS(
+SELECT * FROM ACLIB_POOL_NAME_workers WHERE status <> "DONE")
