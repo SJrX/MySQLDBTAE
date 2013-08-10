@@ -76,7 +76,7 @@ public class DangerZoneQueueOptions extends AbstractOptions {
 	public boolean showOutput = false;
 
 	@Parameter(names={"--wrapper-output-pils-line","--wrapper-pils-line"}, description="[ADVANCED] Whether to display a \"Results for ParamILS:\" line (if something else will do this then it's best to use that). You will need to use --wrapper-show-output true as well")
-	public boolean wrapperPils = false;
+	public boolean wrapperPils = true;
 	
 	@Parameter(names="--update-frequency", description="[ADVANCED] How often to show status updates (in seconds)")
 	public double statusFrequency = 10;

@@ -1,7 +1,5 @@
 package ca.ubc.cs.beta.mysqldbtae.persistence.worker;
 
-import java.sql.Date;
-
 public class UpdatedWorkerParameters {
 	private final long timeLimit;
 	private final int batchSize;
