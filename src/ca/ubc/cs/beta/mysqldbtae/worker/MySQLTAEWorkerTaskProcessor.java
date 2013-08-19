@@ -136,7 +136,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 				Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
 				
-				log.info("Waiting for Work");
+				log.info("Starting Job Processing");
 
 				while(true)
 				{
@@ -145,7 +145,7 @@ public class MySQLTAEWorkerTaskProcessor {
 					totalRunFetchTimeInMS += runFetchTime.stop();
 					
 					LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue = new LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>>();
-					log.info("Retrieved {} jobs from the database",runs.size());	
+					log.debug("Retrieved {} jobs from the database",runs.size());	
 					for(Pair<AlgorithmExecutionConfig, RunConfig> ent : runs)
 					{
 						try{
@@ -184,7 +184,7 @@ public class MySQLTAEWorkerTaskProcessor {
 					}
 					if(jobsEvaluated==0)
 					{
-						log.info("No jobs in database");
+						log.info("No jobs were evaluated");
 
 						if(mysqlPersistence.getMinCutoff()>getSecondsLeft() && minCutoffDeathTime==Long.MAX_VALUE)
 						{
@@ -204,7 +204,7 @@ public class MySQLTAEWorkerTaskProcessor {
 					if(System.currentTimeMillis() - lastUpdateTime > (options.updateFrequency * 1000))
 					{
 						
-						log.info("Checking for new parameters");
+						log.debug("Checking for new parameters");
 						UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters();
 						mysqlPersistence.updateIdleTime(workerIdleTime);
 						
@@ -215,7 +215,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							options.timeLimit = params.getTimeLimit();
 							options.poolIdleTimeLimit = params.getPoolIdleTimeLimit();
 							
-							log.info("Updated values -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+", Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
+							log.info("Updated values in database detected -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+", Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
 							
 							if(!options.pool.trim().equals(params.getPool().trim()))
 							{
@@ -236,8 +236,8 @@ public class MySQLTAEWorkerTaskProcessor {
 					int sumWorkerIdleTimes = mysqlPersistence.sumIdleTimes();
 					
 					String killWindow = (minCutoffDeathTime == Long.MAX_VALUE) ? "inf" : ""+(minCutoffDeathTime-System.currentTimeMillis())/1000;
-					log.info("Worker life remaining: {} seconds, worker idle limit remaining: {} seconds, ",getSecondsLeft(), (int) ( options.idleLimit - idleTime));
-					log.info("pool idle limit remaining: {} seconds, jobs too long kill window: {} seconds" ,(int)(options.poolIdleTimeLimit-sumWorkerIdleTimes), killWindow);
+					log.debug("Worker life remaining: {} seconds, worker idle limit remaining: {} seconds, ",getSecondsLeft(), (int) ( options.idleLimit - idleTime));
+					log.debug("pool idle limit remaining: {} seconds, jobs too long kill window: {} seconds" ,(int)(options.poolIdleTimeLimit-sumWorkerIdleTimes), killWindow);
 					
 					if(waitTime > getSecondsLeft())
 					{
@@ -257,11 +257,12 @@ public class MySQLTAEWorkerTaskProcessor {
 						return;
 					}
 					 
-					log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
+					
 					
 					
 					if(waitTime > 0.0)
 					{
+						log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
 						boolean fullSleep = mysqlPersistence.sleep(waitTime);
 						if(jobsEvaluated==0 && fullSleep)
 							workerIdleTime+=Math.round(waitTime);
@@ -349,7 +350,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							runs.get(0).kill();
 						} else
 						{
-							log.info("Database updated continue run");
+							log.debug("Database updated continue run");
 						}
 						
 						lastDBUpdate = System.currentTimeMillis();
@@ -362,13 +363,22 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			if(runConfig.getCutoffTime() < getSecondsLeft())
 			{
+				if(runConfig.getProblemInstanceSeedPair().getInstance().getInstanceID() > 0)
+				{
+					log.info("Starting processing of job {} ", runConfig.getProblemInstanceSeedPair().getInstance().getInstanceID());
+				} else
+				{
+					log.info("Starting processing of job");
+				}
 				List<AlgorithmRun> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
 				jobEvaluated = true;
 				mysqlPersistence.setRunResults(finishedRuns);
 				
+				log.info("Job Completed");
+				
 			} else
 			{
-				log.info("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft() );
+				log.debug("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft() );
 			}
 			
 										

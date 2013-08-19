@@ -86,6 +86,9 @@ public class DangerZoneQueueOptions extends AbstractOptions {
 
 	@Parameter(names="--show-status-overview", description="Whether to show the status overview")
 	public boolean showOverview = true;
+
+	@Parameter(names="--wrapper-mem-limit", description="How much memory to request java to take when starting wrapper (in megabytes)", validateWith=FixedPositiveInteger.class)
+	public int wrapperMemLimit = 64;
 	
 	
 	

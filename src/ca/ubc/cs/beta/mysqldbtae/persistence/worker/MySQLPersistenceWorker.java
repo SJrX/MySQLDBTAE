@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -138,7 +139,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				 
  				 if(algorithmExecutable.startsWith(AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX))
 				 {
-					algorithmExecutable = DangerZoneQueue.getExecutionString("BUILTIN").replace(AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX,"");
+					algorithmExecutable = algorithmExecutable.replace(AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX,"");
 				 }
 				 
 				 
@@ -210,8 +211,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1;");
 					
 					
-			System.out.println(sb.toString());
+			//System.out.println(sb.toString());
 			
+					log.debug("SQL Query for Job Processing: {}", sb);
 			PreparedStatement stmt = null;
 			try {
 				Connection conn = getConnection();
@@ -270,8 +272,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						killJob = rs.getBoolean(9);
 						
 						
+						int instanceId =0;
+						try
+						{
+							 instanceId = Integer.valueOf(rcID);
+						} catch(NumberFormatException e)
+						{
+							log.debug("Should have been able to cast to integer", e);
+						}
 						
-						ProblemInstance pi = new ProblemInstance(problemInstance, instanceSpecificInformation);
+						
+						ProblemInstance pi = new ProblemInstance(problemInstance,instanceId, Collections.<String, Double> emptyMap(), instanceSpecificInformation );
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
 						ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
 						
@@ -444,7 +455,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 */
 	public void resetUnfinishedRuns()
 	{
-		log.info("Resetting Unfinished Runs");
+		log.debug("Resetting Unfinished Runs");
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"NEW\", priority=\""+JobPriority.LOW+ "\" WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\"");
 		
 		try {

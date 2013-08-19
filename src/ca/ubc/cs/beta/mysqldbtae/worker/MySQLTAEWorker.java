@@ -85,7 +85,7 @@ public class MySQLTAEWorker {
 					processor.process();
 					
 					done = true;
-					log.info("Done work");
+					
 					
 				}catch(PoolChangedException e)
 				{

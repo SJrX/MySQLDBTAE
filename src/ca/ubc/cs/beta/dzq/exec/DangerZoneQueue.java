@@ -86,7 +86,7 @@ public class DangerZoneQueue {
 				 ps = new PathStripper(((MySQLTargetAlgorithmEvaluatorOptions) taeOpts.get("MYSQLDB")).pathStrip);
 			}
 			
-			AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(getExecutionString(dzOpts.wrapper), "/", configSpace, true, true, dzOpts.runtimeLimit);
+			AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(getExecutionString(dzOpts.wrapper, dzOpts.wrapperMemLimit), "/", configSpace, true, true, dzOpts.runtimeLimit);
 			
 			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(dzOpts.taeOptions, execConfig, false, dzOpts.ignoreTAEBounds, taeOpts, null);
 			try {
@@ -313,7 +313,7 @@ public class DangerZoneQueue {
 	}
 
 
-	public static String getExecutionString(String wrapper) {
+	public static String getExecutionString(String wrapper, int wrapperMemLimit) {
 		if(wrapper.equals("BUILTIN"))
 		{
 			
@@ -334,7 +334,7 @@ public class DangerZoneQueue {
 				log.debug("Built In Wrapper parsed to location {} ", root);
 			
 				
-				return AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX + "java -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
+				return AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX + "java -Xmx"+wrapperMemLimit+"m -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
 			
 			//System.out.println(DangerZoneWrapper.class.getClassLoader().getResource(ProviderFor.class.getCanonicalName().replace(".", File.separator)  + ".class").getFile());
 			
