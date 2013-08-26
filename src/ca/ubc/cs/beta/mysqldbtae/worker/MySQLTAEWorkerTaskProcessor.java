@@ -119,7 +119,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				//
 				mysqlPersistence.resetUnfinishedRuns();
 				try {
-					mysqlPersistence.markWorkerCompleted("Triggered By Shutdown Hook");
+					mysqlPersistence.markWorkerCompleted("Triggered By Shutdown Hook (probably shutting down due to SIGTERM or SIGINT)");
 				} catch(RuntimeException e)
 				{
 					e.printStackTrace();
@@ -221,6 +221,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							{
 								options.pool = params.getPool().trim();
 								log.info("Pool Changed to {}",options.pool);
+								mysqlPersistence.markWorkerCompleted("Pool changed to " + options.pool);
 								throw new PoolChangedException(null, options.pool);
 							}
 									
@@ -242,18 +243,17 @@ public class MySQLTAEWorkerTaskProcessor {
 					if(waitTime > getSecondsLeft())
 					{
 						log.info("Wait time {} is too high, finishing up", waitTime);
+						mysqlPersistence.markWorkerCompleted("Time Limit Expired (Wait time remaining is higher than seconds we have left)");
 						return;
 					} else if(idleTime > options.idleLimit)
 					{
 						log.info("We have been idle too long {}, finishing up", idleTime );
-						return;
-					} else if(System.currentTimeMillis() > minCutoffDeathTime)
-					{
-						log.info("No jobs in database shorter than remaining life, waited {}, finishing up", options.minCutoffDeathTime );
+						mysqlPersistence.markWorkerCompleted("Idle limit reached: " + idleTime + " versus limit: " + options.idleLimit);
 						return;
 					} else if(sumWorkerIdleTimes > options.poolIdleTimeLimit)
 					{
 						log.info("Aggregate pool idle time too long {}, finishing up", sumWorkerIdleTimes );
+						mysqlPersistence.markWorkerCompleted("Pool Idle Limit reached: " + sumWorkerIdleTimes + " versus limit: " + options.poolIdleTimeLimit);
 						return;
 					}
 					 
@@ -282,7 +282,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				PrintStream pout = new PrintStream(bout);
 				
 				t.printStackTrace(pout);
-				mysqlPersistence.markWorkerCompleted(bout.toString());
+				mysqlPersistence.markWorkerCompleted("RuntimeException of some kind:"+bout.toString());
 				crashReason = t;
 				throw t;
 				
@@ -293,10 +293,11 @@ public class MySQLTAEWorkerTaskProcessor {
 			if(Thread.interrupted())
 			{
 				Thread.currentThread().interrupt();
-				mysqlPersistence.markWorkerCompleted("Interrupted");				
+				//This really shouldn't happen
+				mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
 			}
 			else
-				mysqlPersistence.markWorkerCompleted("Normal Shutdown");
+				mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
 			mysqlPersistence.resetUnfinishedRuns();
 		}
 		
