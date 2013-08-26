@@ -200,11 +200,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					int i=0;
 					for(JobPriority job : JobPriority.values())
 					{
-						sb.append("\n\t\t(SELECT runConfigID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"").append(job).append("\" ORDER BY runConfigID LIMIT " + n +  ")\n\t\t").append("UNION");
+						sb.append("\n\t\t(SELECT runConfigID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"NEW\" AND priority=\"").append(job).append("\" ORDER BY runConfigID LIMIT " + n +  ")\n\t\t").append("UNION ALL");
 						i++;
 					}
 			
-					sb.replace(sb.length()-"UNION".length(), sb.length(), "\n");
+					sb.replace(sb.length()-"UNION ALL".length(), sb.length(), "\n");
 					
 							
 					sb.append("\t) innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(
