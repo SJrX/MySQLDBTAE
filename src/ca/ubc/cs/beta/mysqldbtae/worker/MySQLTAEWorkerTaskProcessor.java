@@ -156,7 +156,7 @@ public class MySQLTAEWorkerTaskProcessor {
 						}
 					}
 					
-					executePushBack.schedule(new PushBack(mysqlPersistence, runsQueue), options.delayBetweenRequests, TimeUnit.SECONDS);
+					executePushBack.schedule(new PushBack(mysqlPersistence, runsQueue,options.delayBetweenRequests, executePushBack, options.pushbackThreshold), options.delayBetweenRequests, TimeUnit.SECONDS);
 					log.debug("Job push back scheduled for {} seconds", options.delayBetweenRequests);
 					
 					
@@ -409,22 +409,44 @@ public class MySQLTAEWorkerTaskProcessor {
 	 */
 	public class PushBack implements Runnable
 	{
-		MySQLPersistenceWorker  mysqlPersistence;
-		LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue;
+		private final MySQLPersistenceWorker  mysqlPersistence;
+		private final LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue;
+		private final ScheduledExecutorService executePushBack;
+		private final int delayBetweenRequests;
+		private final int pushbackThreshhold;
 		
 		
-		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue)
+		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue, int delayBetweenRequests, ScheduledExecutorService executePushBack, int pushbackThreshold)
 		{
 			this.mysqlPersistence = mysqlPersistence;
 			this.runsQueue = runsQueue;
+			this.delayBetweenRequests = delayBetweenRequests;
+			this.executePushBack = executePushBack;
+			this.pushbackThreshhold = pushbackThreshold;
 		}
 		
 		@Override
 		public void run() {
 			List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
-			synchronized(lock){
-				runsQueue.drainTo(extraRuns);
-				mysqlPersistence.resetRunConfigs(extraRuns);
+			
+			if(runsQueue.size() == 0)
+			{ //Nothing to push back
+				log.debug("Nothing to push back");
+				return;
+			}
+			
+			int newJobsInDB = this.mysqlPersistence.getNumberOfNewRuns();
+			if(newJobsInDB < pushbackThreshhold)
+			{
+				synchronized(lock){
+					runsQueue.drainTo(extraRuns);
+					mysqlPersistence.resetRunConfigs(extraRuns);
+				}
+				log.info("Current batch of jobs is taking to long, {} queued runs have been pushed back to the database", extraRuns.size());
+			} else
+			{
+					log.debug("There are still {} jobs in DB, not pushing back at the moment");
+					executePushBack.schedule(this, delayBetweenRequests, TimeUnit.SECONDS);
 			}
 		}
 	}

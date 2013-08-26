@@ -53,6 +53,7 @@ public class MySQLDBUnitTestConfig {
 		opts.password = mysqlOpts.password;
 		opts.databaseName = mysqlOpts.databaseName;
 		opts.username = mysqlOpts.username;
+		opts.createTables = true;
 		return opts;
 	}
 }

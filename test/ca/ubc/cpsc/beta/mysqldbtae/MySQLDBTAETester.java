@@ -236,7 +236,7 @@ public class MySQLDBTAETester {
 				@Override
 				public void onSuccess(List<AlgorithmRun> runs) {
 					System.out.println("Throwing an exception in onSuccess");
-					throw new IllegalStateException("Yo Yo Yo!");
+					throw new IllegalStateException("Yo Yo Yo! (This is okay and on purpose, please ignore this exception it's not really a problem)");
 				}
 
 				@Override

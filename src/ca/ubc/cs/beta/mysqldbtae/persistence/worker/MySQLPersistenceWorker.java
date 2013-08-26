@@ -679,7 +679,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	public int getMinCutoff() {
 		
 		StringBuilder sb = new StringBuilder("SELECT MIN(cutoffTime) FROM ").append(TABLE_RUNCONFIG).append(" WHERE status='NEW'");
-	
+				
 		try {
 			Connection conn = null;
 			try {
@@ -865,5 +865,50 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				}
 				
 				
+	}
+
+
+	public int getNumberOfNewRuns() 
+	{
+		
+		
+		
+		StringBuilder sb = new StringBuilder("SELECT COUNT(*) FROM ").append(TABLE_RUNCONFIG).append(" WHERE status='NEW' AND `priority` IN (");
+		for(JobPriority jb : JobPriority.values())
+		{
+			sb.append("\"").append(jb).append("\",");
+		}
+		
+		sb.setCharAt(sb.length()-1, ')');
+		
+		
+		try {
+			Connection conn = null;
+			try {
+				conn = getConnection();
+			
+				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+		
+				ResultSet rs = stmt.executeQuery();
+				
+				if(!rs.next())
+				{
+					stmt.close();
+
+					return -1;
+				}				
+
+				return rs.getInt(1);
+			} finally
+			{
+				if(conn != null) conn.close();
+				
+			}
+			
+		} catch(SQLException e)
+		{
+			log.error("Failed executing query,\"{}\", something very bad is happening", sb);
+			throw new IllegalStateException(e);
+		}
 	}
 }
