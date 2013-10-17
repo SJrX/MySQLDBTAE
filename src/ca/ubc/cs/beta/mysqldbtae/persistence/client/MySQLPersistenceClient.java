@@ -307,8 +307,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									{
 										
 										
-										String addlRunDataStr = (this.getAdditionalRunData) ? "," + rs.getString(9) : "";
-										
+										String addlRunDataStr = (this.getAdditionalRunData) ? rs.getString(9) : "";
 										
 										
 										RunResult result = RunResult.valueOf(rs.getString(3));
@@ -326,7 +325,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
 										 */
 											
-										AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, result, runtime, runlength, quality, seed, walltime);
+										AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, result, runtime, runlength, quality, seed, addlRunDataStr, walltime);
 										
 										if(run.getRunResult().equals(RunResult.ABORT))
 										{
@@ -340,22 +339,14 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									{
 										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
 										
-										String addlRunDataStr = (this.getAdditionalRunData) ? "," + rs.getString(9) : "";
-										
-										
-										
-										/*RunResult result = RunResult.valueOf(rs.getString(3));*/
 										double runtime = rs.getDouble(4);
-										/*
-										double runlength = rs.getDouble(5);
-										double quality = rs.getDouble(6);
-										*/
+									
 										long seed = rs.getLong(7);
 										
 										double walltime = rs.getDouble(8);
 										
 										
-										outstandingRuns.put(runConfig, new RunningAlgorithmRun(execConfig, runConfig, rs.getDouble(4),0,0,seed, walltime , killHandlers.get(runConfig)));
+										outstandingRuns.put(runConfig, new RunningAlgorithmRun(execConfig, runConfig, runtime,0,0,seed, walltime , killHandlers.get(runConfig)));
 									} else
 									{	
 										throw new IllegalStateException("Must have some new status that we don't know what do with in the database");
