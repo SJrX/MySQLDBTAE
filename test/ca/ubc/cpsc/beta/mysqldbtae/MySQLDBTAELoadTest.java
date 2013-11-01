@@ -1,6 +1,7 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
 import static org.junit.Assert.*;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
@@ -35,6 +36,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluat
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerTaskProcessor;
@@ -113,29 +115,10 @@ public class MySQLDBTAELoadTest {
 	public void testInsertionLoad()
 	{
 
-			MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.NORMAL);
-			try {
-			normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			MySQLTargetAlgorithmEvaluator normalMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.NORMAL);
 			
-			MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
 			
-			MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.HIGH);
-			try {
-			highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);
+			MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.HIGH)	;
 			
 			
 			
@@ -169,7 +152,7 @@ public class MySQLDBTAELoadTest {
 						continue;
 					} else
 					{
-						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 						
 						runConfigs.add(rc);
 					}
@@ -272,31 +255,11 @@ public class MySQLDBTAELoadTest {
 		
 			
 			if(System.currentTimeMillis() > 0)
-			{
-			
-				MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.NORMAL);
-				try {
-				normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-				} catch(RuntimeException e)
-				{
-					e.printStackTrace();
-					throw e;
-				}
-				normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			{				
+				MySQLTargetAlgorithmEvaluator normalMySQLTAE =MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+"processing", 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.NORMAL)	;
 				
-				MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
 				
-				MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.HIGH);
-				try {
-				highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-				} catch(RuntimeException e)
-				{
-					e.printStackTrace();
-					throw e;
-				}
-				highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-				
-				MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);
+				MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+"processing", 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.HIGH)	;
 				
 				
 				
@@ -330,7 +293,7 @@ public class MySQLDBTAELoadTest {
 							continue;
 						} else
 						{
-							RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+							RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 							
 							runConfigs.add(rc);
 						}

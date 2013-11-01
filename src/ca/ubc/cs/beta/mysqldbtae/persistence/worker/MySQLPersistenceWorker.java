@@ -181,7 +181,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param n number of runs to attempt to get
 	 * @return runs
 	 */
-	public List<Pair<AlgorithmExecutionConfig, RunConfig>> getRuns(int n)
+	public List<RunConfig> getRuns(int n)
 	{
 	
 		StringBuffer sb = new StringBuffer();
@@ -237,7 +237,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				ResultSet rs = stmt.executeQuery();
 				
-				List<Pair<AlgorithmExecutionConfig, RunConfig>> configList = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
+				List<RunConfig> rcList = new ArrayList<RunConfig>();
 			
 				while(rs.next())
 				{
@@ -286,7 +286,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
 						ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
 						
-						rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
+						rc = new RunConfig(pisp, cutoffTime, config, execConfig);
 						if(killJob)
 						{
 							log.warn("Run {} was killed when we pulled it, this version of the workers will start processing this job then abort, if this keeps happening we may want to improve the logic on the worker. This log message just gives us an idea of how often this is happening" , rc);
@@ -303,7 +303,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						continue;
 					}
 					
-					configList.add(new Pair(execConfig, rc));
+					rcList.add( rc);
 					
 				}
 				rs.close();
@@ -311,7 +311,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 					
 				
-				return configList;
+				return rcList;
 			} finally
 			{
 				if(stmt != null) stmt.close();
@@ -746,15 +746,15 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * Takes a list of runs to reset to an unassigned state
 	 * @param extraRuns  List of AlgorithmExecutionConfig and RunConfig Pairs
 	 */
-	public void resetRunConfigs(List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns) {
+	public void resetRunConfigs(List<RunConfig> extraRuns) {
 		if(extraRuns.isEmpty())
 			return;
 		
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  status='NEW', workerUUID=0 WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\" AND runConfigID IN (" );
 
-		for(Pair<AlgorithmExecutionConfig, RunConfig> ent : extraRuns)
+		for(RunConfig ent : extraRuns)
 		{
-			sb.append(this.runConfigIDMap.get(ent.getSecond())+",");
+			sb.append(this.runConfigIDMap.get(ent)+",");
 		}
 		sb.setCharAt(sb.length()-1, ')');
 

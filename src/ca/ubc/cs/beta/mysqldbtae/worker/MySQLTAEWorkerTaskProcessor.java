@@ -109,6 +109,11 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		ScheduledExecutorService executePushBack = Executors.newSingleThreadScheduledExecutor(new SequentiallyNamedThreadFactory("pushBackThread", true));
 		
+		
+		
+		
+		
+		
 		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables);
 	
 		Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -129,24 +134,26 @@ public class MySQLTAEWorkerTaskProcessor {
 			}
 			
 		});
-		
+		TargetAlgorithmEvaluator tae  = null;
 		try {
 			
 			try {
-		
-				Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
+				log.info("Initializing Target Algorithm Evaluator");
+				
+				tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions,  false, taeOptions);
+				
 				
 				log.info("Starting Job Processing");
 
 				while(true)
 				{
 					StopWatch runFetchTime = new AutoStartStopWatch();
-					List<Pair<AlgorithmExecutionConfig, RunConfig>> runs = mysqlPersistence.getRuns(options.runsToBatch);
+					List<RunConfig> runs = mysqlPersistence.getRuns(options.runsToBatch);
 					totalRunFetchTimeInMS += runFetchTime.stop();
 					
-					LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue = new LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>>();
+					LinkedBlockingQueue<RunConfig> runsQueue = new LinkedBlockingQueue< RunConfig>();
 					log.debug("Retrieved {} jobs from the database",runs.size());	
-					for(Pair<AlgorithmExecutionConfig, RunConfig> ent : runs)
+					for( RunConfig ent : runs)
 					{
 						try{
 							runsQueue.put(ent);
@@ -168,10 +175,10 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 					int jobsEvaluated = 0;
 					
-					Pair<AlgorithmExecutionConfig, RunConfig> ent;
+					RunConfig ent;
 					while((ent = runsQueue.poll())!=null)
 					{
-						boolean jobSuccess = processPair(mysqlPersistence, taeMap, ent);
+						boolean jobSuccess = processPair(mysqlPersistence, tae, ent);
 						
 						if(jobSuccess)
 						{
@@ -210,6 +217,7 @@ public class MySQLTAEWorkerTaskProcessor {
 						
 						if(params != null)
 						{
+							
 							options.delayBetweenRequests = params.getDelayBetweenRequests();
 							options.runsToBatch = params.getBatchSize();
 							options.timeLimit = params.getTimeLimit();
@@ -255,6 +263,11 @@ public class MySQLTAEWorkerTaskProcessor {
 						log.info("Aggregate pool idle time too long {}, finishing up", sumWorkerIdleTimes );
 						mysqlPersistence.markWorkerCompleted("Pool Idle Limit reached: " + sumWorkerIdleTimes + " versus limit: " + options.poolIdleTimeLimit);
 						return;
+					} else if(minCutoffDeathTime < System.currentTimeMillis())
+					{
+						log.info("All runs in database have runs larger than our remaining time, and we already waited {} seconds, finishing up", options.minCutoffDeathTime);
+						mysqlPersistence.markWorkerCompleted("Remaining Jobs too long for us :" + getSecondsLeft());
+						return;
 					}
 					 
 					
@@ -290,15 +303,39 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 		} finally
 		{
-			if(Thread.interrupted())
+			try {
+				try {
+				if(Thread.interrupted())
+				{
+					Thread.currentThread().interrupt();
+					//This really shouldn't happen
+					mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
+				}
+				else
+				{
+					mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
+				}
+				
+				
+				mysqlPersistence.resetUnfinishedRuns();
+				} finally
+				{
+					try {
+						if(tae != null)
+						{
+							tae.notifyShutdown();
+						}
+					} catch(Exception e)
+					{
+						log.error("Exception occurred while shutting down TAE", e);
+					}
+					
+				}
+			} catch(Exception e)
 			{
-				Thread.currentThread().interrupt();
-				//This really shouldn't happen
-				mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
+				log.error("Exception occurred while Task Processor shutting down", e);
 			}
-			else
-				mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
-			mysqlPersistence.resetUnfinishedRuns();
+				
 		}
 		
 	
@@ -313,20 +350,12 @@ public class MySQLTAEWorkerTaskProcessor {
 	 * @param ent	the pair to evaluate
 	 * @return <code>true</code> if a job was successfully finished to completion.
 	 */
-	private boolean processPair(final MySQLPersistenceWorker mysqlPersistence,
-			Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap,
-			Pair<AlgorithmExecutionConfig, RunConfig> ent) {
-		AlgorithmExecutionConfig execConfig = ent.getFirst();
-		final RunConfig runConfig = ent.getSecond();
+	private boolean processPair(final MySQLPersistenceWorker mysqlPersistence, TargetAlgorithmEvaluator tae, RunConfig runConfig) {
+		
+		
 		
 		boolean jobEvaluated = false;
-		if(taeMap.get(execConfig) == null)
-		{
-			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions, execConfig, false, taeOptions);
-			taeMap.put(execConfig, tae);
-		}
-			
-		TargetAlgorithmEvaluator tae = taeMap.get(execConfig);
+
 		
 		AutoStartStopWatch runWatch = new AutoStartStopWatch();
 			
@@ -362,7 +391,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			};
 			
 			
-			if(runConfig.getCutoffTime() < getSecondsLeft())
+			if( (runConfig.getCutoffTime() < getSecondsLeft()) || !options.checkMinCutoff)
 			{
 				if(runConfig.getProblemInstanceSeedPair().getInstance().getInstanceID() > 0)
 				{
@@ -379,7 +408,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 			} else
 			{
-				log.debug("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft() );
+				log.info("Skipping runs that could require up to {} (s), because we only have {} (s) left", runConfig.getCutoffTime(), getSecondsLeft() );
 			}
 			
 										
@@ -400,7 +429,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			String addlRunData = sb.substring(0, Math.min(2000,sb.length()));
 			
-			mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRun)new ExistingAlgorithmRun(execConfig,runConfig,RunResult.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
+			mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRun)new ExistingAlgorithmRun(runConfig,RunResult.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
 		}
 		return jobEvaluated;
 	}
@@ -411,13 +440,13 @@ public class MySQLTAEWorkerTaskProcessor {
 	public class PushBack implements Runnable
 	{
 		private final MySQLPersistenceWorker  mysqlPersistence;
-		private final LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue;
+		private final LinkedBlockingQueue<RunConfig> runsQueue;
 		private final ScheduledExecutorService executePushBack;
 		private final int delayBetweenRequests;
 		private final int pushbackThreshhold;
 		
 		
-		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue, int delayBetweenRequests, ScheduledExecutorService executePushBack, int pushbackThreshold)
+		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<RunConfig> runsQueue, int delayBetweenRequests, ScheduledExecutorService executePushBack, int pushbackThreshold)
 		{
 			this.mysqlPersistence = mysqlPersistence;
 			this.runsQueue = runsQueue;
@@ -428,7 +457,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		@Override
 		public void run() {
-			List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
+			List< RunConfig> extraRuns = new ArrayList<RunConfig>();
 			
 			if(runsQueue.size() == 0)
 			{ //Nothing to push back

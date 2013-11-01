@@ -51,7 +51,7 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	public String password;
 	
 	@Parameter(names="--mysqldbtae-database", description="Name of Database" )
-	public String databaseName = "mysql_db_tae_" + System.getProperty("user.name");
+	public String databaseName = System.getProperty("user.name") + "_mysqldbtae";
 	
 	
 	@Parameter(names="--mysqldbtae-username", description="Username of the Database")

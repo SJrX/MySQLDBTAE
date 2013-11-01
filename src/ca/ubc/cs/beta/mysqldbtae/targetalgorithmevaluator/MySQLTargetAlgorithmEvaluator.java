@@ -29,7 +29,7 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmEvaluator {
 
 
-	private final MySQLPersistenceClient persistence;
+	final MySQLPersistenceClient persistence;
 	private final Logger log = LoggerFactory.getLogger(MySQLTargetAlgorithmEvaluator.class);
 	private final ScheduledExecutorService requestWatcher;
 	
@@ -38,15 +38,15 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	private final AtomicLong lastWarning; 
 	
 
-	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence) {
+	public MySQLTargetAlgorithmEvaluator( MySQLPersistenceClient persistence) {
 		//We set the number of thread pools to twice the number of available processors because we believe the tasks will be IO bound and not CPU bound
-		this(execConfig, persistence, false, Runtime.getRuntime().availableProcessors()*2, 2000);
+		this( persistence, false, Runtime.getRuntime().availableProcessors()*2, 2000);
 		
 	}
 
 	
-	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence, boolean wakeUpWorkers, int poolSize, long delayInMS) {
-		super(execConfig);
+	public MySQLTargetAlgorithmEvaluator( MySQLPersistenceClient persistence, boolean wakeUpWorkers, int poolSize, long delayInMS) {
+		
 		this.persistence = persistence;
 		this.wakeUpWorkers = wakeUpWorkers;
 		this.delayInMS = delayInMS;
@@ -180,5 +180,5 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	public boolean areRunsObservable() {
 		return true;
 	}
-	
+
 }

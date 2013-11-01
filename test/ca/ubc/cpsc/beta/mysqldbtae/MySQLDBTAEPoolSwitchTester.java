@@ -1,11 +1,13 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
 import static org.junit.Assert.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,6 +28,7 @@ import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ec.util.MersenneTwister;
@@ -99,18 +102,9 @@ public class MySQLDBTAEPoolSwitchTester {
 	public void testPoolSwitch()
 	{
 		
+		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+1, 25, true,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+1, 25, true, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
 			
 			
@@ -121,13 +115,13 @@ public class MySQLDBTAEPoolSwitchTester {
 			
 				config.put("seed", String.valueOf(i));
 				config.put("runtime", String.valueOf(2*i+1));
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				runConfigs.add(rc);
 				
 			}
 			
 			System.out.println("Performing " + runConfigs.size() + " runs");
-			TargetAlgorithmEvaluator tae = mysqlDBTae;
+			MySQLTargetAlgorithmEvaluator tae = mysqlDBTae;
 			
 			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
 			
@@ -160,20 +154,9 @@ public class MySQLDBTAEPoolSwitchTester {
 
 			}
 			
-			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+2, 25, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			tae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+2, 25, true, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 
-			final MySQLPersistence sqlExec = mysqlPersistence;
+			final MySQLTargetAlgorithmEvaluator mySQL = tae;
 			runs = tae.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver()
 			{
 
@@ -194,7 +177,7 @@ public class MySQLDBTAEPoolSwitchTester {
 						e.printStackTrace();
 					}
 				
-					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+1 + "_workers SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0", sqlExec);
+					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+1 + "_workers SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0", mySQL);
 				}
 				
 			});

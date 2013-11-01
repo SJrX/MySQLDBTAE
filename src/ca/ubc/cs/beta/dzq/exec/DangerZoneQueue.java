@@ -88,7 +88,7 @@ public class DangerZoneQueue {
 			
 			AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(getExecutionString(dzOpts.wrapper, dzOpts.wrapperMemLimit), "/", configSpace, true, true, dzOpts.runtimeLimit);
 			
-			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(dzOpts.taeOptions, execConfig, false, dzOpts.ignoreTAEBounds, taeOpts, null);
+			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(dzOpts.taeOptions, false, dzOpts.ignoreTAEBounds, taeOpts, null);
 			try {
 				
 				
@@ -114,7 +114,7 @@ public class DangerZoneQueue {
 						ProblemInstance pi = new ProblemInstance("DIR=>" + ps.stripPath(dzOpts.dir) + ";CMD=>" + ps.stripPath(cmd2)+";ENFORCETIME=>" + dzOpts.enforceTimeLimit + ";SHOWOUTPUT=>" + dzOpts.showOutput  + ";PILSLINE=>" + dzOpts.wrapperPils, "DZQFTW");
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi, i);
 						
-						runConfigs.add(new RunConfig(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration()));
+						runConfigs.add(new RunConfig(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration(), execConfig));
 					}
 				}
 				

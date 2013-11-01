@@ -22,6 +22,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.beust.jcommander.ParameterException;
+
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
@@ -48,6 +50,7 @@ import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
@@ -63,7 +66,7 @@ public class MySQLDBTAETester {
 	
 	private static AlgorithmExecutionConfig execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static ParamConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -96,7 +99,7 @@ public class MySQLDBTAETester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
-			b.append(" --timeLimit 1d --idleLimit 10s");
+			b.append(" --timeLimit 1d --idleLimit 5s");
 			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 " );
 			
 			b.append("--mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
@@ -137,18 +140,8 @@ public class MySQLDBTAETester {
 	public void testRetrieval()
 	{
 		
-			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+		
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
 			
 			
@@ -163,13 +156,13 @@ public class MySQLDBTAETester {
 					continue;
 				} else
 				{
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 					runConfigs.add(rc);
 				}
 			}
 			
 			System.out.println("Performing " + runConfigs.size() + " runs");
-			TargetAlgorithmEvaluator tae = new EqualTargetAlgorithmEvaluatorTester(mysqlDBTae, new EchoTargetAlgorithmEvaluator(execConfig));
+			TargetAlgorithmEvaluator tae = new EqualTargetAlgorithmEvaluatorTester(mysqlDBTae, new EchoTargetAlgorithmEvaluator());
 			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
 			
 			
@@ -195,19 +188,8 @@ public class MySQLDBTAETester {
 	@Test
 	public void testOnSuccessExceptionCallsonFailure()
 	{
-		
-			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,true, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+	
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_RUN_PARTITION, true, priority);
 			
 			
 			
@@ -222,7 +204,7 @@ public class MySQLDBTAETester {
 					continue;
 				} else
 				{
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 					runConfigs.add(rc);
 				}
 			}
@@ -262,20 +244,7 @@ public class MySQLDBTAETester {
 	public void testRunPartitions()
 	{
 		
-		
-			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
-			
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
 			
 			
@@ -286,7 +255,7 @@ public class MySQLDBTAETester {
 			
 				config.put("seed", String.valueOf(i));
 				config.put("runtime", String.valueOf(2*i+1));
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				runConfigs.add(rc);
 				
 			}
@@ -325,24 +294,13 @@ public class MySQLDBTAETester {
 
 			}
 			
-			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			tae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
 
 			
 			//Different RunPartition
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), tae);
 			runs = tae.evaluateRun(runConfigs);			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), tae);
 			
 			runs = tae.evaluateRun(runConfigs);
 			for(AlgorithmRun run : runs)
@@ -383,17 +341,7 @@ public class MySQLDBTAETester {
 			
 			final AtomicInteger runsCompleted = new AtomicInteger(0);
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25,true,MYSQL_RUN_PARTITION,true,priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_RUN_PARTITION, true, priority);
 			
 			
 			for(int i=0; i < TEST_COUNT; i++)
@@ -410,7 +358,7 @@ public class MySQLDBTAETester {
 						continue;
 					} else
 					{
-						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 						runConfigs.add(rc);
 					}
 				}
@@ -480,82 +428,18 @@ public class MySQLDBTAETester {
 	}
 	
 	
-	@Test
-	public void testRetrievalBounded()
-	{
-		
-			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION,true, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
-			
-			
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
-			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
-			{
-				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
-				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
-				{
-					//Only want good configurations
-					i--;
-					continue;
-				} else
-				{
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
-					runConfigs.add(rc);
-				}
-			}
-			
-			System.out.println("Performing " + runConfigs.size() + " runs");
-			TargetAlgorithmEvaluator tae = new BoundedTargetAlgorithmEvaluator(mysqlDBTae, 10,execConfig);
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
-			
-			
-			for(AlgorithmRun run : runs)
-			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
-				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
-				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
-				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
-				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
-				//This executor should not have any additional run data
-				assertEquals("",run.getAdditionalRunData());
-
-			}
-			
-			mysqlDBTae.notifyShutdown();
-			
-	}
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=ParameterException.class)
 	public void testAutoDeleteFailOfNegativeRunPartition()
 	{
-		new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION,true, priority);
+		MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_PERMANENT_RUN_PARTITION, true, priority);
 	}
 	
 	@Test
 	public void testAbortDetect() throws InterruptedException
 	{		
 		
-		MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 1500, true,MYSQL_RUN_PARTITION,false, JobPriority.HIGH);
-		try {
-		highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);		
+	
+		MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  1500, true, MYSQL_RUN_PARTITION, false, JobPriority.HIGH);		
 	
 		List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
 		
@@ -571,7 +455,7 @@ public class MySQLDBTAETester {
 			{
 				config.put("runtime", "0.5");
 				config.put("solved", "ABORT");
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance","SLEEP"), Long.valueOf(config.get("seed"))), 1001, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance","SLEEP"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				
 				runConfigs.add(rc);
 				break;
@@ -667,119 +551,53 @@ public class MySQLDBTAETester {
 		
 	}
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	/**
-	 * This tests that the worker will eventually idle timeout at the appropriate time
-	 * 
-	 * NOTE: THIS MUST BE THE LAST TEST IN THE FILE SINCE IT WILL KILL THE WORKER
-	 * 
-	 * Essentially we sleep for 5 seconds,
-	 * submit a job,
-	 * then make sure after 15 more seconds the worker has exited
-	 * 
-	 * 
-	 * This test is incredibly sensitive to timings unfortunately :(
-	 */
+
 	@Test
-	public void testIdleShutdown()
+	public void testRetrievalBounded()
 	{
-		
-		
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION,true, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
-		
-		try {
-			Thread.sleep(5000);
-		} catch (InterruptedException e1) {
-			Thread.currentThread().interrupt();
-		}
-		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
-		for(int i=0; i < 1; i++)
-		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
-			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
-			{
-				//Only want good configurations
-				i--;
-				continue;
-			} else
-			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
-				runConfigs.add(rc);
-			}
-		}
-		
-		System.out.println("Performing " + runConfigs.size() + " runs");
-		TargetAlgorithmEvaluator tae =mysqlDBTae;
-		List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
 			
-		
-		for(int i = 0; i < 8; i++)
-		{
-			try {
-				Thread.sleep(1000);
-				try {
-					if(proc.exitValue() >= 0)
-					{
-						fail("Process shouldn't have exited yet");
-						return;
-					}
-				} catch(IllegalThreadStateException e)
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_RUN_PARTITION, true, priority);
+			
+			
+			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
+			{
+				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 				{
-					//We have no other way of checking if a process has ended except for waiting for catching this exception if it isn't
+					//Only want good configurations
+					i--;
+					continue;
+				} else
+				{
+					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config, execConfig);
+					runConfigs.add(rc);
 				}
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
 			}
-		}
-		assertFalse("Expected worker would NOT have exited by now ", lastLineSeen.get());
-		System.out.println("Waiting 2 seconds for idle");
-		
-		try {
-			Thread.sleep(4000);
-			assertTrue("Expected worker would have exited by now ", lastLineSeen.get());
-		}  catch (InterruptedException e) {
-			System.out.println("Interrupted");
-			Thread.currentThread().interrupt();
-		}
-		
-		
-		
+			
+			System.out.println("Performing " + runConfigs.size() + " runs");
+			TargetAlgorithmEvaluator tae = new BoundedTargetAlgorithmEvaluator(mysqlDBTae, 10);
+			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			
+			
+			for(AlgorithmRun run : runs)
+			{
+				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
+				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
+				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
+				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
+				assertEquals(config.get("solved"), run.getRunResult().name());
+				//This executor should not have any additional run data
+				assertEquals("",run.getAdditionalRunData());
+
+			}
+			
+			mysqlDBTae.notifyShutdown();
+			
 	}
-
-	/****
-	 * 
-	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
-	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
-	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
-	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
-	 * DO NOT PUT NEW TESTS HERE, THE PREVIOUS TEST NEEDS TO BE THE LAST ONE BECAUSE IT WILL CAUSE THE WORKER TO TIMEOUT
-	 * 
-	 */
-
+	
+	
 	
 	/***
 	 * This test is an exception because it doesn't rely on the worker :)
@@ -853,14 +671,7 @@ public class MySQLDBTAETester {
 			
 	
 			
-			MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"badexec", 1500, true,1,true, JobPriority.NORMAL);
-			try {
-			normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
+			
 			
 			try {
 				File paramFile = File.createTempFile("junittests", "badexec");
@@ -874,10 +685,8 @@ public class MySQLDBTAETester {
 				
 				
 				AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
-				
-			normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 			
-			MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
+			MySQLTargetAlgorithmEvaluator normalMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+"badexec",  1500, true,1, true, JobPriority.NORMAL);
 			
 			
 	
@@ -901,7 +710,7 @@ public class MySQLDBTAETester {
 			
 			
 			WaitableTAECallback wait = new WaitableTAECallback(tae);
-			normalMySQLTAE.evaluateRunsAsync(new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("foo"), 123), 0, configSpace.getDefaultConfiguration()), wait);
+			normalMySQLTAE.evaluateRunsAsync(new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("foo"), 123), 0, configSpace.getDefaultConfiguration(),execConfig), wait);
 			
 			paramFile.delete();
 			/*

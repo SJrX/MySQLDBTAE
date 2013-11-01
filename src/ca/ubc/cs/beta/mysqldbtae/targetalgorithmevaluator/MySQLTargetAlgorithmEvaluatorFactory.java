@@ -14,17 +14,16 @@ import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
+import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorFactory;
+import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 
 @ProviderFor(TargetAlgorithmEvaluatorFactory.class)
-public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorithmEvaluatorFactory  {
+public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorithmEvaluatorFactory  {
 
-	
-	
-	
 	@Override
 	public String getName() {
 		return "MYSQLDB";
@@ -35,8 +34,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 	
 	
 	@Override
-	public TargetAlgorithmEvaluator getTargetAlgorithmEvaluator(
-			AlgorithmExecutionConfig execConfig, AbstractOptions options) {
+	public MySQLTargetAlgorithmEvaluator getTargetAlgorithmEvaluator(AbstractOptions options) {
 		
 		log = LoggerFactory.getLogger(this.getClass());
 		
@@ -46,29 +44,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		 */
 		
 		checkOldEnvironmentVariables();
-		
-		String hostname = opts.host;
-		String port = String.valueOf(opts.port);
-		String databaseName = opts.databaseName;
-		String username = opts.username;
-		String password = opts.password;
-		String pool = opts.pool;
-		if(pool == null)
-		{
-			throw new ParameterException("MySQL Pool cannot be null");
-		}
-		pool = pool.trim();
-		
-		if( (pool.length() < 1) || (pool.length() > 30))
-		{
-			throw new ParameterException("MySQL Pool name must be between 1 and 30 characters");
-		}
-		boolean createTables = opts.createTables;
-		
-		int batchInsertSize = opts.batchInsertSize;
-		
-		int runPartition = opts.runPartition;
-		
+				
 		//String hostname = getEnvVariable("MYSQL_HOSTNAME", opts.mysqlOptions.host);
 		//String port = getEnvVariable("MYSQL_PORT","3306");
 		//String databaseName = getEnvVariable("MYSQL_DATABASE_NAME", "mysql_db_tae");
@@ -112,7 +88,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		
 		*/
 		
-		if(deletePartitionDataOnShutdown && runPartition < 0)
+		if(deletePartitionDataOnShutdown && opts.runPartition < 0)
 		{
 			throw new ParameterException("Sorry you cannot automatically delete partitions with negative ids, this is a protection mechanism so you don't delete a bunch of data you aren't expecting");
 		}
@@ -121,25 +97,8 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		//String illegalPathPrefixToken = "\\=2421@%!%@!!@4"; //Can't use null because that means it's required
 		
 		
-		String pathStrip = opts.pathStrip;
 		
-		if(pathStrip != null)
-		{
-			pathStrip = pathStrip.trim();
-		}
-		
-
-		if(pathStrip != null && pathStrip.trim().endsWith("/"))
-		{
-			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
-			try {
-				Thread.sleep(2048);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
-		
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority, opts.additionalRunData);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(opts);
 		String command = System.getProperty("sun.java.command");
 		if((command == null) || (command.trim().length() < 1))
 		{
@@ -153,9 +112,9 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		{
 			log.error("Unknown exception occured while trying to set the command {} (We will continue anyway, since the command is just informational)", e);
 		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+		
 
-		return new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls);
+		return new MySQLTargetAlgorithmEvaluator( mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls);
 		
 	}
 	
@@ -254,11 +213,38 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 	}
 
 */
+	
+	public static MySQLTargetAlgorithmEvaluator getMySQLTargetAlgorithmEvaluator(MySQLOptions mysqlConfig, String pool, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
+	{
+		MySQLTargetAlgorithmEvaluatorFactory fact = new MySQLTargetAlgorithmEvaluatorFactory();
+		
+		
+		
+		MySQLTargetAlgorithmEvaluatorOptions opts =  fact.getOptionObject();
+		
+		opts.username = mysqlConfig.username;
+		opts.databaseName = mysqlConfig.databaseName;
+		opts.port = mysqlConfig.port;
+		opts.password = mysqlConfig.password;
+		opts.host = mysqlConfig.host;
+		
+		opts.pool = pool;
+		opts.batchInsertSize = batchInsertSize;
+		opts.createTables = createTables;
+		opts.runPartition = runPartition;
+		opts.deletePartitionDataOnShutdown = deletePartitionDataOnShutdown;
+		opts.priority = priority;
+		
+		
+		return fact.getTargetAlgorithmEvaluator(opts);
+		
+	}
+	
 	@Override
-	public AbstractOptions getOptionObject() {
+	public MySQLTargetAlgorithmEvaluatorOptions getOptionObject() {
 		
 		MySQLTargetAlgorithmEvaluatorOptions opts =  new MySQLTargetAlgorithmEvaluatorOptions();
-		opts.databaseName = "mysql_db_tae";
+		
 		return opts;
 		
 	}

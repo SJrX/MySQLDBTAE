@@ -34,7 +34,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRun
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
-import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
@@ -126,8 +126,10 @@ public class MySQLDBTAEPoolIdleTester {
 	public void testPoolIdleTime()
 	{
 		try {
-			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
+					
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", tae);
 			
 			Process proc1 = setupWorker();
 			Process proc2 = setupWorker();
@@ -168,8 +170,10 @@ public class MySQLDBTAEPoolIdleTester {
 	public void testPoolIdleTimeUpdate()
 	{
 		try {
-			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", tae);
 			
 			Process proc1 = setupWorker();
 			Process proc2 = setupWorker();
@@ -178,7 +182,7 @@ public class MySQLDBTAEPoolIdleTester {
 			assertTrue(isRunning(proc1));
 			assertTrue(isRunning(proc2));
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=\"8\", upToDate=0", mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=\"8\", upToDate=0", tae);
 			
 			Thread.sleep(5000);
 			assertTrue(!isRunning(proc1));
@@ -207,15 +211,17 @@ public class MySQLDBTAEPoolIdleTester {
 	public void testPoolIdleTimeWeekYear()
 	{
 		try {
-			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", tae);
 			
 			Process proc1 = setupWorker();
 			Thread.sleep(4000);
 
 			assertTrue(isRunning(proc1));
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=0, upToDate=0, startWeekYear=0", mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=0, upToDate=0, startWeekYear=0", tae);
 			
 			Thread.sleep(2000);
 			assertTrue(isRunning(proc1));
@@ -230,7 +236,7 @@ public class MySQLDBTAEPoolIdleTester {
 			cal.add(Calendar.WEEK_OF_YEAR, -2);
 			int current = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=10, upToDate=0, startWeekYear="+current, mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=10, upToDate=0, startWeekYear="+current, tae);
 			
 			Thread.sleep(2000);
 			

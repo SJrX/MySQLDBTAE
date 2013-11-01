@@ -65,6 +65,7 @@ public class MySQLPersistence {
 	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, boolean createTables)
 	{
 		
+		pool = pool.trim();
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
 		if(pool.length() > 32) throw new ParameterException("Pool name must be at most 32 characters");
 		

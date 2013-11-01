@@ -3,8 +3,6 @@ package ca.ubc.cpsc.beta.mysqldbtae;
 
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,10 +34,10 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.WaitableTAECallback;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.resource.BoundedTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
-
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
@@ -138,17 +136,7 @@ public class MySQLAsyncThreadPoolTester {
 		System.out.println("Free Memory: " + Runtime.getRuntime().freeMemory()/1024/1024 + " MB");
 		System.out.println("Total Memory: " + Runtime.getRuntime().totalMemory()/1024/1024 + " MB");
 		
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		TargetAlgorithmEvaluator mysqlDBTae =new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
+		TargetAlgorithmEvaluator mysqlDBTae =MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority);
 		
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
@@ -213,7 +201,7 @@ public class MySQLAsyncThreadPoolTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config, execConfig);
 				runConfigs.add(rc);
 			}
 			

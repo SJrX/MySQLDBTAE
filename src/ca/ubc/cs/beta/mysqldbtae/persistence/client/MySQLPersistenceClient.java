@@ -45,6 +45,7 @@ import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
 import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
 
@@ -136,11 +137,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 * Number of RunConfigUUIDs to pool for status at any given time
 	 */
 	private static final int QUERY_SIZE_LIMIT = 1000;
-
-	/**
-	 * Execution Config associated with this Persistence Client
-	 */
-	private volatile AlgorithmExecutionConfig execConfig;
 	
 	/**
 	 * Used to tie all the run requests with a specific execution
@@ -148,22 +144,11 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	private volatile int commandID = -1;
 	
-	/**
-	 * Used to tie all the runConfigs to a specific executionConfig
-	 * Do not change after initilaziation
-	 */
-	private volatile int execConfigID = -1;
-	
 	
 	/**
 	 * Object that will strip the path from a URL
 	 */
 	private final PathStripper pathStrip;
-	
-	/**
-	 * Number of items to insert in batch at one time
-	 */
-	private final int batchInsertSize;
 	
 	/**
 	 * RunToken Identifiers are drawn from this pool
@@ -174,54 +159,51 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 * Computes hashes for ACLib Entities
 	 */
 	private static final ACLibHasher hasher = new ACLibHasher();
-
-	/**
-	 * Run partition of what we are doing
-	 */
-	private final int runPartition;
-
-	private final boolean getAdditionalRunData;
-	/**
-	 * Flag variable, if <code>true</code> we should delete all the data in the db. 
-	 */
-	private final boolean deletePartitionDataOnShutdown;
 	
-
-	private final JobPriority priority;
+	private final MySQLTargetAlgorithmEvaluatorOptions opts;
 	
-	public MySQLPersistenceClient(MySQLOptions mysqlOptions, String pool, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
+	public MySQLPersistenceClient(MySQLTargetAlgorithmEvaluatorOptions opts)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, false);
-	}
-	
-	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean addlRunData)
-	{
-		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, addlRunData);
-	}
-	
+		super(opts.host, opts.port, opts.databaseName, opts.username, opts.password, opts.pool, opts.createTables);
+		
+		if(opts.priority == null)
+		{
+			throw new IllegalArgumentException("Priority cannot be null"); 
+		}
+		
+		if(opts.deletePartitionDataOnShutdown && opts.runPartition < 0)
+		{
+			throw new IllegalArgumentException("You cannot delete partition data with a negative partition value, this is a safety mechanism. You could run: DELETE FROM " + TABLE_RUNCONFIG + " WHERE runPartition="+opts.runPartition);
+		}
+		
+		this.opts= opts;
+		
+		String pathStrip = opts.pathStrip;
+		
+		if(pathStrip != null)
+		{
+			pathStrip = pathStrip.trim();
+		}
+		
 
-	public MySQLPersistenceClient(String host, int port,
-			String databaseName, String username, String password, String pool,
-			String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean getAdditionalRunData) {
-		super(host, port, databaseName, username, password, pool, createTables);
+		if(pathStrip != null && pathStrip.trim().endsWith("/"))
+		{
+			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
+			try {
+				Thread.sleep(2048);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		
 		this.pathStrip = new PathStripper(pathStrip);
-		this.batchInsertSize = batchInsertSize;
-		this.runPartition = runPartition;
-		this.deletePartitionDataOnShutdown = deletePartitionDataOnShutdown;
-		this.getAdditionalRunData = getAdditionalRunData;
-		if(priority == null)
-		{
-			throw new IllegalArgumentException("Priority cannot be null");
-		}
-		this.priority = priority;
 		
-		
-		if(deletePartitionDataOnShutdown && runPartition < 0)
-		{
-			throw new IllegalArgumentException("You cannot delete partition data with a negative partition value, this is a safety mechanism. DELETE FROM " + TABLE_RUNCONFIG + " WHERE runPartition="+runPartition);
-		}
-	
 	}
+	
+	
+
+
+
 
 	/**
 	 * Returns the runs if completed, null otherwise 
@@ -272,7 +254,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						{
 							StringBuilder sb = new StringBuilder();	
 							
-							String addlRunData = (this.getAdditionalRunData) ? ", additionalRunData" : "";
+							String addlRunData = (this.opts.additionalRunData) ? ", additionalRunData" : "";
 							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, resultSeed, walltime"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
 							
 						
@@ -307,7 +289,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									{
 										
 										
-										String addlRunDataStr = (this.getAdditionalRunData) ? rs.getString(9) : "";
+										String addlRunDataStr = (this.opts.additionalRunData) ? rs.getString(9) : "";
 										
 										
 										RunResult result = RunResult.valueOf(rs.getString(3));
@@ -325,7 +307,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										 * AlgorithmExecutionConfig execConfig, RunConfig runConfig, String result, double wallClockTime
 										 */
 											
-										AlgorithmRun run = new ExistingAlgorithmRun(execConfig, runConfig, result, runtime, runlength, quality, seed, addlRunDataStr, walltime);
+										AlgorithmRun run = new ExistingAlgorithmRun( runConfig, result, runtime, runlength, quality, seed, addlRunDataStr, walltime);
 										
 										if(run.getRunResult().equals(RunResult.ABORT))
 										{
@@ -346,7 +328,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										double walltime = rs.getDouble(8);
 										
 										
-										outstandingRuns.put(runConfig, new RunningAlgorithmRun(execConfig, runConfig, runtime,0,0,seed, walltime , killHandlers.get(runConfig)));
+										outstandingRuns.put(runConfig, new RunningAlgorithmRun(runConfig, runtime,0,0,seed, walltime , killHandlers.get(runConfig)));
 									} else
 									{	
 										throw new IllegalStateException("Must have some new status that we don't know what do with in the database");
@@ -540,8 +522,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	{
 
 		AutoStartStopWatch completeInsertionTime = new AutoStartStopWatch();
-		
-		if(execConfigID == -1) throw new IllegalStateException("execConfigID must be set");
 	
 		if(runConfigs == null || runConfigs.size() == 0) 
 		{
@@ -583,12 +563,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			Map<String,RunConfig> stringToRunConfig  = runTokenToStringRCMap.get(runToken);
 			Map<String, Integer> runConfigToIDMap = new HashMap<String, Integer>();
 			
-			for(int i=0; (i < Math.ceil((runConfigs.size()/(double) batchInsertSize)));i++)
+			for(int i=0; (i < Math.ceil((runConfigs.size()/(double) opts.batchInsertSize)));i++)
 			{
 				
 			
-				int listLowerBound = i*batchInsertSize;
-				int listUpperBound = Math.min((i+1)*batchInsertSize,runConfigs.size());
+				int listLowerBound = i*opts.batchInsertSize;
+				int listUpperBound = Math.min((i+1)*opts.batchInsertSize,runConfigs.size());
 				
 				Object[] args2 =  { i, listLowerBound, listUpperBound, runConfigs.size()};
 				log.trace("Lower and Upper Bound {}: ({}-{})  (size: {})",args2);
@@ -606,7 +586,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 				sb.setCharAt(sb.length()-1, ' ');
 				
-				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +priority+ "\",retryAttempts=0, runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),0,runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),\"NEW\",status), killJob=0");
+				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +opts.priority+ "\",retryAttempts=0, runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),0,runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),\"NEW\",status), killJob=0");
 
 				try {
 					PreparedStatement stmt = null;
@@ -631,9 +611,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							
 							
 							killHandlers.put(rc, kh);
-							outstandingRuns.put(rc, new RunningAlgorithmRun(execConfig, rc, "RUNNING,0,0,0,"+ rc.getProblemInstanceSeedPair().getSeed() , kh));
-							String uuid = getHash(rc, execConfig, runPartition);
+							outstandingRuns.put(rc, new RunningAlgorithmRun(rc, 0,0,0,rc.getProblemInstanceSeedPair().getSeed() ,0, kh));
+							String uuid = getHash(rc, opts.runPartition);
 							uuids.add(uuid);
+							Integer execConfigID = this.getAlgorithmExecutionConfigID(rc.getAlgorithmExecutionConfig());
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
 							if(rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation().length() > 4000)
@@ -657,8 +638,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							
 							stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
 							stmt.setString(k++,uuid);
-							stmt.setInt(k++, runPartition);
-							stmt.setString(k++, priority.name());
+							stmt.setInt(k++, opts.runPartition);
+							stmt.setString(k++, opts.priority.name());
 							runKeys.add(uuid);
 							
 							stringToRunConfig.put(uuid, rc);
@@ -678,38 +659,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								log.info("Deadlock detected, retrying");
 							}
 						}
-						
-						/*
-						stmt.close();
-						
-						StringBuilder sb2 = new StringBuilder("SELECT runConfigID, runConfigUUID FROM runConfigUUID IN (");
-						
-						for(int j =listLowerBound; j < listUpperBound; j++ )
-						{
-							sb2.append("?,");
-						}
-						sb2.setCharAt(sb2.length()-1, ' ');
-						sb2.append(")");
-						
-						stmt = conn.prepareStatement(sb2.toString());
-						
-						for(int j =listLowerBound,m=1; j < listUpperBound; j++,m++ )
-						{
-							stmt.setString(m, uuids.get(m-1));
-						}
-						
 					
-						
-					
-						ResultSet rs = stmt.executeQuery();
-
-						while(rs.next())
-						{	
-							int runConfigID = rs.getInt(1);
-							String runConfigUUID = rs.getString(2);
-							runConfigToIDMap.put(runConfigUUID, runConfigID);
-						}
-						*/					
 					} finally 
 					{
 						if(stmt != null) stmt.close();
@@ -763,18 +713,28 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 	}
 
-	public void setAlgorithmExecutionConfig(AlgorithmExecutionConfig execConfig)
+	
+	private final ConcurrentHashMap<AlgorithmExecutionConfig, Integer> execConfigToIDMap = new ConcurrentHashMap<AlgorithmExecutionConfig, Integer>();
+	
+	/**
+	 * Retrieves the ID for this execution configuration object
+	 * 
+	 * @param execConfig
+	 * @return
+	 */
+	private int getAlgorithmExecutionConfigID(AlgorithmExecutionConfig execConfig)
 	{
-		if (commandID == -1) throw new IllegalStateException("Must CommandID not set");
 		
-		if (execConfigID != -1 ) throw new IllegalStateException("execConfigID is already set");
+		/**
+		 * There is a benign race condition here, the database will take care of this however.
+		 */
+		Integer id = execConfigToIDMap.get(execConfig);
 		
-		if(execConfig == null)
+		if(id != null)
 		{
-			throw new IllegalArgumentException("execution configuration cannot be null");
+			return id;
 		}
-		this.execConfig = execConfig;
-		
+				
 		
 		Connection conn = null; 
 		try {
@@ -814,10 +774,11 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				ResultSet rs = stmt.getGeneratedKeys();
 				System.out.println(stmt.toString());
 				rs.next();
-				execConfigID = rs.getInt(1);
+				id = rs.getInt(1);
 				
 				rs.close();
 				stmt.close();
+				return id;
 			} catch (SQLException e) {
 				log.error("Problem processing {}",sb.toString());
 				throw new IllegalStateException(e);
@@ -891,12 +852,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 	}
 	
-	public String getHash(RunConfig rc, AlgorithmExecutionConfig execConfig, int runPartition )
+	public String getHash(RunConfig rc, int runPartition )
 	{
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
 		try {
-			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(execConfig,pathStrip) + runPartition).getBytes("UTF-8"));
+			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(rc.getAlgorithmExecutionConfig(),pathStrip) + runPartition).getBytes("UTF-8"));
 			return new String(Hex.encodeHex(result));
 	
 		} catch (UnsupportedEncodingException e) {
@@ -962,10 +923,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 */
 	public void shutdown()
 	{
-		if(deletePartitionDataOnShutdown)
+		if(opts.deletePartitionDataOnShutdown)
 		{
-			log.debug("Deleting all data in {} with runPartition {} ", TABLE_RUNCONFIG, runPartition);
-			String query = "DELETE FROM " + TABLE_RUNCONFIG + " WHERE runPartition=" + runPartition;
+			log.debug("Deleting all data in {} with runPartition {} ", TABLE_RUNCONFIG, opts.runPartition);
+			String query = "DELETE FROM " + TABLE_RUNCONFIG + " WHERE runPartition=" + opts.runPartition;
 			try {
 				 
 				 PreparedStatement stmt = getConnection().prepareStatement(query);

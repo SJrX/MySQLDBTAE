@@ -20,7 +20,7 @@ import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
-import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 
@@ -85,7 +85,7 @@ public class MySQLDBTAEWorkerWakingTester {
 	public void testWorkerWakeup()
 	{
 		
-			MySQLDBTargetAlgorithmEvaluatorFactory fact = new MySQLDBTargetAlgorithmEvaluatorFactory();
+			MySQLTargetAlgorithmEvaluatorFactory fact = new MySQLTargetAlgorithmEvaluatorFactory();
 			
 			MySQLTargetAlgorithmEvaluatorOptions opts = MySQLDBUnitTestConfig.getMySQLDBTAEOptions();
 			
@@ -95,7 +95,7 @@ public class MySQLDBTAEWorkerWakingTester {
 			opts.pool = MYSQL_POOL;
 			opts.deletePartitionDataOnShutdown = true;
 			
-			TargetAlgorithmEvaluator tae = fact.getTargetAlgorithmEvaluator(execConfig, opts);
+			TargetAlgorithmEvaluator tae = fact.getTargetAlgorithmEvaluator( opts);
 			
 				
 			List<RunConfig> runConfigs = new ArrayList<RunConfig>(5);
@@ -105,7 +105,7 @@ public class MySQLDBTAEWorkerWakingTester {
 			
 				config.put("seed", String.valueOf(i));
 				config.put("runtime", String.valueOf(2*i+1));
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				runConfigs.add(rc);
 				
 			}

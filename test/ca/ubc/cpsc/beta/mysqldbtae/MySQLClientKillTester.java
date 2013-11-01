@@ -36,10 +36,10 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.helpers.Walltime
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.resource.BoundedTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
-
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
@@ -131,17 +131,9 @@ public class MySQLClientKillTester {
 	@Test
 	public void testDynamicAdaptiveCappingKillingOfNewAndAssigned() throws Throwable
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+
 		
-		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence), 25, execConfig);	
+		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority), 25);	
 		
 		mysqlDBTae = new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
@@ -159,7 +151,7 @@ public class MySQLClientKillTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}

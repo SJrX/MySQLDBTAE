@@ -34,7 +34,7 @@ import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRun
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
-import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
@@ -99,7 +99,7 @@ public class MySQLDBTAECutoffIdleTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 600, config);
+				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 600, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -107,8 +107,12 @@ public class MySQLDBTAECutoffIdleTester {
 		
 	}
 	
-	
 	public Process setupWorker(boolean checkMinCutoff, int minCutoffDeathTime)
+	{
+		return setupWorker(checkMinCutoff, minCutoffDeathTime, MYSQL_POOL);
+	}
+	
+	public Process setupWorker(boolean checkMinCutoff, int minCutoffDeathTime, String pool)
 	{
 		Process proc;
 		try {
@@ -118,7 +122,7 @@ public class MySQLDBTAECutoffIdleTester {
 			b.append(System.getProperty("java.class.path"));
 			b.append(" ");
 			b.append(MySQLTAEWorker.class.getCanonicalName());
-			b.append(" --pool ").append(MYSQL_POOL);
+			b.append(" --pool ").append(pool);
 			
 			b.append(" --timeLimit 20s");
 			b.append(" --jobID CLI");
@@ -151,15 +155,9 @@ public class MySQLDBTAECutoffIdleTester {
 	public void testMinCutoffIdle()
 	{
 		try {
-			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
+			MySQLTargetAlgorithmEvaluator mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+"_isolated", BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
 			
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-				
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);		
-			
-			Process proc1 = setupWorker(true, 3);
+			Process proc1 = setupWorker(true, 3,MYSQL_POOL+"_isolated");
 			
 			mySQLTAE.evaluateRunsAsync(runConfigs, null, null);
 			
