@@ -5,6 +5,7 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
+	MySQLDBTAEIdleTester.class,
 	MySQLDBTAEWorkerWakingTester.class,
 	MySQLDBObserverTester.class,
 	MySQLDBTAETester.class,
@@ -19,6 +20,7 @@ import org.junit.runners.Suite;
 	MySQLDBTAEPoolIdleTester.class,
 	MySQLDBTAECutoffIdleTester.class,
 	MySQLDBTAEJobPushBackTester.class
+	
 	
 	//Do not add this test!  May kill database
 	//MySQLDBTAELoadTest.class

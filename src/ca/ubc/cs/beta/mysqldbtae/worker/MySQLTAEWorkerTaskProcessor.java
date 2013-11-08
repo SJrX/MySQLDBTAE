@@ -182,11 +182,13 @@ public class MySQLTAEWorkerTaskProcessor {
 					synchronized(lock){
 						mysqlPersistence.resetUnfinishedRuns();
 					}
+					
+					int minCutoffInDB = mysqlPersistence.getMinCutoff();
 					if(jobsEvaluated==0)
 					{
 						log.info("No jobs were evaluated");
 
-						if(mysqlPersistence.getMinCutoff()>getSecondsLeft() && minCutoffDeathTime==Long.MAX_VALUE)
+						if(minCutoffInDB>getSecondsLeft() && minCutoffDeathTime==Long.MAX_VALUE)
 						{
 							minCutoffDeathTime = System.currentTimeMillis()+options.minCutoffDeathTime*1000;
 						}
@@ -236,9 +238,11 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 					int sumWorkerIdleTimes = mysqlPersistence.sumIdleTimes();
 					
-					String killWindow = (minCutoffDeathTime == Long.MAX_VALUE) ? "inf" : ""+(minCutoffDeathTime-System.currentTimeMillis())/1000;
+					double minCutoffTooHighDeath = (minCutoffDeathTime-System.currentTimeMillis())/1000;
+					String killWindow = (minCutoffDeathTime == Long.MAX_VALUE) ? "inf" : ""+minCutoffTooHighDeath;
 					log.debug("Worker life remaining: {} seconds, worker idle limit remaining: {} seconds, ",getSecondsLeft(), (int) ( options.idleLimit - idleTime));
 					log.debug("pool idle limit remaining: {} seconds, jobs too long kill window: {} seconds" ,(int)(options.poolIdleTimeLimit-sumWorkerIdleTimes), killWindow);
+					
 					
 					if(waitTime > getSecondsLeft())
 					{
@@ -255,11 +259,13 @@ public class MySQLTAEWorkerTaskProcessor {
 						log.info("Aggregate pool idle time too long {}, finishing up", sumWorkerIdleTimes );
 						mysqlPersistence.markWorkerCompleted("Pool Idle Limit reached: " + sumWorkerIdleTimes + " versus limit: " + options.poolIdleTimeLimit);
 						return;
+					} else if(minCutoffTooHighDeath < 0)
+					{
+						log.info("Minimum job cutoff time is too high {} seconds with what we have remaining {} seconds, giving up", minCutoffInDB,  getSecondsLeft());
+						mysqlPersistence.markWorkerCompleted("Minimum Job Cutoff in DB is too high: " + minCutoffInDB + " seconds verus: " + getSecondsLeft());
+						return;
 					}
 					 
-					
-					
-					
 					if(waitTime > 0.0)
 					{
 						log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);

@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.mangosdk.spi.ProviderFor;
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 	//DO NOT SET A LOGGER HERE OR IT WILL BREAK LOGGING
 	private Logger log;
 	
+	private final AtomicReference<MySQLPersistenceClient> p = new AtomicReference<MySQLPersistenceClient>();
 	
 	@Override
 	public TargetAlgorithmEvaluator getTargetAlgorithmEvaluator(
@@ -155,6 +157,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		}
 		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 
+		p.set(mysqlPersistence);
 		return new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls);
 		
 	}
@@ -264,6 +267,9 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 	}
 	
 	
-	
+	public MySQLPersistenceClient getLastPersistentClientForDebugPurposes()
+	{
+		return p.get();
+	}
 
 }
