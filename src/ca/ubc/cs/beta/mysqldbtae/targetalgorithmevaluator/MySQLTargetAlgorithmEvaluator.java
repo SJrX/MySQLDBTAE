@@ -84,15 +84,14 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 			handler.onSuccess(Collections.EMPTY_LIST);
 		}
 		RunToken token = persistence.enqueueRunConfigs(runConfigs,obs);
-		if(this.wakeUpWorkers) persistence.wakeWorkers();
+		
+		if(this.wakeUpWorkers) persistence.wakeWorkers(runConfigs.size() + 1);
 		
 		
 		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler);
 		
 		requestWatcher.execute(mysqlWatcher);
-		
-		
-
+	
 	}
 
 	@Override

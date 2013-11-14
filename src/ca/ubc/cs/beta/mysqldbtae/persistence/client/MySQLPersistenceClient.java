@@ -907,10 +907,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 * 
 	 * In short we will keep looping trying to kill workers until either a second 
 	 * 
-	 * 
+	 * @param workersToWake  the number of workers to wake up
 	 * 
 	 */
-	public void wakeWorkers()
+	public void wakeWorkers(int workersToWake)
 	{
 		
 		Connection conn = null;
@@ -921,6 +921,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			try 
 			{
 				conn = getConnection();
+outerloop:
 				while(true)
 				{
 					
@@ -957,6 +958,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 							}
 							
+							if(workersWokenUp >= workersToWake)
+							{
+								break outerloop;
+							}
 							
 							//After processing for half the cutoff window time, we will actually rechek the database;
 							if((System.currentTimeMillis() - startTime) / 1000.0 > (this.MYSQL_SLEEP_CUTOFF_WINDOW/ 2))
@@ -964,7 +969,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								log.info("Too much time has elapsed since we got results, rechecking... {} workers woken up so far.", workersWokenUp );
 								break;
 							}
-							
+
 						}
 						
 						if(rowCount == 0)

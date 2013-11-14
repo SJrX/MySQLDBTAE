@@ -628,7 +628,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * Sums the idle times of all workers in the pool, launched within the last 3 weeks
 	 * @return int representing the summed idle times
 	 */
-	public int sumIdleTimes() {
+	public long sumIdleTimes() {
 		//Calendar.add method saves state.  This retrieves the current week and the previous 2 weeks
 		Calendar cal = Calendar.getInstance();
 		int current = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
@@ -650,12 +650,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 				ResultSet rs = executePSQuery(stmt);
 				
+				long idleTime;
 				if(!rs.next())
 				{
 					stmt.close();
-					return -1;
-				}				
+					idleTime = -1;
+				} else
+				{
+					idleTime = rs.getLong(1);
+				}
 				
+				log.info("Sum of worker pool idle time with query {} was {} ", sb.toString(),  idleTime);
 				return rs.getInt(1);
 			} finally
 			{
@@ -665,7 +670,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 		} catch(SQLException e)
 		{
-			log.error("Failed writing worker Information to database, something very bad is happening");
+			log.error("Failed retrieving worker Information to database, something very bad is happening");
 			throw new IllegalStateException(e);
 		}
 		
@@ -896,7 +901,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		if(successfulDBSleep == true)
 		{
 			try {
-				Thread.sleep( (long) (threadSleepTime * 1000) - 100);
+				Thread.sleep( Math.max((long) (threadSleepTime * 1000) - 100,0));
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				return false;
