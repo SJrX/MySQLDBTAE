@@ -9,10 +9,11 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLNonTransientException;
+import java.sql.SQLTransientException;
 import java.sql.Statement;
-
 import java.sql.SQLException;
-
+import java.util.concurrent.Callable;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -24,13 +25,21 @@ import ca.ubc.cs.beta.mysqldbtae.version.MySQLDBTAEVersionInfo;
 import com.beust.jcommander.ParameterException;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.mchange.v2.c3p0.DataSources;
+import com.mysql.jdbc.exceptions.MySQLQueryInterruptedException;
+import com.mysql.jdbc.exceptions.jdbc4.MySQLTransientException;
 
 public class MySQLPersistence {
 
 	//private final Connection conn;
 	
-	private static final String SLEEP_STRING = "MySQLWorker Sleeping on pool: ";
+	/**
+	 * String that workers will have in their query when sleeping
+	 */
+	public static final String SLEEP_STRING = "MySQLWorker Sleeping on pool: ";
 	
+	
+	public static final int MAX_RETRYS_ATTEMPTS = 100;
+	public static final int MAX_SLEEP_TIME_IN_MS = 300000;
 	protected final String TABLE_COMMAND;
 	protected final String TABLE_EXECCONFIG;
 	protected final String TABLE_RUNCONFIG;
@@ -41,6 +50,9 @@ public class MySQLPersistence {
 	
 	
 	protected final String POOL;
+	
+	protected final double MYSQL_SLEEP_CUTOFF_WINDOW = 5.0;
+	
 	
 	
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -101,7 +113,7 @@ public class MySQLPersistence {
 			// the settings below are optional -- c3p0 can work with defaults
 			cpds.setMinPoolSize(1);                                     
 			cpds.setAcquireIncrement(1);
-			cpds.setMaxPoolSize(10);
+			cpds.setMaxPoolSize(200);
 			cpds.setInitialPoolSize(1);
 			cpds.setAutoCommitOnClose(true);
 			cpds.setMaxIdleTimeExcessConnections(120);
@@ -359,5 +371,101 @@ public class MySQLPersistence {
 			throw new IllegalStateException(e);
 		}
 	}
+	
 
+
+	
+
+	protected void executePS(final PreparedStatement s)
+	{
+		
+			execute(new Callable<Void>() {
+
+			@Override
+			public Void call() throws SQLException {
+				s.execute();
+				return null;
+			}
+			
+		});
+	}
+	
+	protected  ResultSet executePSQuery(final PreparedStatement s)
+	{
+		return execute(new Callable<ResultSet>() {
+
+			@Override
+			public ResultSet call() throws SQLException {
+				return s.executeQuery();
+			}
+			
+		});
+	}
+	
+	protected int executePSUpdate(final PreparedStatement s)
+	{
+		return execute(new Callable<Integer>() {
+
+			@Override
+			public Integer call() throws SQLException {
+				return s.executeUpdate();
+			}
+			
+		});
+		
+	}
+
+	private <K> K execute(Callable<K> f)
+	{
+		
+		long sleepTime = 0;
+		int retryFailures = 0;
+		for(int i=0; i < MAX_RETRYS_ATTEMPTS; i++ )
+		{
+			try {
+				return f.call();
+			} catch(MySQLQueryInterruptedException e)
+			{
+				log.warn("Unexpected query interruption, probably a race condition with worker wakeup. (You can disregard this warning, it's for developers)",e);
+			} catch(com.mysql.jdbc.exceptions.jdbc4.MySQLTransientException e)
+			{
+				log.debug("Transient Exception Detection disregarding",e);
+			} catch(com.mysql.jdbc.exceptions.MySQLTransientException e)
+			{
+				log.debug("Transient Exception Detection disregarding",e);
+			
+			} catch(com.mysql.jdbc.exceptions.MySQLNonTransientException e)
+			{
+				log.warn("Unexpected Non Transient Exception ", e);
+			} catch(com.mysql.jdbc.exceptions.jdbc4.MySQLNonTransientException e)
+			{
+				log.warn("Unexpected Non Transient Exception ", e);
+			} catch(SQLException e)
+			{
+				log.warn("Unexpected exception while executing query, but logging {}", e);
+			} catch(Exception e)
+			{
+				log.error("This was unexpected, an exception that wasn't a SQL exception", e);
+			}
+			
+			if(sleepTime > 0)
+			{
+				log.info("Query failed, sleeping for {} seconds before retrying query (if you ", sleepTime / 1000);
+				try {
+					Thread.sleep(sleepTime);
+				} catch(InterruptedException e)
+				{
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException("Thread interrupted while sleeping, probably shutting down?");
+				}
+				
+			}
+			
+			sleepTime = Math.min( (long) ((sleepTime + 1000)*1.5), MAX_SLEEP_TIME_IN_MS);
+		}
+		
+		throw new IllegalStateException("Database queries have failed too many times in a row, giving up");
+	
+	}
+	
 }

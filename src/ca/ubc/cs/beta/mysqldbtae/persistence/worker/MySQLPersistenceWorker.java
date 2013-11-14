@@ -92,9 +92,6 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		logWorker(runsToBatch, delayBetweenRequest, pool, poolIdleTimeLimit, version);
 	}
 
-	private final long BASIC_SLEEP_MS = 50;
-	private final long MAX_SLEEP_MS = 15000;
-	
 	private final Map<Integer, AlgorithmExecutionConfigIDBlacklistedException> blacklistedKeys = new HashMap<Integer, AlgorithmExecutionConfigIDBlacklistedException>();
 	
 	private AlgorithmExecutionConfig getAlgorithmExecutionConfig(int execConfigID) throws SQLException, AlgorithmExecutionConfigIDBlacklistedException {
@@ -219,7 +216,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				Connection conn = getConnection();
 				stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
 				
-				execute(stmt);
+				executePS(stmt);
 				
 				//if(true) return Collections.emptyMap();
 				//conn.commit();
@@ -363,7 +360,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						stmt.setString(8, workerUUID.toString());
 						stmt.setString(9,runConfigID);
 						
-						execute(stmt);
+						executePS(stmt);
 					} catch(SQLException e)
 					{
 						log.error("SQL Exception while saving run {}", run);
@@ -393,8 +390,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param stmt  PreparedStatment to execute
 	 * @throws SQLException
 	 */
-	private void execute(PreparedStatement stmt) throws SQLException
-	{
+	//private void execute(PreparedStatement stmt) throws SQLException
+	//{
+		//executePS(stmt);
+		/*
 		long sleepMS = BASIC_SLEEP_MS;
 		for(int i=0; i < 25; i++)
 		{
@@ -433,7 +432,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				Connection conn = getConnection();
 				stmt = conn.prepareStatement(sb.toString());
 				stmt.setString(1, runConfigUUID);
-				execute(stmt);
+				executePS(stmt);
 				//conn.commit();
 				conn.close();
 			} finally
@@ -463,6 +462,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				executePSUpdate(stmt);
 				if(stmt.executeUpdate()>0)
 					log.warn("Some runs were not completed and are being reset");
 
@@ -533,7 +533,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			stmt.setString(11, pool);
 			stmt.setLong(12, poolIdleTimeLimit);
 			stmt.setString(13,version);
-			stmt.execute();
+			executePS(stmt);
 			stmt.close();
 			conn.close();
 			
@@ -559,7 +559,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			stmt.setString(1, crashInfo);
 			
-			stmt.execute();
+			executePS(stmt);
 			stmt.close();
 			//conn.commit();
 			conn.close();
@@ -604,7 +604,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET upToDate=1 WHERE workerUUID=\""+workerUUID.toString()+"\" ");
 				
 				stmt = conn.prepareStatement(sb.toString());
-				stmt.execute();
+				executePS(stmt);
 				stmt.close();
 				//conn.commit();
 				return newParameters;
@@ -628,7 +628,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * Sums the idle times of all workers in the pool, launched within the last 3 weeks
 	 * @return int representing the summed idle times
 	 */
-	public int sumIdleTimes() {
+	public long sumIdleTimes() {
 		//Calendar.add method saves state.  This retrieves the current week and the previous 2 weeks
 		Calendar cal = Calendar.getInstance();
 		int current = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
@@ -648,14 +648,19 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 		
-				ResultSet rs = stmt.executeQuery();
+				ResultSet rs = executePSQuery(stmt);
 				
+				long idleTime;
 				if(!rs.next())
 				{
 					stmt.close();
-					return -1;
-				}				
+					idleTime = -1;
+				} else
+				{
+					idleTime = rs.getLong(1);
+				}
 				
+				log.info("Sum of worker pool idle time with query {} was {} ", sb.toString(),  idleTime);
 				return rs.getInt(1);
 			} finally
 			{
@@ -665,7 +670,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 		} catch(SQLException e)
 		{
-			log.error("Failed writing worker Information to database, something very bad is happening");
+			log.error("Failed retrieving worker Information to database, something very bad is happening");
 			throw new IllegalStateException(e);
 		}
 		
@@ -687,7 +692,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 		
-				ResultSet rs = stmt.executeQuery();
+				ResultSet rs = executePSQuery(stmt);
 				
 				if(!rs.next())
 				{
@@ -725,8 +730,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET workerIdleTime_UPDATEABLE=\""+idleTime+"\" WHERE workerUUID=\""+workerUUID.toString()+"\" ");
 				
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
-		
-				stmt.executeUpdate();
+				executePSUpdate(stmt);
+				
 				
 			} finally
 			{
@@ -763,7 +768,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
-				stmt.executeUpdate();
+				executePSUpdate(stmt);
 				stmt.close();
 			} finally
 			{
@@ -805,7 +810,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				stmt.setTimestamp(3, new java.sql.Timestamp(worstCaseEndTime.getTime().getTime()));
 				stmt.setDouble(4, run.getWallclockExecutionTime());
 				stmt.setString(5, this.runConfigIDMap.get(run.getRunConfig()));
-				boolean shouldKill = (stmt.executeUpdate() == 0);
+				boolean shouldKill = (executePSUpdate(stmt) == 0);
 
 				stmt.close();
 				return shouldKill;
@@ -825,49 +830,118 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	
 	/**
 	 * Sleeps via the database the amount of time required
-	 * @param sleeptime
+	 * 
+	 * Note: Because of a race condition in MySQL we take 5 seconds off the sleep time, and sleep internally, and then resleep in the database without the required text. this is to prevent the query from being interrupted.
+	 * We then issue a dummy query to the server to clear any flags.
+	 *
+	 * See issue #1900 and also http://bugs.mysql.com/bug.php?id=45679 and http://bugs.mysql.com/bug.php?id=70618
+	 * 
+	 * Note: There is a subtle expectation that client kill requests can't be more than 5 seconds delayed, so see also: {@link ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient#wakeWorkers()} 
+	 * 
+	 * 
+	 * 
+	 * 
+	 * @param sleeptime 
+	 * @return true if the sleep completed successfully false otherwise.
 	 */
 	public boolean sleep(double sleeptime)
 	{
 		
-		StringBuilder sb = new StringBuilder("SELECT SLEEP(").append(sleeptime).append("); /* " + SLEEP_COMMENT_TEXT + " */" );
-				
-				
-				try {
-					Connection conn = getConnection();
+		if(sleeptime < 0)
+		{
+			return true;
+		}
+		
+		
+		double mysqlSleepTime = Math.max(0, sleeptime - MYSQL_SLEEP_CUTOFF_WINDOW);
+		
+		
+		double threadSleepTime = Math.min(sleeptime, MYSQL_SLEEP_CUTOFF_WINDOW);
+		
+		
+		boolean successfulDBSleep = true;
+		if(mysqlSleepTime > 0)
+		{
+			StringBuilder sb = new StringBuilder("SELECT SLEEP(").append(mysqlSleepTime).append("); /* " + SLEEP_COMMENT_TEXT + " */" );
+					
 					
 					try {
-						PreparedStatement stmt = conn.prepareStatement(sb.toString());
+						Connection conn = getConnection();
 						
-						ResultSet rs = stmt.executeQuery();
-						
-						if(!rs.next())
+						try {
+							PreparedStatement stmt = conn.prepareStatement(sb.toString());
+							
+							ResultSet rs = stmt.executeQuery();
+							
+							if(!rs.next())
+							{
+								stmt.close();
+								return false;
+							}
+							
+							if(rs.getInt(1) != 0)
+							{
+								successfulDBSleep = false;
+							}
+							
+						} finally
 						{
-							stmt.close();
-							return false;
+							conn.close();
 						}
 						
-						if(rs.getInt(1)==0)
-							return true;
-						else
-							return false;
-						
-					} finally
+					}catch(SQLException e)
 					{
-						conn.close();
+						log.error("Failed sleeping through the database, something very bad is happening");
+						
+						throw new IllegalStateException(e);
 					}
-					
-				}catch(SQLException e)
-				{
-					log.error("Failed sleeping through the database, something very bad is happening");
-					
-					throw new IllegalStateException(e);
-				}
+		} 
 				
-				
+		
+		if(successfulDBSleep == true)
+		{
+			try {
+				Thread.sleep( Math.max((long) (threadSleepTime * 1000) - 100,0));
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+		}
+		
+		if(mysqlSleepTime > 0)
+		{ //Retry a trip to the database to clear any interrupt flags, etc...
+				StringBuilder sb = new StringBuilder("SELECT SLEEP(").append(0.01).append(");" );
+					
+					
+					try {
+						Connection conn = getConnection();
+						
+						try {
+							PreparedStatement stmt = conn.prepareStatement(sb.toString());
+							
+							 stmt.executeQuery();
+							
+						} finally
+						{
+							conn.close();
+						}
+						
+					}catch(SQLException e)
+					{
+						log.error("Failed sleeping through the database, something very bad is happening");
+						
+						throw new IllegalStateException(e);
+					}
+		} 
+			
+		return true;
+		
 	}
 
-
+	/**
+	 * Return the number of new rows in the database
+	 * @return number of new rows in the database.
+	 */
 	public int getNumberOfNewRuns() 
 	{
 		
@@ -889,7 +963,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 		
-				ResultSet rs = stmt.executeQuery();
+				ResultSet rs = executePSQuery(stmt);
 				
 				if(!rs.next())
 				{

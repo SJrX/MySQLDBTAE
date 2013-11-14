@@ -281,7 +281,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							{
 								stmt = conn.prepareStatement(sb.toString());
 							
-								ResultSet rs = stmt.executeQuery();
+								ResultSet rs = executePSQuery(stmt);
 								
 								while(rs.next())
 								{	
@@ -389,7 +389,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								try {
 									stmt = conn.prepareStatement(sb.toString());
 									System.out.println(sb.toString());
-									stmt.execute();
+									executePS(stmt);
 								
 								} finally
 								{
@@ -648,17 +648,31 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					
 						log.debug("Inserting Rows");
 						stopWatch.start();
-						boolean insertFailed = true;
-						while(insertFailed)
+		
+						executePS(stmt);
+						
+						
+						
+						/*
+						stmt.close();
+						
+						StringBuilder sb2 = new StringBuilder("SELECT runConfigID, runConfigUUID FROM runConfigUUID IN (");
+						
+						for(int j =listLowerBound; j < listUpperBound; j++ )
 						{
-							try {
-								stmt.execute();
-								insertFailed = false;
-							} catch(MySQLTransactionRollbackException e)
-							{
-								log.info("Deadlock detected, retrying");
-							}
+							sb2.append("?,");
 						}
+						sb2.setCharAt(sb2.length()-1, ' ');
+						sb2.append(")");
+						
+						stmt = conn.prepareStatement(sb2.toString());
+						
+						for(int j =listLowerBound,m=1; j < listUpperBound; j++,m++ )
+						{
+							stmt.setString(m, uuids.get(m-1));
+						}
+						*/
+
 					
 					} finally 
 					{
@@ -770,7 +784,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				System.out.println(execConfig.isDeterministicAlgorithm());
 				System.out.println(execConfig.getAlgorithmCutoffTime());
 				System.out.println(hasher.getHash(execConfig,pathStrip));
-				stmt.execute();
+				executePS(stmt);
 				ResultSet rs = stmt.getGeneratedKeys();
 				System.out.println(stmt.toString());
 				rs.next();
@@ -823,7 +837,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
 				
 					stmt.setString(1, command);
-					stmt.execute();
+					executePS(stmt);
 					ResultSet rs = stmt.getGeneratedKeys();
 					rs.next();
 					this.commandID = rs.getInt(1);
@@ -867,50 +881,92 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 
 	private final AtomicInteger sqlErrorsWhileKillingQueries  = new AtomicInteger(0); 
 	
-	public void wakeWorkers()
+	/**
+	 * Wakes up workers that are presently sleeping waiting for tasks
+	 * 
+	 * Note: There is a race condition implicitly in how this works and we rely on timing to make this work properly :S. You will want to look at how the sleep method works at the same time
+	 * as modifying this method: {@link ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker#sleep(double)}.
+	 * 
+	 * In short we will keep looping trying to kill workers until either a second 
+	 * 
+	 * @param workersToWake  the number of workers to wake up
+	 * 
+	 */
+	public void wakeWorkers(int workersToWake)
 	{
 		
-		StringBuilder sb = new StringBuilder("SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB=? AND STATE=\"User Sleep\" AND INFO LIKE ?");
-	
-		try {
-			Connection conn = null;
-			try {
+		Connection conn = null;
+		try
+		{
+			int workersWokenUp = 0;
+
+			try 
+			{
 				conn = getConnection();
-			
-				PreparedStatement stmt = conn.prepareStatement(sb.toString());
-		
-				stmt.setString(1, this.DATABASE);
-				stmt.setString(2,"%"+ this.SLEEP_COMMENT_TEXT + "%");
-				ResultSet rs = stmt.executeQuery();
-				int rowCount = 0;
-				int errorCount = 0;
-				while(rs.next())
+outerloop:
+				while(true)
 				{
-					int id = rs.getInt(1);
-					rowCount++;
-					try {
-						conn.createStatement().executeQuery("KILL QUERY  " + id);
-					} catch(SQLException e)
-					{
-						//Query may be gone
-						int errors = sqlErrorsWhileKillingQueries.incrementAndGet();
-						errorCount++;
-						if(errors == 1)
-						{
-							log.debug("Exception occurred while killing queries, if this is an Unknown Thread Id issue you can ignore it ", e);
+					
+					StringBuilder sb = new StringBuilder("SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB=? AND STATE=\"User Sleep\" AND INFO LIKE ? LIMIT 100");
+					
+				
+						
+					
+						PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				
+						stmt.setString(1, this.DATABASE);
+						stmt.setString(2,"%"+ this.SLEEP_COMMENT_TEXT + "%");
+						long startTime = System.currentTimeMillis();
+						
+						ResultSet rs = stmt.executeQuery();
+						int rowCount = 0;
+						while(rs.next())
+						{							
+							
+							int id = rs.getInt(1);
+							rowCount++;
+							try {
+								conn.createStatement().executeQuery("KILL QUERY  " + id);
+								workersWokenUp++;
+							} catch(SQLException e)
+							{
+								//Query may be gone
+								int errors = sqlErrorsWhileKillingQueries.incrementAndGet();
+								workersWokenUp--;
+								if(errors == 1)
+								{
+									log.debug("Exception occurred while killing queries, if this is an Unknown Thread Id issue you can ignore it ", e);
+								}
+								
+							}
+							
+							if(workersWokenUp >= workersToWake)
+							{
+								break outerloop;
+							}
+							
+							//After processing for half the cutoff window time, we will actually rechek the database;
+							if((System.currentTimeMillis() - startTime) / 1000.0 > (this.MYSQL_SLEEP_CUTOFF_WINDOW/ 2))
+							{
+								log.info("Too much time has elapsed since we got results, rechecking... {} workers woken up so far.", workersWokenUp );
+								break;
+							}
+
 						}
 						
-					}
+						if(rowCount == 0)
+						{
+							break;
+						} 
 					
+						
 					
-				}
-				log.info("Attempted wake up of {} workers succeeded on {} ", rowCount, rowCount-errorCount);
+					}	
 			} finally
 			{
 				if(conn != null) conn.close();
-				
+				log.info("Workers woken up {} ",workersWokenUp);
 			}
-			
 		} catch(SQLException e)
 		{
 			log.error("Failed writing worker Information to database, something very bad is happening");
@@ -930,7 +986,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			try {
 				 
 				 PreparedStatement stmt = getConnection().prepareStatement(query);
-				 stmt.execute();
+				 executePS(stmt);
+						 
 				 
 				 
 			} catch(SQLException e)

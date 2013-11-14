@@ -9,7 +9,7 @@
 	<classpathentry kind="lib" path="lib/commons-codec-1.7.jar"/>
 	<classpathentry kind="lib" path="lib/spi-0.2.4.jar"/>
 	<classpathentry kind="lib" path="lib/c3p0-0.9.2-pre8.jar"/>
-	<classpathentry kind="lib" path="lib/mysql-connector-java-5.1.26-bin.jar"/>
+	<classpathentry kind="lib" path="lib/mysql-connector-java-5.1.26-bin.jar" sourcepath="/home/sjr/Apps/mysql-connector-java-5.1.26/src"/>
 	<classpathentry kind="src" path=".apt_generated">
 		<attributes>
 			<attribute name="optional" value="true"/>

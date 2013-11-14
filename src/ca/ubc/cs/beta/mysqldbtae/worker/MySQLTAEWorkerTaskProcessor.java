@@ -88,7 +88,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		}
 		
 		long endTime = (startTimeSecs + getSecondsLeft()) * 1000;
-		long minCutoffDeathTime = Long.MAX_VALUE;
+		long minCutoffDeathTimestampInMillis = Long.MAX_VALUE;
 		long lastUpdateTime = System.currentTimeMillis();
 		long lastJobFinished = System.currentTimeMillis();
 		
@@ -189,18 +189,20 @@ public class MySQLTAEWorkerTaskProcessor {
 					synchronized(lock){
 						mysqlPersistence.resetUnfinishedRuns();
 					}
+					
+					int minCutoffInDB = mysqlPersistence.getMinCutoff();
 					if(jobsEvaluated==0)
 					{
 						log.info("No jobs were evaluated");
 
-						if(mysqlPersistence.getMinCutoff()>getSecondsLeft() && minCutoffDeathTime==Long.MAX_VALUE)
+						if(minCutoffInDB>getSecondsLeft() && minCutoffDeathTimestampInMillis==Long.MAX_VALUE)
 						{
-							minCutoffDeathTime = System.currentTimeMillis()+options.minCutoffDeathTime*1000;
+							minCutoffDeathTimestampInMillis = System.currentTimeMillis()+options.minCutoffDeathTime*1000;
 						}
 					} else
 					{
 						lastJobFinished = System.currentTimeMillis();
-						minCutoffDeathTime = Long.MAX_VALUE;
+						minCutoffDeathTimestampInMillis = Long.MAX_VALUE;
 					}
 					
 					
@@ -240,46 +242,23 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 					double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
 					
-					double idleTime = (int) (System.currentTimeMillis()/1000.0 - lastJobFinished/1000.0);
-					
-					int sumWorkerIdleTimes = mysqlPersistence.sumIdleTimes();
-					
-					String killWindow = (minCutoffDeathTime == Long.MAX_VALUE) ? "inf" : ""+(minCutoffDeathTime-System.currentTimeMillis())/1000;
-					log.debug("Worker life remaining: {} seconds, worker idle limit remaining: {} seconds, ",getSecondsLeft(), (int) ( options.idleLimit - idleTime));
-					log.debug("pool idle limit remaining: {} seconds, jobs too long kill window: {} seconds" ,(int)(options.poolIdleTimeLimit-sumWorkerIdleTimes), killWindow);
-					
-					if(waitTime > getSecondsLeft())
+					if(checkShutdownConditions(minCutoffDeathTimestampInMillis,lastJobFinished, mysqlPersistence, minCutoffInDB,waitTime))
 					{
-						log.info("Wait time {} is too high, finishing up", waitTime);
-						mysqlPersistence.markWorkerCompleted("Time Limit Expired (Wait time remaining is higher than seconds we have left)");
 						return;
-					} else if(idleTime > options.idleLimit)
+					} else
 					{
-						log.info("We have been idle too long {}, finishing up", idleTime );
-						mysqlPersistence.markWorkerCompleted("Idle limit reached: " + idleTime + " versus limit: " + options.idleLimit);
-						return;
-					} else if(sumWorkerIdleTimes > options.poolIdleTimeLimit)
-					{
-						log.info("Aggregate pool idle time too long {}, finishing up", sumWorkerIdleTimes );
-						mysqlPersistence.markWorkerCompleted("Pool Idle Limit reached: " + sumWorkerIdleTimes + " versus limit: " + options.poolIdleTimeLimit);
-						return;
-					} else if(minCutoffDeathTime < System.currentTimeMillis())
-					{
-						log.info("All runs in database have runs larger than our remaining time, and we already waited {} seconds, finishing up", options.minCutoffDeathTime);
-						mysqlPersistence.markWorkerCompleted("Remaining Jobs too long for us :" + getSecondsLeft());
-						return;
+						if(waitTime > 0.0)
+						{
+							log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
+							boolean fullSleep = mysqlPersistence.sleep(waitTime);
+							if(jobsEvaluated==0 && fullSleep)
+							{
+								workerIdleTime+=Math.round(waitTime);
+							}
+						}
 					}
 					 
 					
-					
-					
-					if(waitTime > 0.0)
-					{
-						log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
-						boolean fullSleep = mysqlPersistence.sleep(waitTime);
-						if(jobsEvaluated==0 && fullSleep)
-							workerIdleTime+=Math.round(waitTime);
-					}
 						
 					if(Thread.interrupted())
 					{
@@ -339,6 +318,63 @@ public class MySQLTAEWorkerTaskProcessor {
 		}
 		
 	
+	}
+
+
+	/**
+	 * Checks whether the worker should shutdown
+	 * 
+	 * @param minCutoffDeathTimestampInMillis
+	 * @param lastJobFinished
+	 * @param mysqlPersistence
+	 * @param minCutoffInDB
+	 * @param waitTime
+	 * @return <code>true</code> if the worker should terminate, <code>false</code> otherwise.
+	 */
+	private boolean checkShutdownConditions(long minCutoffDeathTimestampInMillis,
+			long lastJobFinished,
+			final MySQLPersistenceWorker mysqlPersistence, int minCutoffInDB,
+			double waitTime) {
+
+		double idleTime = (int) (System.currentTimeMillis()/1000.0 - lastJobFinished/1000.0);
+		
+		long sumWorkerIdleTimes = mysqlPersistence.sumIdleTimes();
+		
+		double minCutoffKillDelayInSeconds = (minCutoffDeathTimestampInMillis-System.currentTimeMillis())/1000;
+		
+		log.debug("Worker life remaining: {} seconds, worker idle limit remaining: {} seconds, ",getSecondsLeft(), (int) ( options.idleLimit - idleTime));
+		log.debug("Remaining Idle Time for Worker Pool: {} seconds", options.poolIdleTimeLimit-sumWorkerIdleTimes);
+
+		if(waitTime > getSecondsLeft())
+		{
+			log.info("Wait time {} is too high, finishing up", waitTime);
+			mysqlPersistence.markWorkerCompleted("Time Limit Expired (Wait time remaining is higher than seconds we have left)");
+			return true;
+		} else if(idleTime > options.idleLimit)
+		{
+			log.info("We have been idle too long {}, finishing up", idleTime );
+			mysqlPersistence.markWorkerCompleted("Idle limit reached: " + idleTime + " versus limit: " + options.idleLimit);
+			return true;
+		} else if(sumWorkerIdleTimes > options.poolIdleTimeLimit)
+		{
+			log.info("Aggregate pool idle time too long {}, finishing up", sumWorkerIdleTimes );
+			mysqlPersistence.markWorkerCompleted("Pool Idle Limit reached: " + sumWorkerIdleTimes + " versus limit: " + options.poolIdleTimeLimit);
+			return true;
+		} else if(minCutoffKillDelayInSeconds < 0)
+		{
+			log.info("Minimum job cutoff time is too high {} seconds with what we have remaining {} seconds, giving up", minCutoffInDB,  getSecondsLeft());
+			mysqlPersistence.markWorkerCompleted("Minimum Job Cutoff in DB is too high: " + minCutoffInDB + " seconds verus: " + getSecondsLeft());
+			return true;
+		} else
+		{
+			if(minCutoffDeathTimestampInMillis != Long.MAX_VALUE)
+			{
+				String killWindow = (minCutoffDeathTimestampInMillis == Long.MAX_VALUE) ? "inf" : ""+minCutoffKillDelayInSeconds;
+				log.warn("All jobs in database have a cutoff time larger our remaining time, we will terminate within {} (s), unless new jobs are added", killWindow);
+			}
+		}
+		
+		return false;
 	}
 
 
