@@ -189,12 +189,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 
 	private final JobPriority priority;
 	
-	public MySQLPersistenceClient(MySQLOptions mysqlOptions, String pool, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
+	public MySQLPersistenceClient(MySQLOptions mysqlOptions, String pool, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
 	{
 		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, false);
 	}
 	
-	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean addlRunData)
+	public MySQLPersistenceClient(String host, String port, String databaseName, String username, String password, String pool, String pathStrip, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean addlRunData)
 	{
 		this(host, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, addlRunData);
 	}
@@ -202,7 +202,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 
 	public MySQLPersistenceClient(String host, int port,
 			String databaseName, String username, String password, String pool,
-			String pathStrip, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean getAdditionalRunData) {
+			String pathStrip, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, boolean getAdditionalRunData) {
 		super(host, port, databaseName, username, password, pool, createTables);
 		this.pathStrip = new PathStripper(pathStrip);
 		this.batchInsertSize = batchInsertSize;

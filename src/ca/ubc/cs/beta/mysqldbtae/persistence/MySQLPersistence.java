@@ -40,13 +40,13 @@ public class MySQLPersistence {
 	
 	public static final int MAX_RETRYS_ATTEMPTS = 100;
 	public static final int MAX_SLEEP_TIME_IN_MS = 300000;
-	protected final String TABLE_COMMAND;
-	protected final String TABLE_EXECCONFIG;
-	protected final String TABLE_RUNCONFIG;
 	
-	protected final String TABLE_WORKERS;
 	
-	protected final String TABLE_VERSION;
+	public final String TABLE_COMMAND;
+	public final String TABLE_EXECCONFIG;
+	public final String TABLE_RUNCONFIG;
+	public final String TABLE_WORKERS;
+	public  final String TABLE_VERSION;
 	
 	
 	protected final String POOL;
@@ -74,7 +74,7 @@ public class MySQLPersistence {
 	
 	protected final String DATABASE;
 	
-	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, boolean createTables)
+	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, Boolean createTables)
 	{
 		
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
@@ -136,10 +136,43 @@ public class MySQLPersistence {
 			
 			String versionHash = getHash(sql);
 			
+			 TABLE_COMMAND = pool + "_commandTable";
+			 TABLE_EXECCONFIG = pool + "_execConfig";
+			 TABLE_RUNCONFIG = pool + "_runConfigs";
+			 TABLE_WORKERS = pool + "_workers";
+			 TABLE_VERSION = pool + "_version";
+			 POOL = pool;
+			 this.SLEEP_COMMENT_TEXT = SLEEP_STRING + POOL;
+			 this.DATABASE = databaseName;
+			 
+			
+			 
+			boolean databaseExists = false;
+			
+			Connection conn = cpds.getConnection();
+			try {
+				try {
+					conn.createStatement().execute("SELECT 1 FROM " + TABLE_VERSION + " LIMIT 1");
+					databaseExists = true;
+				} catch(SQLException e)
+				{
+					log.info("Autodetecting of tables for pool {} failed suggesting it doesn't exist, will create tables", pool);
+					
+				}
+			} finally
+			{
+				conn.close();
+			}
+						
+			createTables = (createTables == null) ? !databaseExists : createTables;
+
+			if(!createTables && !databaseExists)
+			{
+				throw new ParameterException("Pool will not be created and the database does not exist please check your command line arguments pool :" + pool);
+			}
+			
 			if(createTables)
 			{
-			
-				
 				
 				sql = sql.replace("ACLIB_POOL_NAME", pool).trim();
 				
@@ -154,7 +187,7 @@ public class MySQLPersistence {
 					}
 				Object args[] = { url, hostname, host, port };
 				log.info("Attempting database connection to {} , if nothing is happening it probably means the database is inaccessible. Please try connecting to the database from host {} to {} : {}",args );
-				Connection conn = cpds.getConnection();
+				conn = cpds.getConnection();
 				for(String sqlStatement : chunks)
 				{
 					if(sqlStatement.trim().length() == 0) continue;
@@ -172,20 +205,21 @@ public class MySQLPersistence {
 				log.info("Skipping table creation");
 			}
 			
-			 TABLE_COMMAND = pool + "_commandTable";
-			 TABLE_EXECCONFIG = pool + "_execConfig";
-			 TABLE_RUNCONFIG = pool + "_runConfigs";
-			 TABLE_WORKERS = pool + "_workers";
-			 TABLE_VERSION = pool + "_version";
-			 POOL = pool;
-			 this.SLEEP_COMMENT_TEXT = SLEEP_STRING + POOL;
-			 this.DATABASE = databaseName;
+			
 			 
 			 checkVersion(versionHash);
 			 
 		} catch (Throwable e) {
 			e.printStackTrace();
-			throw new RuntimeException(e);
+			if(e instanceof RuntimeException)
+			{
+				throw (RuntimeException) e;
+			} else
+			{
+				throw new IllegalStateException("Unexpected Exception ", e);
+			}
+				
+			
 			
 		}
 		
