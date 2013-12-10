@@ -510,7 +510,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				log.info("Current batch of jobs is taking to long, {} queued runs have been pushed back to the database", extraRuns.size());
 			} else
 			{
-					log.debug("There are still {} jobs in DB, not pushing back at the moment");
+					log.debug("There are still {} jobs in DB, not pushing back at the moment", newJobsInDB);
 					executePushBack.schedule(this, delayBetweenRequests, TimeUnit.SECONDS);
 			}
 		}
