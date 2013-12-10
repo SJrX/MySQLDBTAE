@@ -386,7 +386,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								//=== Kill all the NEW jobs by marking them as complete
 								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, status=\"COMPLETE\",runResult=\"KILLED\", additionalRunData=\"Killed By Client While New\"  WHERE status=\"NEW\" OR status=\"ASSIGNED\" AND runConfigUUID IN (");
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, additionalRunData=CONCAT(\"Killed By Client While \",status), status=\"COMPLETE\",runResult=\"KILLED\" WHERE status=\"NEW\" OR status=\"ASSIGNED\" AND runConfigUUID IN (");
 								
 								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
 								{
@@ -399,57 +399,17 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									killedJobs.add(runsToKill.get(i));
 								}
 								
-								
-								
 								sb.append(")");
-								
 								
 								try {
 									stmt = conn.prepareStatement(sb.toString());
-									System.out.println(sb.toString());
+									
 									executePS(stmt);
 								
 								} finally
 								{
 									if(stmt != null) stmt.close();
 								}
-								
-								
-								
-								//== Kill all the assigned jobs by setting the flag
-								/*
-								 * This doesn't actually work
-								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1 WHERE (status=\"ASSIGNED\") AND runConfigUUID IN (");
-								
-								
-								
-								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
-								{
-									//Only jobs upto the QUERY_SIZE_LIMIT will be killed, other jobs will wait until next poll
-									if(i!=0)
-									{
-										sb.append(",");
-									}
-									sb.append("\""+runsToKill.get(i)+"\"");
-									killedJobs.add(runsToKill.get(i));
-								}
-								
-								
-								
-								sb.append(")");
-								
-								
-								try {
-									stmt = conn.prepareStatement(sb.toString());
-									System.out.println(sb.toString());
-									stmt.execute();
-								
-								} finally
-								{
-									if(stmt != null) stmt.close();
-								}
-								*/
 								
 							}
 							
