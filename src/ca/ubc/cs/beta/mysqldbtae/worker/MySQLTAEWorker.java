@@ -2,17 +2,20 @@ package ca.ubc.cs.beta.mysqldbtae.worker;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
+import ca.ubc.cs.beta.aclib.misc.returnvalues.ACLibReturnValues;
 import ca.ubc.cs.beta.aclib.misc.spi.SPIClassLoaderHelper;
 import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 
@@ -119,15 +122,42 @@ public class MySQLTAEWorker {
 		}catch(ParameterException e)
 		{
 		
-		
-			
 			log.error("Error occured parsing arguments: {}", e.getMessage());
 			if(log.isDebugEnabled())
 			{
 				log.debug("Stack trace", e);
 			}
+			System.exit(ACLibReturnValues.PARAMETER_EXCEPTION);
 		}
+		
 		log.info("Main Method Ended");
+		
+		
+		//Checking to make sure no TAE threads are around, we will eventually terminate after 60 seconds
+		//as this is better than wasting a bunch of CPU time.
+		
+		ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+		int nonDaemonThreadCount = threadMXBean.getThreadCount() - threadMXBean.getDaemonThreadCount();
+		for(int i=0; i < 60; i++)
+		{
+			if(nonDaemonThreadCount <= 1)
+			{ //This main thread is the only thread left
+				break;
+			} else
+			{
+				log.warn("There seems to be many non-daemon threads around {}. Chances are some target algorithm evaluator has some threads around or wasn't cleaned up properly.", nonDaemonThreadCount);
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return;
+				}
+			}
+			nonDaemonThreadCount = threadMXBean.getThreadCount() - threadMXBean.getDaemonThreadCount();
+			
+		}
+				
+		System.exit(ACLibReturnValues.SUCCESS);
 	}
 	
 }

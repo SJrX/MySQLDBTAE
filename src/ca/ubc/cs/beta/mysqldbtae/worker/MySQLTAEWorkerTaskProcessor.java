@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -130,11 +131,12 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 		});
 		
+		Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new ConcurrentHashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
 		try {
 			
 			try {
 		
-				Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
+				
 				
 				log.info("Starting Job Processing");
 
@@ -282,8 +284,28 @@ public class MySQLTAEWorkerTaskProcessor {
 				mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
 			}
 			else
+			{
 				mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
-			mysqlPersistence.resetUnfinishedRuns();
+			}
+			
+			try 
+			{
+				mysqlPersistence.resetUnfinishedRuns();
+			} finally
+			{
+				for(TargetAlgorithmEvaluator tae : taeMap.values())
+				{
+					try {
+						tae.notifyShutdown();
+					} catch(RuntimeException t)
+					{
+						log.error("Error occurred shutting down Target Algorithm Evaluator {}", tae);
+						log.error("Throwable ", t);
+					}
+				}
+			}
+			
+			
 		}
 		
 	
