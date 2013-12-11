@@ -2,6 +2,7 @@ package ca.ubc.cs.beta.mysqldbtae.persistence.client;
 
 import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.lang.management.ManagementFactory;
 import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -185,10 +186,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 * Flag variable, if <code>true</code> we should delete all the data in the db. 
 	 */
 	private final boolean deletePartitionDataOnShutdown;
-	
 
 	private final JobPriority priority;
-	
+
+	private final String processName = (ManagementFactory.getRuntimeMXBean().getName().trim().length() > 0) ? ManagementFactory.getRuntimeMXBean().getName().trim() : "Unknown_JVM";
 	public MySQLPersistenceClient(MySQLOptions mysqlOptions, String pool, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
 	{
 		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, false);
@@ -386,7 +387,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								//=== Kill all the NEW jobs by marking them as complete
 								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, additionalRunData=CONCAT(\"Killed By Client While \",status), status=\"COMPLETE\",runResult=\"KILLED\" WHERE (status=\"NEW\" OR status=\"ASSIGNED\") AND runConfigUUID IN (");
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, additionalRunData=CONCAT(\"Killed By Client (\",?,\" ) While Status \",status), status=\"COMPLETE\",runResult=\"KILLED\" WHERE (status=\"NEW\" OR status=\"ASSIGNED\") AND runConfigUUID IN (");
 								
 								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
 								{
@@ -403,7 +404,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								try {
 									stmt = conn.prepareStatement(sb.toString());
-									
+									stmt.setString(1, this.processName);
 									executePS(stmt);
 								
 								} finally
@@ -630,39 +631,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						
 						executePS(stmt);
 						
-						
-						
-						/*
-						stmt.close();
-						
-						StringBuilder sb2 = new StringBuilder("SELECT runConfigID, runConfigUUID FROM runConfigUUID IN (");
-						
-						for(int j =listLowerBound; j < listUpperBound; j++ )
-						{
-							sb2.append("?,");
-						}
-						sb2.setCharAt(sb2.length()-1, ' ');
-						sb2.append(")");
-						
-						stmt = conn.prepareStatement(sb2.toString());
-						
-						for(int j =listLowerBound,m=1; j < listUpperBound; j++,m++ )
-						{
-							stmt.setString(m, uuids.get(m-1));
-						}
-						
-					
-						
-					
-						ResultSet rs = stmt.executeQuery();
-
-						while(rs.next())
-						{	
-							int runConfigID = rs.getInt(1);
-							String runConfigUUID = rs.getString(2);
-							runConfigToIDMap.put(runConfigUUID, runConfigID);
-						}
-						*/					
 					} finally 
 					{
 						if(stmt != null) stmt.close();
