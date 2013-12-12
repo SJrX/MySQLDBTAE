@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -134,15 +135,16 @@ public class MySQLTAEWorkerTaskProcessor {
 			}
 			
 		});
+
 		TargetAlgorithmEvaluator tae  = null;
 		try {
 			
 			try {
+
 				log.info("Initializing Target Algorithm Evaluator");
 				
 				tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions,  false, taeOptions);
-				
-				
+
 				log.info("Starting Job Processing");
 
 				while(true)
@@ -282,39 +284,38 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 		} finally
 		{
-			try {
-				try {
-				if(Thread.interrupted())
+			try
+			{
+				try
 				{
-					Thread.currentThread().interrupt();
-					//This really shouldn't happen
-					mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
-				}
-				else
-				{
-					mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
-				}
+					if(Thread.interrupted())
+					{
+						Thread.currentThread().interrupt();
+						//This really shouldn't happen
+						mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
+					}
+					else
+					{
+						mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
+					}
 				
 				
-				mysqlPersistence.resetUnfinishedRuns();
+					mysqlPersistence.resetUnfinishedRuns();
 				} finally
 				{
-					try {
-						if(tae != null)
-						{
-							tae.notifyShutdown();
-						}
-					} catch(Exception e)
+				
+					if(tae != null)
 					{
-						log.error("Exception occurred while shutting down TAE", e);
+						tae.notifyShutdown();
 					}
+			
 					
 				}
 			} catch(Exception e)
 			{
 				log.error("Exception occurred while Task Processor shutting down", e);
 			}
-				
+
 		}
 		
 	
@@ -511,7 +512,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				log.info("Current batch of jobs is taking to long, {} queued runs have been pushed back to the database", extraRuns.size());
 			} else
 			{
-					log.debug("There are still {} jobs in DB, not pushing back at the moment");
+					log.debug("There are still {} jobs in DB, not pushing back at the moment", newJobsInDB);
 					executePushBack.schedule(this, delayBetweenRequests, TimeUnit.SECONDS);
 			}
 		}

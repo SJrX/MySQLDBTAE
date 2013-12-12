@@ -25,8 +25,9 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@Parameter(names="--mysqldbtae-pool", description="Pool to take tasks from")
 	public String pool;
 	
+	@UsageTextField(defaultValues="Will attempt to automatically create it if it isn't there")
 	@Parameter(names="--mysqldbtae-create-pool", description="Attempt to create the tables for the database")
-	public boolean createTables = true;
+	public Boolean createTables = null;
 	
 	@UsageTextField(level=OptionLevel.ADVANCED)
 	@Parameter(names="--mysqldbtae-batch-insert-size", description="The number of runs to batch into a single insert", validateWith=FixedPositiveInteger.class)

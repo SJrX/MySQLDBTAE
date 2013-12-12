@@ -119,7 +119,6 @@ public class MySQLDBTAEWorkerWakingTester {
 				config.put("runtime", String.valueOf(2*i+1));
 				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				runConfigs.add(rc);
-				
 			}
 			
 			long startTime = System.currentTimeMillis();

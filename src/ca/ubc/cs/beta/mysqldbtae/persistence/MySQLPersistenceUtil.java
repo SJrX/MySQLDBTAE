@@ -1,6 +1,7 @@
 package ca.ubc.cs.beta.mysqldbtae.persistence;
 
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorPersistenceRetriever;
 
@@ -26,6 +27,11 @@ public class MySQLPersistenceUtil {
 	public static void executeQueryForDebugPurposes(String sql, MySQLTargetAlgorithmEvaluator tae)
 	{
 		executeQueryForDebugPurposes(sql, MySQLTargetAlgorithmEvaluatorPersistenceRetriever.getPersistence(tae));
+	}
+	
+	public static MySQLPersistenceClient getPersistence(MySQLTargetAlgorithmEvaluator tae)
+	{
+		return MySQLTargetAlgorithmEvaluatorPersistenceRetriever.getPersistence(tae);
 	}
 
 	public static void executeQueryForDebugPurposes(String sql,

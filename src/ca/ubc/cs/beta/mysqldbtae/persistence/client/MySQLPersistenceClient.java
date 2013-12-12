@@ -2,6 +2,7 @@ package ca.ubc.cs.beta.mysqldbtae.persistence.client;
 
 import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.lang.management.ManagementFactory;
 import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -162,8 +163,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	
 	private final MySQLTargetAlgorithmEvaluatorOptions opts;
 	
+
+	private final String processName = (ManagementFactory.getRuntimeMXBean().getName().trim().length() > 0) ? ManagementFactory.getRuntimeMXBean().getName().trim() : "Unknown_JVM";
+	
 	public MySQLPersistenceClient(MySQLTargetAlgorithmEvaluatorOptions opts)
 	{
+
 		super(opts.host, opts.port, opts.databaseName, opts.username, opts.password, opts.pool, opts.createTables);
 		
 		if(opts.priority == null)
@@ -197,6 +202,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		}
 		
 		this.pathStrip = new PathStripper(pathStrip);
+		
 		
 	}
 	
@@ -368,7 +374,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								//=== Kill all the NEW jobs by marking them as complete
 								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, status=\"COMPLETE\",runResult=\"KILLED\", additionalRunData=\"Killed By Client While New\"  WHERE status=\"NEW\" OR status=\"ASSIGNED\" AND runConfigUUID IN (");
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, additionalRunData=CONCAT(\"Killed By Client (\",?,\" ) While Status \",status), status=\"COMPLETE\",runResult=\"KILLED\" WHERE (status=\"NEW\" OR status=\"ASSIGNED\") AND runConfigUUID IN (");
 								
 								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
 								{
@@ -381,57 +387,17 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									killedJobs.add(runsToKill.get(i));
 								}
 								
-								
-								
 								sb.append(")");
-								
 								
 								try {
 									stmt = conn.prepareStatement(sb.toString());
-									System.out.println(sb.toString());
+									stmt.setString(1, this.processName);
 									executePS(stmt);
 								
 								} finally
 								{
 									if(stmt != null) stmt.close();
 								}
-								
-								
-								
-								//== Kill all the assigned jobs by setting the flag
-								/*
-								 * This doesn't actually work
-								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1 WHERE (status=\"ASSIGNED\") AND runConfigUUID IN (");
-								
-								
-								
-								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
-								{
-									//Only jobs upto the QUERY_SIZE_LIMIT will be killed, other jobs will wait until next poll
-									if(i!=0)
-									{
-										sb.append(",");
-									}
-									sb.append("\""+runsToKill.get(i)+"\"");
-									killedJobs.add(runsToKill.get(i));
-								}
-								
-								
-								
-								sb.append(")");
-								
-								
-								try {
-									stmt = conn.prepareStatement(sb.toString());
-									System.out.println(sb.toString());
-									stmt.execute();
-								
-								} finally
-								{
-									if(stmt != null) stmt.close();
-								}
-								*/
 								
 							}
 							
@@ -650,30 +616,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						stopWatch.start();
 		
 						executePS(stmt);
-						
-						
-						
-						/*
-						stmt.close();
-						
-						StringBuilder sb2 = new StringBuilder("SELECT runConfigID, runConfigUUID FROM runConfigUUID IN (");
-						
-						for(int j =listLowerBound; j < listUpperBound; j++ )
-						{
-							sb2.append("?,");
-						}
-						sb2.setCharAt(sb2.length()-1, ' ');
-						sb2.append(")");
-						
-						stmt = conn.prepareStatement(sb2.toString());
-						
-						for(int j =listLowerBound,m=1; j < listUpperBound; j++,m++ )
-						{
-							stmt.setString(m, uuids.get(m-1));
-						}
-						*/
 
-					
 					} finally 
 					{
 						if(stmt != null) stmt.close();

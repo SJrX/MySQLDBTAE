@@ -214,7 +214,7 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 
 */
 	
-	public static MySQLTargetAlgorithmEvaluator getMySQLTargetAlgorithmEvaluator(MySQLOptions mysqlConfig, String pool, int batchInsertSize, boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
+	public static MySQLTargetAlgorithmEvaluator getMySQLTargetAlgorithmEvaluator(MySQLOptions mysqlConfig, String pool, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
 	{
 		MySQLTargetAlgorithmEvaluatorFactory fact = new MySQLTargetAlgorithmEvaluatorFactory();
 		
