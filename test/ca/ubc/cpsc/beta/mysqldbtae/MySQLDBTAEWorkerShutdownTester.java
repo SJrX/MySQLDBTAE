@@ -33,7 +33,7 @@ import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEv
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 
 @SuppressWarnings("unused")
-public class MySQLDBTAEWorkerWakingTester {
+public class MySQLDBTAEWorkerShutdownTester {
 
 	
 	private static Process proc;
@@ -68,8 +68,8 @@ public class MySQLDBTAEWorkerWakingTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
-			b.append(" --timeLimit 1d --updateFrequency 1");
-			b.append(" --tae PARAMECHO --delayBetweenRequests 240 --idleLimit 300s --runsToBatch 100" );
+			b.append(" --timeLimit 1d --updateFrequency 5");
+			b.append(" --tae PARAMECHO --delayBetweenRequests 150 --idleLimit 300s --runsToBatch 100" );
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			System.out.println(b.toString());
 			proc = Runtime.getRuntime().exec(b.toString());
@@ -90,7 +90,7 @@ public class MySQLDBTAEWorkerWakingTester {
 	
 
 	@Test
-	public void testWorkerWakeup()
+	public void testWorkerShutdownOnTermination()
 	{
 		
 			MySQLDBTargetAlgorithmEvaluatorFactory fact = new MySQLDBTargetAlgorithmEvaluatorFactory();
@@ -102,7 +102,6 @@ public class MySQLDBTAEWorkerWakingTester {
 			opts.wakeUpWorkersOnSubmit = true;
 			opts.pool = MYSQL_POOL;
 			opts.deletePartitionDataOnShutdown = true;
-			
 			opts.shutdownWorkersOnCompletion = true;
 			
 			TargetAlgorithmEvaluator tae = fact.getTargetAlgorithmEvaluator(execConfig, opts);
@@ -114,7 +113,7 @@ public class MySQLDBTAEWorkerWakingTester {
 				ParamConfiguration config = configSpace.getDefaultConfiguration();
 			
 				config.put("seed", String.valueOf(i));
-				config.put("runtime", String.valueOf(1));
+				config.put("runtime", String.valueOf(2*i+1));
 				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config);
 				runConfigs.add(rc);
 			}
@@ -123,16 +122,46 @@ public class MySQLDBTAEWorkerWakingTester {
 			
 			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
 			
+			
 			long endTime = System.currentTimeMillis();
 			
 			assertTrue("Expected SleepTime to be less than 10 seconds with worker wakeup", (endTime - startTime) < 10000);
 			
-		
-			
+			for(AlgorithmRun run : runs)
+			{
+				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
+				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
+				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
+				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
+				assertEquals(config.get("solved"), run.getRunResult().name());
+				//This executor should not have any additional run data
+				assertEquals("",run.getAdditionalRunData());
+
+			}
+			assertEquals("Worker should still be running",true,isRunning(this.proc));
 			tae.notifyShutdown();
+			
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			
+			assertEquals("Worker should not be running",false,isRunning(this.proc));
 	}
 	
 	
+	
+	
+	public boolean isRunning(Process process) {
+	    try {
+	        process.exitValue();
+	        return false;
+	    } catch (IllegalThreadStateException e) {
+	        return true;
+	    }
+	}
 	
 	@AfterClass
 	public static void afterClass()

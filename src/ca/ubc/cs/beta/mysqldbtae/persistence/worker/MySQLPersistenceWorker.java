@@ -300,7 +300,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						continue;
 					}
 					
-					configList.add(new Pair(execConfig, rc));
+					configList.add(new Pair<AlgorithmExecutionConfig, RunConfig>(execConfig, rc));
 					
 				}
 				rs.close();
@@ -385,38 +385,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 	
-	/**
-	 * Attempts to execute an SQL statement with increasingly spaced out retry attempts on failure
-	 * @param stmt  PreparedStatment to execute
-	 * @throws SQLException
-	 */
-	//private void execute(PreparedStatement stmt) throws SQLException
-	//{
-		//executePS(stmt);
-		/*
-		long sleepMS = BASIC_SLEEP_MS;
-		for(int i=0; i < 25; i++)
-		{
-			try {
-				stmt.execute();
-				return;
-			} catch(MySQLTransactionRollbackException e)
-			{
-				//Deadlock detected
-				
-				try {
-					Thread.sleep(sleepMS + (long) ((Math.random()*sleepMS)/2));
-				} catch (InterruptedException e1) {
-					Thread.currentThread().interrupt();
-					throw new IllegalStateException("Unknown interruption occurred", e1);
-				}
-				sleepMS = Math.min(2*sleepMS, MAX_SLEEP_MS);
-				continue;
-			}
-		}
-		throw new SQLException("After 25 attempts we could not get a successful Transaction");
-	}
-	
+
 	/**
 	 * Take a given runConfig and set it to ABORT
 	 * @param runConfigUUID  String with the UUID of the runConfig
@@ -593,9 +562,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					return null;
 				}
 				
+				
 
-				log.debug("Flushing blacklist which previously had {} entries", this.blacklistedKeys.size());
-				this.blacklistedKeys.clear();
+				if(this.blacklistedKeys.size() > 0)
+				{
+					log.debug("Flushing blacklist which previously had {} entries", this.blacklistedKeys.size());
+					this.blacklistedKeys.clear();
+				}
 				
 				long timeLimit = rs.getTimestamp(1).getTime()-startDateTime.getTime();
 				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getInt(5));
@@ -934,7 +907,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					}
 		} 
 			
-		return true;
+		return successfulDBSleep;
 		
 	}
 

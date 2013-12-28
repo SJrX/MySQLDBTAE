@@ -35,6 +35,7 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 	MySQLDBTAEPoolSwitchTester.class,
 	MySQLDBTAEPriorityOrderTester.class,
 	MySQLDBTAETester.class,
+	MySQLDBTAEWorkerWakingTester.class,
 	MySQLDBTAEWorkerWakingTester.class
 
 	

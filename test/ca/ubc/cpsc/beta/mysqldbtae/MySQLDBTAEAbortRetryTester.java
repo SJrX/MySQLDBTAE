@@ -27,7 +27,7 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.ParamEchoExecutor;
-import ca.ubc.cs.beta.targetalgorithmevaluator.ParamEchoExecutorNineTenthChanceAbort;
+import ca.ubc.cs.beta.targetalgorithmevaluator.ParamEchoExecutorThreeFifthChanceAbort;
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
@@ -71,7 +71,7 @@ public class MySQLDBTAEAbortRetryTester {
 		b.append("java -cp ");
 		b.append(System.getProperty("java.class.path"));
 		b.append(" ");
-		b.append(ParamEchoExecutorNineTenthChanceAbort.class.getCanonicalName());
+		b.append(ParamEchoExecutorThreeFifthChanceAbort.class.getCanonicalName());
 		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
 		
 		
@@ -158,7 +158,7 @@ public class MySQLDBTAEAbortRetryTester {
 			{
 				try {
 					assertTrue(isRunning(proc));
-					 runs = highMySQLTAE.evaluateRun(runConfigs);
+					runs = highMySQLTAE.evaluateRun(runConfigs);
 	
 					if(i == 0)
 					{

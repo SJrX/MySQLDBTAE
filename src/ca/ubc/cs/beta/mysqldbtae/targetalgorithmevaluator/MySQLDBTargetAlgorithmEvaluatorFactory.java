@@ -141,7 +141,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 			}
 		}
 		
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, port, databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority, opts.additionalRunData);
+		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority, opts.additionalRunData, opts.shutdownWorkersOnCompletion);
 		String command = System.getProperty("sun.java.command");
 		if((command == null) || (command.trim().length() < 1))
 		{

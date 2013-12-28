@@ -53,7 +53,7 @@ public class MySQLTAEWorkerTaskProcessor {
 	
 	private volatile RuntimeException crashReason = null;
 	
-	private volatile int workerIdleTime = 0;
+	private volatile double workerIdleTime = 0;
 	
 	private volatile int totalRunFetchRequests = 0;
 	public MySQLTAEWorkerTaskProcessor(long startTimeSecs, MySQLTAEWorkerOptions options, Map<String, AbstractOptions> taeOptions)
@@ -208,29 +208,7 @@ public class MySQLTAEWorkerTaskProcessor {
 					if(System.currentTimeMillis() - lastUpdateTime > (options.updateFrequency * 1000))
 					{
 						
-						log.debug("Checking for new parameters");
-						UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters();
-						mysqlPersistence.updateIdleTime(workerIdleTime);
-						
-						if(params != null)
-						{
-							options.delayBetweenRequests = params.getDelayBetweenRequests();
-							options.runsToBatch = params.getBatchSize();
-							options.timeLimit = params.getTimeLimit();
-							options.poolIdleTimeLimit = params.getPoolIdleTimeLimit();
-							
-							log.info("Updated values in database detected -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+", Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
-							
-							if(!options.pool.trim().equals(params.getPool().trim()))
-							{
-								options.pool = params.getPool().trim();
-								log.info("Pool Changed to {}",options.pool);
-								mysqlPersistence.markWorkerCompleted("Pool changed to " + options.pool);
-								throw new PoolChangedException(null, options.pool);
-							}
-									
-						}
-						lastUpdateTime = System.currentTimeMillis();
+						lastUpdateTime = checkForUpdatedParameters(mysqlPersistence);
 						
 					}
 					
@@ -245,10 +223,20 @@ public class MySQLTAEWorkerTaskProcessor {
 						{
 							log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
 							boolean fullSleep = mysqlPersistence.sleep(waitTime);
-							if(jobsEvaluated==0 && fullSleep)
+							
+							if(!fullSleep)
 							{
-								workerIdleTime+=Math.round(waitTime);
+								log.debug("Worker interrupted, checking for updated parameters");
+								lastUpdateTime= checkForUpdatedParameters(mysqlPersistence);
+							} else 
+							{
+								if(jobsEvaluated==0)
+								{
+									workerIdleTime+=waitTime;
+								}
+								
 							}
+							
 						}
 						
 					}
@@ -309,6 +297,40 @@ public class MySQLTAEWorkerTaskProcessor {
 		}
 		
 	
+	}
+
+
+	/**
+	 * @param mysqlPersistence
+	 * @return
+	 * @throws PoolChangedException
+	 */
+	private long checkForUpdatedParameters(final MySQLPersistenceWorker mysqlPersistence)
+			throws PoolChangedException {
+		
+		log.debug("Checking for new parameters");
+		UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters();
+		mysqlPersistence.updateIdleTime((int) Math.floor(workerIdleTime));
+		
+		if(params != null)
+		{
+			options.delayBetweenRequests = params.getDelayBetweenRequests();
+			options.runsToBatch = params.getBatchSize();
+			options.timeLimit = params.getTimeLimit();
+			options.poolIdleTimeLimit = params.getPoolIdleTimeLimit();
+			
+			log.info("Updated values in database detected -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+", Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
+			
+			if(!options.pool.trim().equals(params.getPool().trim()))
+			{
+				options.pool = params.getPool().trim();
+				log.info("Pool Changed to {}",options.pool);
+				mysqlPersistence.markWorkerCompleted("Pool changed to " + options.pool);
+				throw new PoolChangedException(null, options.pool);
+			}
+					
+		}
+		return System.currentTimeMillis();
 	}
 
 
