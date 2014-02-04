@@ -65,6 +65,9 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@ParameterFile
 	public File mysqlParamFile = null;
 
+	@Parameter(names="--mysqldbtae-shutdown-workers-on-complete", description="Shutdown the workers when complete")
+	public boolean shutdownWorkersOnCompletion = false;
+	
 	@Parameter(names="--mysqldbtae-priority", description="Priority of Jobs inserted into database")
 	public JobPriority priority = JobPriority.NORMAL;
 	

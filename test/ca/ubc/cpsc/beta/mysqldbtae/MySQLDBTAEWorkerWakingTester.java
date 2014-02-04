@@ -72,7 +72,7 @@ public class MySQLDBTAEWorkerWakingTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
-			b.append(" --timeLimit 1d --updateFrequency 2");
+			b.append(" --timeLimit 1d --updateFrequency 1");
 			b.append(" --tae PARAMECHO --delayBetweenRequests 240 --idleLimit 300s --runsToBatch 100" );
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			System.out.println(b.toString());
@@ -106,18 +106,24 @@ public class MySQLDBTAEWorkerWakingTester {
 			opts.wakeUpWorkersOnSubmit = true;
 			opts.pool = MYSQL_POOL;
 			opts.deletePartitionDataOnShutdown = true;
+			opts.shutdownWorkersOnCompletion = true;
 			
+			
+
 			TargetAlgorithmEvaluator tae = fact.getTargetAlgorithmEvaluator( opts);
 			
 				
 			List<RunConfig> runConfigs = new ArrayList<RunConfig>(5);
-			for(int i=0; i < 5; i++)
+			for(int i=0; i < 1; i++)
 			{
 				ParamConfiguration config = configSpace.getDefaultConfiguration();
 			
 				config.put("seed", String.valueOf(i));
+
+				
 				config.put("runtime", String.valueOf(2*i+1));
 				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+
 				runConfigs.add(rc);
 			}
 			
@@ -125,23 +131,11 @@ public class MySQLDBTAEWorkerWakingTester {
 			
 			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
 			
-			
 			long endTime = System.currentTimeMillis();
 			
 			assertTrue("Expected SleepTime to be less than 10 seconds with worker wakeup", (endTime - startTime) < 10000);
 			
-			for(AlgorithmRun run : runs)
-			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
-				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
-				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
-				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
-				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
-				//This executor should not have any additional run data
-				assertEquals("",run.getAdditionalRunData());
-
-			}
+		
 			
 			tae.notifyShutdown();
 	}

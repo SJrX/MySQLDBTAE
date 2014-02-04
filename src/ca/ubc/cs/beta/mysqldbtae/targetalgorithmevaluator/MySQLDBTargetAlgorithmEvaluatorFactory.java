@@ -48,11 +48,7 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		
 		checkOldEnvironmentVariables();
 		
-		String hostname = opts.host;
-		String port = String.valueOf(opts.port);
-		String databaseName = opts.databaseName;
-		String username = opts.username;
-		String password = opts.password;
+		
 		String pool = opts.pool;
 		if(pool == null)
 		{
@@ -64,9 +60,6 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 		{
 			throw new ParameterException("MySQL Pool name must be between 1 and 30 characters");
 		}
-		boolean createTables = opts.createTables;
-		
-		int batchInsertSize = opts.batchInsertSize;
 		
 		int runPartition = opts.runPartition;
 		
@@ -140,7 +133,11 @@ public class MySQLDBTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgori
 			}
 		}
 		
+
 		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(opts);
+
+		//MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority, opts.additionalRunData, opts.shutdownWorkersOnCompletion);
+
 		String command = System.getProperty("sun.java.command");
 		if((command == null) || (command.trim().length() < 1))
 		{

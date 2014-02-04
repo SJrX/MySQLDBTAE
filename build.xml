@@ -51,6 +51,7 @@ dirty: ${git.dirty}</echo>
 					</fileset>
 					<fileset dir="${software.dir}/aclib-${git.branch}/" id="aclib">
 						<include name="*.jar"/>
+						<include name="example_scripts/**/*"/>
 					</fileset>
 		</path>	
 			

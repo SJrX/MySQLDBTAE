@@ -182,7 +182,10 @@ public class MySQLDBTAEPoolIdleTester {
 			assertTrue(isRunning(proc1));
 			assertTrue(isRunning(proc2));
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=\"8\", upToDate=0", tae);
+
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=\"4\", upToDate=0", tae);
+
+
 			
 			Thread.sleep(5000);
 			assertTrue(!isRunning(proc1));

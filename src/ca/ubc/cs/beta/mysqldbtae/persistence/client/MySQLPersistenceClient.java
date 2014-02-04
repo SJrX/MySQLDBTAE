@@ -165,7 +165,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	
 
 	private final String processName = (ManagementFactory.getRuntimeMXBean().getName().trim().length() > 0) ? ManagementFactory.getRuntimeMXBean().getName().trim() : "Unknown_JVM";
-	
+
+	private final boolean shutdownWorkersOnCompletion;
 	public MySQLPersistenceClient(MySQLTargetAlgorithmEvaluatorOptions opts)
 	{
 
@@ -175,6 +176,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		{
 			throw new IllegalArgumentException("Priority cannot be null"); 
 		}
+		
+		this.shutdownWorkersOnCompletion = opts.shutdownWorkersOnCompletion;
 		
 		if(opts.deletePartitionDataOnShutdown && opts.runPartition < 0)
 		{
@@ -204,10 +207,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		this.pathStrip = new PathStripper(pathStrip);
 		
 		
-	}
-	
-	
 
+		//this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, false, false);
+
+	}
 
 
 
@@ -830,7 +833,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 * Note: There is a race condition implicitly in how this works and we rely on timing to make this work properly :S. You will want to look at how the sleep method works at the same time
 	 * as modifying this method: {@link ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker#sleep(double)}.
 	 * 
-	 * In short we will keep looping trying to kill workers until either a second 
+	 * In short in a loop, we pull all sleeping workers from the database and keep issuing KILL QUERY until we kill enough, or until a second has passed, then we update the list.
 	 * 
 	 * @param workersToWake  the number of workers to wake up
 	 * 
@@ -922,7 +925,38 @@ outerloop:
 	 */
 	public void shutdown()
 	{
+		
+
+		if(this.shutdownWorkersOnCompletion)
+		{
+			log.debug("Notifying workers that they should shutdown immediately");
+			
+			String query = "UPDATE " + TABLE_WORKERS + " SET upToDate=0,endTime_UPDATEABLE=NOW() WHERE status=\"RUNNING\"";
+			
+			try {
+				PreparedStatement stmt = getConnection().prepareStatement(query);
+				int updated = executePSUpdate(stmt);
+				
+			
+				this.wakeWorkers(updated);
+				log.info("A total of {} workers were told to shutdown immediately, workers woken up", updated);
+				
+				
+				
+			} catch(SQLException e)
+			{
+				log.error("Couldn't notify workers to shutdown, error while executing", query, e);
+				throw new IllegalStateException(e);
+			}
+		} else
+		{
+			log.trace("Workers will be left remaining");
+		}
+		
+		
+
 		if(opts.deletePartitionDataOnShutdown)
+
 		{
 			log.debug("Deleting all data in {} with runPartition {} ", TABLE_RUNCONFIG, opts.runPartition);
 			String query = "DELETE FROM " + TABLE_RUNCONFIG + " WHERE runPartition=" + opts.runPartition;
@@ -942,5 +976,11 @@ outerloop:
 		{
 			log.debug("Data in database will be left alone");
 		}
+		
+
+		
+		
+		
+		
 	}
 }

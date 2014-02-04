@@ -59,18 +59,26 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	@Override
 	public void notifyShutdown() {
 		
+		log.info("MySQL TAE Shutdown in Progress");
+		
 		shutdownRequested.set(true);
 		requestWatcher.shutdown();
-		persistence.shutdown();
+	
 		try {
-			log.info("MySQL TAE Shutdown in Progress");
-			requestWatcher.awaitTermination(24, TimeUnit.DAYS);
-			log.info("MySQL TAE Shutdown Complete");
+			
+			requestWatcher.awaitTermination(365, TimeUnit.DAYS);
+			
 		} catch(InterruptedException e)
 		{
 			Thread.currentThread().interrupt();
+		
 		}
+		
+		persistence.shutdown();
+		log.info("MySQL TAE Shutdown Complete");
 		requestWatcher.shutdownNow();
+		
+		
 	}
 
 	

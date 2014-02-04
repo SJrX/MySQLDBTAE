@@ -213,7 +213,4 @@ public class MySQLDBTAEWorkerShutdownTester {
 		
 		
 	}
-
-	
-	
 }
