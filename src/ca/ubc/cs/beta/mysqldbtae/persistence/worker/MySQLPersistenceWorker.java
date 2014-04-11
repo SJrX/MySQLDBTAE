@@ -24,12 +24,12 @@ import org.slf4j.LoggerFactory;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
-import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aeatk.configspace.ParamFileHelper;
-import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aeatk.exceptions.DeveloperMadeABooBooException;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration.ParameterStringFormat;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
@@ -123,7 +123,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				 String algorithmExecutable = rs.getString(1);
 				 String algorithmExecutionDirectory = rs.getString(2);
 				 
-				 ParamConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
+				 ParameterConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
 				 
 				 boolean executeOnCluster = rs.getBoolean(4);
 				 boolean deterministicAlgorithm = rs.getBoolean(5);
@@ -276,7 +276,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						
 						ProblemInstance pi = new ProblemInstance(problemInstance,instanceId, Collections.<String, Double> emptyMap(), instanceSpecificInformation );
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
-						ParamConfiguration config = execConfig.getParameterConfigurationSpace().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
+						ParameterConfiguration config = execConfig.getParameterConfigurationSpace().getParameterConfigurationFromString(paramConfiguration, ParameterStringFormat.ARRAY_STRING_SYNTAX);
 						
 						rc = new AlgorithmRunConfiguration(pisp, cutoffTime, config, execConfig);
 						if(killJob)

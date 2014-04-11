@@ -35,10 +35,10 @@ import ca.ubc.cs.beta.aeatk.algorithmrun.RunningAlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.kill.KillHandler;
 import ca.ubc.cs.beta.aeatk.algorithmrun.kill.StatusVariableKillHandler;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
-import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration.ParameterStringFormat;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
@@ -589,7 +589,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							stmt.setString(k++, rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation());
 							stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
 							stmt.setDouble(k++, rc.getCutoffTime());
-							String configString = rc.getParameterConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
+							String configString = rc.getParameterConfiguration().getFormattedParameterString(ParameterStringFormat.ARRAY_STRING_SYNTAX);
 							
 							
 							
@@ -697,7 +697,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			
 			File f = new File(execConfig.getParameterConfigurationSpace().getParamFileName());
 
-			if(!execConfig.getParameterConfigurationSpace().equals(ParamConfigurationSpace.getSingletonConfigurationSpace()))
+			if(!execConfig.getParameterConfigurationSpace().equals(ParameterConfigurationSpace.getSingletonConfigurationSpace()))
 			{
 				if(!f.isAbsolute() || !f.exists())
 				{

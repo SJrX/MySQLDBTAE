@@ -7,21 +7,21 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration.StringFormat;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration.ParameterStringFormat;
 
 public class ACLibHasher {
 
-	public String getHash(ParamConfiguration config)
+	public String getHash(ParameterConfiguration config)
 	{
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
 		try {
-			byte[] result = digest.digest(config.getFormattedParamString(StringFormat.NODB_SYNTAX).getBytes("UTF-8"));
+			byte[] result = digest.digest(config.getFormattedParameterString(ParameterStringFormat.NODB_SYNTAX).getBytes("UTF-8"));
 			return new String(Hex.encodeHex(result));
 
 		} catch (UnsupportedEncodingException e) {
-			throw new IllegalStateException("Could not encode Param Configuration : " + config.getFormattedParamString(StringFormat.NODB_SYNTAX), e);
+			throw new IllegalStateException("Could not encode Param Configuration : " + config.getFormattedParameterString(ParameterStringFormat.NODB_SYNTAX), e);
 		}
 	}
 	
