@@ -21,12 +21,12 @@ import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
@@ -50,7 +50,7 @@ public class MySQLDBTAEJobPushBackTester {
 
 	private static  ParamConfigurationSpace configSpace;
 	
-	private static List<RunConfig> runConfigs;
+	private static List<AlgorithmRunConfiguration> runConfigs;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -87,7 +87,7 @@ public class MySQLDBTAEJobPushBackTester {
 		
 		rand = new MersenneTwister();
 		
-		runConfigs= new ArrayList<RunConfig>(1);
+		runConfigs= new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 5; i++)
 		{
 			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -99,7 +99,7 @@ public class MySQLDBTAEJobPushBackTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}

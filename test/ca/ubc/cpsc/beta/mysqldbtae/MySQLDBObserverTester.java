@@ -18,12 +18,12 @@ import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.decorators.helpers.WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator;
@@ -133,7 +133,7 @@ public class MySQLDBObserverTester {
 		
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 1; i++)
 		{
 			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -145,7 +145,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -195,7 +195,7 @@ public class MySQLDBObserverTester {
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{
@@ -232,7 +232,7 @@ public class MySQLDBObserverTester {
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 1; i++)
 		{
 			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -244,7 +244,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -292,7 +292,7 @@ public class MySQLDBObserverTester {
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{
@@ -327,7 +327,7 @@ public class MySQLDBObserverTester {
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 4; i++)
 		{
 			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -339,7 +339,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -387,7 +387,7 @@ public class MySQLDBObserverTester {
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{
@@ -422,7 +422,7 @@ public class MySQLDBObserverTester {
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 4; i++)
 		{
 			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -434,7 +434,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -482,7 +482,7 @@ public class MySQLDBObserverTester {
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{
@@ -519,7 +519,7 @@ public class MySQLDBObserverTester {
 		
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(10);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(10);
 		for(int i=0; i < 10; i++)
 		{
 			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -531,7 +531,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config, execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config, execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -579,7 +579,7 @@ public class MySQLDBObserverTester {
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{
@@ -617,7 +617,7 @@ public class MySQLDBObserverTester {
 		
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(10);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(10);
 		for(int i=0; i < 10; i++)
 		{
 			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -629,7 +629,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -676,7 +676,7 @@ public class MySQLDBObserverTester {
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 			
 			if(run.getRunResult().isSuccessfulAndCensored())
 			{

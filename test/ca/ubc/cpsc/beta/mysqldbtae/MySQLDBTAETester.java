@@ -28,6 +28,7 @@ import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aeatk.configspace.ParamFileHelper;
@@ -35,7 +36,6 @@ import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.WaitableTAECallback;
@@ -145,7 +145,7 @@ public class MySQLDBTAETester {
 			
 			
 			
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 			{
 				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -156,7 +156,7 @@ public class MySQLDBTAETester {
 					continue;
 				} else
 				{
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+					AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 					runConfigs.add(rc);
 				}
 			}
@@ -168,7 +168,7 @@ public class MySQLDBTAETester {
 			
 			for(AlgorithmRun run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
@@ -193,7 +193,7 @@ public class MySQLDBTAETester {
 			
 			
 			
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 			{
 				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -204,7 +204,7 @@ public class MySQLDBTAETester {
 					continue;
 				} else
 				{
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+					AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 					runConfigs.add(rc);
 				}
 			}
@@ -248,14 +248,14 @@ public class MySQLDBTAETester {
 			
 			
 			
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(5);
+			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(5);
 			for(int i=0; i < 5; i++)
 			{
 				ParamConfiguration config = configSpace.getDefaultConfiguration();
 			
 				config.put("seed", String.valueOf(i));
 				config.put("runtime", String.valueOf(2*i+1));
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				runConfigs.add(rc);
 				
 			}
@@ -268,7 +268,7 @@ public class MySQLDBTAETester {
 			
 			for(AlgorithmRun run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
@@ -283,7 +283,7 @@ public class MySQLDBTAETester {
 			runs = tae.evaluateRun(runConfigs);
 			for(AlgorithmRun run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
@@ -305,7 +305,7 @@ public class MySQLDBTAETester {
 			runs = tae.evaluateRun(runConfigs);
 			for(AlgorithmRun run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 				//THIS Test will fail
 				//MODIFY THE DB, and set this RunPartition value to have the -1 as a value.
 				try {
@@ -346,7 +346,7 @@ public class MySQLDBTAETester {
 			
 			for(int i=0; i < TEST_COUNT; i++)
 			{
-				final List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+				final List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 				
 				for(int j=0; j <= i; j++)
 				{
@@ -358,7 +358,7 @@ public class MySQLDBTAETester {
 						continue;
 					} else
 					{
-						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+						AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 						runConfigs.add(rc);
 					}
 				}
@@ -378,7 +378,7 @@ public class MySQLDBTAETester {
 							}
 						for(AlgorithmRun run : runs)
 						{
-							ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+							ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 							assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 							assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 							assertDEquals(config.get("quality"), run.getQuality(), 0.1);
@@ -441,7 +441,7 @@ public class MySQLDBTAETester {
 	
 		MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  1500, true, MYSQL_RUN_PARTITION, false, JobPriority.HIGH);		
 	
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 		
 		
 		do
@@ -455,7 +455,7 @@ public class MySQLDBTAETester {
 			{
 				config.put("runtime", "0.5");
 				config.put("solved", "ABORT");
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance","SLEEP"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance","SLEEP"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				
 				runConfigs.add(rc);
 				break;
@@ -559,7 +559,7 @@ public class MySQLDBTAETester {
 			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_RUN_PARTITION, true, priority);
 			
 			
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 			{
 				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -570,7 +570,7 @@ public class MySQLDBTAETester {
 					continue;
 				} else
 				{
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config, execConfig);
+					AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config, execConfig);
 					runConfigs.add(rc);
 				}
 			}
@@ -582,7 +582,7 @@ public class MySQLDBTAETester {
 			
 			for(AlgorithmRun run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParamConfiguration config  = run.getRunConfig().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);

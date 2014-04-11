@@ -19,11 +19,11 @@ import org.slf4j.LoggerFactory;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.ExistingAlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.concurrent.threadfactory.SequentiallyNamedThreadFactory;
 import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
@@ -145,12 +145,12 @@ public class MySQLTAEWorkerTaskProcessor {
 				while(true)
 				{
 					StopWatch runFetchTime = new AutoStartStopWatch();
-					List<RunConfig> runs = mysqlPersistence.getRuns(options.runsToBatch);
+					List<AlgorithmRunConfiguration> runs = mysqlPersistence.getRuns(options.runsToBatch);
 					totalRunFetchTimeInMS += runFetchTime.stop();
 					
-					LinkedBlockingQueue<RunConfig> runsQueue = new LinkedBlockingQueue< RunConfig>();
+					LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue = new LinkedBlockingQueue< AlgorithmRunConfiguration>();
 					log.debug("Retrieved {} jobs from the database",runs.size());	
-					for( RunConfig ent : runs)
+					for( AlgorithmRunConfiguration ent : runs)
 					{
 						try{
 							runsQueue.put(ent);
@@ -172,7 +172,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 					int jobsEvaluated = 0;
 					
-					RunConfig ent;
+					AlgorithmRunConfiguration ent;
 					while((ent = runsQueue.poll())!=null)
 					{
 						boolean jobSuccess = processPair(mysqlPersistence, tae, ent);
@@ -401,7 +401,7 @@ public class MySQLTAEWorkerTaskProcessor {
 	 * @param ent	the pair to evaluate
 	 * @return <code>true</code> if a job was successfully finished to completion.
 	 */
-	private boolean processPair(final MySQLPersistenceWorker mysqlPersistence, TargetAlgorithmEvaluator tae, RunConfig runConfig) {
+	private boolean processPair(final MySQLPersistenceWorker mysqlPersistence, TargetAlgorithmEvaluator tae, AlgorithmRunConfiguration runConfig) {
 		
 		
 		
@@ -491,13 +491,13 @@ public class MySQLTAEWorkerTaskProcessor {
 	public class PushBack implements Runnable
 	{
 		private final MySQLPersistenceWorker  mysqlPersistence;
-		private final LinkedBlockingQueue<RunConfig> runsQueue;
+		private final LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue;
 		private final ScheduledExecutorService executePushBack;
 		private final int delayBetweenRequests;
 		private final int pushbackThreshhold;
 		
 		
-		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<RunConfig> runsQueue, int delayBetweenRequests, ScheduledExecutorService executePushBack, int pushbackThreshold)
+		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue, int delayBetweenRequests, ScheduledExecutorService executePushBack, int pushbackThreshold)
 		{
 			this.mysqlPersistence = mysqlPersistence;
 			this.runsQueue = runsQueue;
@@ -508,7 +508,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		@Override
 		public void run() {
-			List< RunConfig> extraRuns = new ArrayList<RunConfig>();
+			List< AlgorithmRunConfiguration> extraRuns = new ArrayList<AlgorithmRunConfiguration>();
 			
 			if(runsQueue.size() == 0)
 			{ //Nothing to push back

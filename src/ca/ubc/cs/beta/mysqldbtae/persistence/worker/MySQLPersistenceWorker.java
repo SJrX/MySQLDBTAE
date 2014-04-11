@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aeatk.configspace.ParamFileHelper;
@@ -31,7 +32,6 @@ import ca.ubc.cs.beta.aeatk.exceptions.DeveloperMadeABooBooException;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigurationIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
@@ -47,7 +47,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	/**
 	 * Stores a mapping of RunConfigs to the actual runConfigIDs in the database.
 	 */
-	private final Map<RunConfig, String> runConfigIDMap = new ConcurrentHashMap<RunConfig, String>();
+	private final Map<AlgorithmRunConfiguration, String> runConfigIDMap = new ConcurrentHashMap<AlgorithmRunConfiguration, String>();
 	
 	/**
 	 * UUID of Worker
@@ -173,7 +173,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param n number of runs to attempt to get
 	 * @return runs
 	 */
-	public List<RunConfig> getRuns(int n)
+	public List<AlgorithmRunConfiguration> getRuns(int n)
 	{
 	
 		StringBuffer sb = new StringBuffer();
@@ -229,12 +229,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				
 				ResultSet rs = stmt.executeQuery();
 				
-				List<RunConfig> rcList = new ArrayList<RunConfig>();
+				List<AlgorithmRunConfiguration> rcList = new ArrayList<AlgorithmRunConfiguration>();
 			
 				while(rs.next())
 				{
 					AlgorithmExecutionConfiguration execConfig = null;
-					RunConfig rc = null;
+					AlgorithmRunConfiguration rc = null;
 					int execConfigID = -1;
 					String rcID = "?";
 					boolean killJob = false;
@@ -278,7 +278,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
 						ParamConfiguration config = execConfig.getParameterConfigurationSpace().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
 						
-						rc = new RunConfig(pisp, cutoffTime, config, execConfig);
+						rc = new AlgorithmRunConfiguration(pisp, cutoffTime, config, execConfig);
 						if(killJob)
 						{
 							log.warn("Run {} was killed when we pulled it, this version of the workers will start processing this job then abort, if this keeps happening we may want to improve the logic on the worker. This log message just gives us an idea of how often this is happening" , rc);
@@ -719,13 +719,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * Takes a list of runs to reset to an unassigned state
 	 * @param extraRuns  List of AlgorithmExecutionConfiguration and RunConfig Pairs
 	 */
-	public void resetRunConfigs(List<RunConfig> extraRuns) {
+	public void resetRunConfigs(List<AlgorithmRunConfiguration> extraRuns) {
 		if(extraRuns.isEmpty())
 			return;
 		
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  status='NEW', workerUUID=0 WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\" AND runConfigID IN (" );
 
-		for(RunConfig ent : extraRuns)
+		for(AlgorithmRunConfiguration ent : extraRuns)
 		{
 			sb.append(this.runConfigIDMap.get(ent)+",");
 		}

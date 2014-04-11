@@ -19,12 +19,12 @@ import org.junit.Test;
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
@@ -114,11 +114,11 @@ public class MySQLDBTAEPriorityOrderTester {
 			
 			final AtomicBoolean failure = new AtomicBoolean(false);
 			
-			final AtomicReference<RunConfig> ref = new AtomicReference<RunConfig>();
+			final AtomicReference<AlgorithmRunConfiguration> ref = new AtomicReference<AlgorithmRunConfiguration>();
 			
 			final Semaphore complete = new Semaphore(-TARGET_RUNS_IN_LOOPS+1);
 			
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 			for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 			{
 				ParamConfiguration config = configSpace.getRandomConfiguration(rand);
@@ -129,7 +129,7 @@ public class MySQLDBTAEPriorityOrderTester {
 					continue;
 				} else
 				{
-					RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+					AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 					
 					normalMySQLTAE.evaluateRunsAsync(Collections.singletonList(rc), new TargetAlgorithmEvaluatorCallback() {
 
@@ -159,7 +159,7 @@ public class MySQLDBTAEPriorityOrderTester {
 			
 			
 			
-			RunConfig goodRun = runConfigs.get(rand.nextInt(runConfigs.size()));
+			AlgorithmRunConfiguration goodRun = runConfigs.get(rand.nextInt(runConfigs.size()));
 			ref.set(goodRun);
 			System.out.println("High Priority Run is: " + goodRun);
 						

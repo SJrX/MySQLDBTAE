@@ -34,11 +34,11 @@ import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrun.RunningAlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.kill.KillHandler;
 import ca.ubc.cs.beta.aeatk.algorithmrun.kill.StatusVariableKillHandler;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
@@ -82,7 +82,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores a mapping of tokens to RunConfigs that are associated with it.
 	 */
-	private final Map<RunToken, List<RunConfig>> runTokenToRunConfigMap = new ConcurrentHashMap<RunToken, List<RunConfig>>();
+	private final Map<RunToken, List<AlgorithmRunConfiguration>> runTokenToRunConfigMap = new ConcurrentHashMap<RunToken, List<AlgorithmRunConfiguration>>();
 	
 	/**
 	 * Stores a set of completed RunTokens (they can no longer be queried)
@@ -92,7 +92,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores a mapping from RunConfigUUID to RunConfig
 	 */
-	private final Map<RunToken, Map<String, RunConfig>> runTokenToStringRCMap = new ConcurrentHashMap<RunToken, Map<String, RunConfig>>();
+	private final Map<RunToken, Map<String, AlgorithmRunConfiguration>> runTokenToStringRCMap = new ConcurrentHashMap<RunToken, Map<String, AlgorithmRunConfiguration>>();
 	
 	
 	/**
@@ -104,13 +104,13 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores a mapping from RunConfig to RunConfigUUID
 	 */
-	private final Map<RunToken, Map<RunConfig, String>> runTokenToRCStringMap = new ConcurrentHashMap<RunToken, Map<RunConfig, String>>();
+	private final Map<RunToken, Map<AlgorithmRunConfiguration, String>> runTokenToRCStringMap = new ConcurrentHashMap<RunToken, Map<AlgorithmRunConfiguration, String>>();
 	
 	
 	/**
 	 * Stores a mapping from runTokenToCompletedRuns 
 	 */
-	private final Map<RunToken, Map<RunConfig, AlgorithmRun>> runTokenToCompletedRuns = new ConcurrentHashMap<RunToken, Map<RunConfig, AlgorithmRun>>();
+	private final Map<RunToken, Map<AlgorithmRunConfiguration, AlgorithmRun>> runTokenToCompletedRuns = new ConcurrentHashMap<RunToken, Map<AlgorithmRunConfiguration, AlgorithmRun>>();
 	
 	private final Map<RunToken, Set<String>> runTokenToKilledJobs = new ConcurrentHashMap<RunToken, Set<String>>();
 	
@@ -122,9 +122,9 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores our current mapping of RunToken to OutstandingRuns
 	 */
-	private final Map<RunToken,  Map<RunConfig, AlgorithmRun>> runTokenToOutstandingRuns = new ConcurrentHashMap<RunToken,  Map<RunConfig, AlgorithmRun>>();
+	private final Map<RunToken,  Map<AlgorithmRunConfiguration, AlgorithmRun>> runTokenToOutstandingRuns = new ConcurrentHashMap<RunToken,  Map<AlgorithmRunConfiguration, AlgorithmRun>>();
 	
-	private final Map<RunToken, Map<RunConfig, KillHandler>> runTokenToKillHandler = new ConcurrentHashMap<RunToken, Map<RunConfig, KillHandler>>();
+	private final Map<RunToken, Map<AlgorithmRunConfiguration, KillHandler>> runTokenToKillHandler = new ConcurrentHashMap<RunToken, Map<AlgorithmRunConfiguration, KillHandler>>();
 	
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 	
@@ -243,11 +243,11 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					
 					conn = getConnection();
 				
-					Map<RunConfig, AlgorithmRun> userRuns = runTokenToCompletedRuns.get(token);
-					Map<RunConfig, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(token); 
-					Map<RunConfig, KillHandler> killHandlers = runTokenToKillHandler.get(token);
-					Map<RunConfig, String> runConfigToString = runTokenToRCStringMap.get(token);
-					Map<String,RunConfig> stringToRunConfig  = runTokenToStringRCMap.get(token);
+					Map<AlgorithmRunConfiguration, AlgorithmRun> userRuns = runTokenToCompletedRuns.get(token);
+					Map<AlgorithmRunConfiguration, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(token); 
+					Map<AlgorithmRunConfiguration, KillHandler> killHandlers = runTokenToKillHandler.get(token);
+					Map<AlgorithmRunConfiguration, String> runConfigToString = runTokenToRCStringMap.get(token);
+					Map<String,AlgorithmRunConfiguration> stringToRunConfig  = runTokenToStringRCMap.get(token);
 					Set<String> killedJobs = runTokenToKilledJobs.get(token);
 					
 					try {
@@ -304,7 +304,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										
 										double walltime = rs.getDouble(8);
 										
-										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
+										AlgorithmRunConfiguration runConfig =  stringToRunConfig.get(rs.getString(1));
 										incompleteRuns.remove(rs.getString(1));
 										outstandingRuns.remove(runConfig);
 										/**
@@ -323,7 +323,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										
 									} else if(rs.getString(2).equals("ASSIGNED"))
 									{
-										RunConfig runConfig =  stringToRunConfig.get(rs.getString(1));
+										AlgorithmRunConfiguration runConfig =  stringToRunConfig.get(rs.getString(1));
 										
 										double runtime = rs.getDouble(4);
 									
@@ -353,7 +353,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							
 							List<String> runsToKill = new ArrayList<String>();
 							
-							for(Entry<RunConfig, KillHandler> ent : killHandlers.entrySet())
+							for(Entry<AlgorithmRunConfiguration, KillHandler> ent : killHandlers.entrySet())
 							{
 								String runToKill = runConfigToString.get(ent.getKey());
 								if(!ent.getValue().isKilled() || (killedJobs.contains(runToKill)))
@@ -400,7 +400,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							}
 							
 							
-							List<RunConfig> rcs = runTokenToRunConfigMap.get(token);
+							List<AlgorithmRunConfiguration> rcs = runTokenToRunConfigMap.get(token);
 							
 							
 							List<AlgorithmRun> runsInProgress = new ArrayList<AlgorithmRun>(rcs.size());
@@ -445,7 +445,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					
 					List<AlgorithmRun> runResults = new ArrayList<AlgorithmRun>(this.runTokenToRunConfigMap.get(token).size());
 					
-					for(RunConfig rc : this.runTokenToRunConfigMap.get(token))
+					for(AlgorithmRunConfiguration rc : this.runTokenToRunConfigMap.get(token))
 					{
 						runResults.add(userRuns.get(rc));
 					}
@@ -482,7 +482,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 		}
 
-	public RunToken enqueueRunConfigs(List<RunConfig> runConfigs, TargetAlgorithmEvaluatorRunObserver obs)
+	public RunToken enqueueRunConfigs(List<AlgorithmRunConfiguration> runConfigs, TargetAlgorithmEvaluatorRunObserver obs)
 	{
 
 		AutoStartStopWatch completeInsertionTime = new AutoStartStopWatch();
@@ -514,17 +514,17 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			}
 		
 			conn = getConnection();
-			runTokenToOutstandingRuns.put(runToken, new HashMap<RunConfig,AlgorithmRun>());
+			runTokenToOutstandingRuns.put(runToken, new HashMap<AlgorithmRunConfiguration,AlgorithmRun>());
 			runTokenToObserverMap.put(runToken, obs);
-			runTokenToKillHandler.put(runToken, new HashMap<RunConfig, KillHandler>());
-			runTokenToStringRCMap.put(runToken,new HashMap<String, RunConfig>());
-			runTokenToRCStringMap.put(runToken,new HashMap<RunConfig,String>());
+			runTokenToKillHandler.put(runToken, new HashMap<AlgorithmRunConfiguration, KillHandler>());
+			runTokenToStringRCMap.put(runToken,new HashMap<String, AlgorithmRunConfiguration>());
+			runTokenToRCStringMap.put(runToken,new HashMap<AlgorithmRunConfiguration,String>());
 			runTokenToKilledJobs.put(runToken, new HashSet<String>());
 			
-			Map<RunConfig, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(runToken);
-			Map<RunConfig, KillHandler> killHandlers = runTokenToKillHandler.get(runToken);
-			Map<RunConfig, String> runConfigToString = runTokenToRCStringMap.get(runToken);
-			Map<String,RunConfig> stringToRunConfig  = runTokenToStringRCMap.get(runToken);
+			Map<AlgorithmRunConfiguration, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(runToken);
+			Map<AlgorithmRunConfiguration, KillHandler> killHandlers = runTokenToKillHandler.get(runToken);
+			Map<AlgorithmRunConfiguration, String> runConfigToString = runTokenToRCStringMap.get(runToken);
+			Map<String,AlgorithmRunConfiguration> stringToRunConfig  = runTokenToStringRCMap.get(runToken);
 			Map<String, Integer> runConfigToIDMap = new HashMap<String, Integer>();
 			
 			for(int i=0; (i < Math.ceil((runConfigs.size()/(double) opts.batchInsertSize)));i++)
@@ -568,7 +568,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						
 						for(int j =listLowerBound; j < listUpperBound; j++ )
 						{				
-							RunConfig rc = runConfigs.get(j);
+							AlgorithmRunConfiguration rc = runConfigs.get(j);
 							
 							
 							KillHandler kh = new StatusVariableKillHandler();
@@ -578,7 +578,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							outstandingRuns.put(rc, new RunningAlgorithmRun(rc, 0,0,0,rc.getProblemInstanceSeedPair().getSeed() ,0, kh));
 							String uuid = getHash(rc, opts.runPartition);
 							uuids.add(uuid);
-							Integer execConfigID = this.getAlgorithmExecutionConfigurationID(rc.getAlgorithmExecutionConfig());
+							Integer execConfigID = this.getAlgorithmExecutionConfigurationID(rc.getAlgorithmExecutionConfiguration());
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName()));
 							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation().length() > 4000)
@@ -589,7 +589,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							stmt.setString(k++, rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation());
 							stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
 							stmt.setDouble(k++, rc.getCutoffTime());
-							String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
+							String configString = rc.getParameterConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
 							
 							
 							
@@ -644,7 +644,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			unfinishedRunConfigs.addAll(runKeys);
 			this.runTokenToIncompleteRunsSet.put(runToken, unfinishedRunConfigs);
 			
-			this.runTokenToCompletedRuns.put(runToken, new HashMap<RunConfig, AlgorithmRun>());
+			this.runTokenToCompletedRuns.put(runToken, new HashMap<AlgorithmRunConfiguration, AlgorithmRun>());
 			this.runTokenToStringIDMap.put(runToken, runConfigToIDMap);
 			
 			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
@@ -807,12 +807,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 	}
 	
-	public String getHash(RunConfig rc, int runPartition )
+	public String getHash(AlgorithmRunConfiguration rc, int runPartition )
 	{
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
 		try {
-			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(rc.getAlgorithmExecutionConfig(),pathStrip) + runPartition).getBytes("UTF-8"));
+			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParameterConfiguration()) + hasher.getHash(rc.getAlgorithmExecutionConfiguration(),pathStrip) + runPartition).getBytes("UTF-8"));
 			return new String(Hex.encodeHex(result));
 	
 		} catch (UnsupportedEncodingException e) {

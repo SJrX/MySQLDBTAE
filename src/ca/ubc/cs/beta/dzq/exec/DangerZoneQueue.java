@@ -21,6 +21,7 @@ import com.beust.jcommander.ParameterException;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aeatk.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aeatk.misc.spi.SPIClassLoaderHelper;
@@ -28,7 +29,6 @@ import ca.ubc.cs.beta.aeatk.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
@@ -91,7 +91,7 @@ public class DangerZoneQueue {
 			try {
 				
 				
-				List<RunConfig> runConfigs = new ArrayList<RunConfig>();
+				List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>();
 				
 				
 				StringBuilder sb = new StringBuilder();
@@ -113,7 +113,7 @@ public class DangerZoneQueue {
 						ProblemInstance pi = new ProblemInstance("DIR=>" + ps.stripPath(dzOpts.dir) + ";CMD=>" + ps.stripPath(cmd2)+";ENFORCETIME=>" + dzOpts.enforceTimeLimit + ";SHOWOUTPUT=>" + dzOpts.showOutput  + ";PILSLINE=>" + dzOpts.wrapperPils, "DZQFTW");
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi, i);
 						
-						runConfigs.add(new RunConfig(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration(), execConfig));
+						runConfigs.add(new AlgorithmRunConfiguration(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration(), execConfig));
 					}
 				}
 				
