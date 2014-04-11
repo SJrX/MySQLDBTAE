@@ -19,9 +19,9 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aeatk.misc.spi.SPIClassLoaderHelper;
 import ca.ubc.cs.beta.aeatk.misc.version.VersionTracker;
@@ -122,11 +122,11 @@ public class DangerZoneQueue {
 				{
 	
 					@Override
-					public void onSuccess(List<AlgorithmRun> runs) {
+					public void onSuccess(List<AlgorithmRunResult> runs) {
 						//log.info("Done");
-						for(AlgorithmRun run : runs)
+						for(AlgorithmRunResult run : runs)
 						{
-							Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
+							Object[] args = { run.getAlgorithmRunConfiguration().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunStatus(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
 							log.info("Run Completed Successfully: Command: {} => (Result: {}, Runtime: {}, Exit Code: {} , Addl: {} ) ", args);
 						}
 						
@@ -154,7 +154,7 @@ public class DangerZoneQueue {
 					long lastUpdate = -1;
 					@Override
 					public void currentStatus(
-							List<? extends AlgorithmRun> runs) {
+							List<? extends AlgorithmRunResult> runs) {
 						
 						
 							if(!showDetailedStatus && !showStatusOverview)
@@ -165,7 +165,7 @@ public class DangerZoneQueue {
 							Map<String, Double> runtimes = new HashMap<String, Double>();
 							
 							
-							for(RunResult r : RunResult.values())
+							for(RunStatus r : RunStatus.values())
 							{
 								counts.put(r.toString(), 0);
 								runtimes.put(r.toString(),0.0);
@@ -182,22 +182,22 @@ public class DangerZoneQueue {
 							} 
 							
 							log.info("***** Run Status Update *****");
-							for(AlgorithmRun run : runs)
+							for(AlgorithmRunResult run : runs)
 							{
-								Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
+								Object[] args = { run.getAlgorithmRunConfiguration().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunStatus(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
 								
 								if(showDetailedStatus)
 								{
 									log.info("Current Run Status: Command: {} => (Result: {}, Runtime: {}, Exit Code: {} , Addl: {} ) ", args);
 								}
 								
-								if(run.getRunResult().equals(RunResult.RUNNING) && run.getRuntime() <= 0.0)
+								if(run.getRunStatus().equals(RunStatus.RUNNING) && run.getRuntime() <= 0.0)
 								{
 									counts.put("NOT-STARTED", counts.get("NOT-STARTED")+1);
 								} else
 								{
-									counts.put(run.getRunResult().toString(), counts.get(run.getRunResult().toString())+1);
-									runtimes.put(run.getRunResult().toString(), runtimes.get(run.getRunResult().toString())+run.getRuntime());
+									counts.put(run.getRunStatus().toString(), counts.get(run.getRunStatus().toString())+1);
+									runtimes.put(run.getRunStatus().toString(), runtimes.get(run.getRunStatus().toString())+run.getRuntime());
 								}
 								
 								

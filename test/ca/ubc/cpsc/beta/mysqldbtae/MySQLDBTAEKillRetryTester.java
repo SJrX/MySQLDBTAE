@@ -13,9 +13,9 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -140,10 +140,10 @@ public class MySQLDBTAEKillRetryTester {
 			
 			long time = System.currentTimeMillis();
 			
-			List<AlgorithmRun> runs = highMySQLTAE.evaluateRun(runConfigs, new TargetAlgorithmEvaluatorRunObserver() {
+			List<AlgorithmRunResult> runs = highMySQLTAE.evaluateRun(runConfigs, new TargetAlgorithmEvaluatorRunObserver() {
 
 				@Override
-				public void currentStatus(List<? extends AlgorithmRun> runs) {
+				public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 						
 					
 					if(runs.get(0).getRuntime() > 1)
@@ -155,11 +155,11 @@ public class MySQLDBTAEKillRetryTester {
 				} });
 			 
 
-			assertEquals(RunResult.KILLED, runs.get(0).getRunResult());
+			assertEquals(RunStatus.KILLED, runs.get(0).getRunStatus());
 		
 			runs = highMySQLTAE.evaluateRun(runConfigs);			
 			
-			assertEquals(RunResult.SAT, runs.get(0).getRunResult());
+			assertEquals(RunStatus.SAT, runs.get(0).getRunStatus());
 			
 			highMySQLTAE.notifyShutdown();
 			

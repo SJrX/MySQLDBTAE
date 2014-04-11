@@ -18,8 +18,8 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -134,16 +134,16 @@ public class MySQLDBTAEPriorityOrderTester {
 					normalMySQLTAE.evaluateRunsAsync(Collections.singletonList(rc), new TargetAlgorithmEvaluatorCallback() {
 
 						@Override
-						public void onSuccess(List<AlgorithmRun> runs) {
+						public void onSuccess(List<AlgorithmRunResult> runs) {
 							
-							if(!runs.get(0).getRunConfig().equals(ref.get()))
+							if(!runs.get(0).getAlgorithmRunConfiguration().equals(ref.get()))
 							{
 								completeRuns.incrementAndGet();
 							}
 							
 							complete.release();
 							
-							System.err.println("DONE:" + runs.get(0).getRunConfig() + " high: " + runs.get(0).getRunConfig().equals(ref.get()));
+							System.err.println("DONE:" + runs.get(0).getAlgorithmRunConfiguration() + " high: " + runs.get(0).getAlgorithmRunConfiguration().equals(ref.get()));
 						}
 
 						@Override
@@ -166,7 +166,7 @@ public class MySQLDBTAEPriorityOrderTester {
 			highMySQLTAE.evaluateRunsAsync(Collections.singletonList(goodRun), new TargetAlgorithmEvaluatorCallback() {
 
 				@Override
-				public void onSuccess(List<AlgorithmRun> runs) {
+				public void onSuccess(List<AlgorithmRunResult> runs) {
 					//complete.release();
 					boolean swap = completeRuns.compareAndSet(0, 1);
 					
@@ -175,7 +175,7 @@ public class MySQLDBTAEPriorityOrderTester {
 						failure.set(true);
 					}
 					
-					System.err.println("HIGH DONE:" + runs.get(0).getRunConfig());
+					System.err.println("HIGH DONE:" + runs.get(0).getAlgorithmRunConfiguration());
 					
 				}
 

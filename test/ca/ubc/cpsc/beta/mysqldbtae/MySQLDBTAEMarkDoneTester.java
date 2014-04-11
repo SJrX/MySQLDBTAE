@@ -19,9 +19,9 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -160,13 +160,13 @@ public class MySQLDBTAEMarkDoneTester {
 			long startTime = System.currentTimeMillis();
 			
 			
-			List<AlgorithmRun> runs = mySQLTAE.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver() {
+			List<AlgorithmRunResult> runs = mySQLTAE.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver() {
 
 				@Override
-				public void currentStatus(List<? extends AlgorithmRun> runs) {
+				public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 					if(runs.get(0).isRunCompleted())
 					{
-						for(AlgorithmRun run: runs)
+						for(AlgorithmRunResult run: runs)
 						{
 							System.err.println("Killing Run");
 							run.kill();

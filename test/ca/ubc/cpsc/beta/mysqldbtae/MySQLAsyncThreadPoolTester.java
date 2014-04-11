@@ -18,9 +18,9 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -146,18 +146,18 @@ public class MySQLAsyncThreadPoolTester {
 		{
 
 			@Override
-			public void onSuccess(List<AlgorithmRun> runs) {
+			public void onSuccess(List<AlgorithmRunResult> runs) {
 				
 				try{
-					for(AlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						
 						System.out.println(run.getResultLine());
 						
-						ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+						ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 						
 						assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-						if(run.getRunResult().isSuccessfulAndCensored())
+						if(run.getRunStatus().isSuccessfulAndCensored())
 						{
 							continue;
 						}
@@ -166,7 +166,7 @@ public class MySQLAsyncThreadPoolTester {
 						assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 						assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 						assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-						assertEquals(config.get("solved"), run.getRunResult().name());
+						assertEquals(config.get("solved"), run.getRunStatus().name());
 						//This executor should not have any additional run data
 						assertEquals("",run.getAdditionalRunData());
 						
@@ -232,10 +232,10 @@ public class MySQLAsyncThreadPoolTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends AlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 				}
@@ -244,7 +244,7 @@ public class MySQLAsyncThreadPoolTester {
 				if(runtimeSum > 1)
 				{
 					System.out.println("Attempting kill");
-					for(AlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						run.kill();
 					}

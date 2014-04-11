@@ -16,10 +16,10 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.ExistingAlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.ExistingAlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.concurrent.threadfactory.SequentiallyNamedThreadFactory;
 import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
@@ -415,7 +415,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver() {
 				private long lastDBUpdate = System.currentTimeMillis();
 				@Override
-				public void currentStatus( List<? extends AlgorithmRun> runs) {
+				public void currentStatus( List<? extends AlgorithmRunResult> runs) {
 					
 					if((System.currentTimeMillis() - lastDBUpdate) < options.delayBetweenRequests * 1000)
 					{
@@ -451,7 +451,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				{
 					log.info("Starting processing of job");
 				}
-				List<AlgorithmRun> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
+				List<AlgorithmRunResult> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
 				jobEvaluated = true;
 				mysqlPersistence.setRunResults(finishedRuns);
 				
@@ -480,7 +480,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			String addlRunData = sb.substring(0, Math.min(2000,sb.length()));
 			
-			mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRun)new ExistingAlgorithmRun(runConfig,RunResult.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
+			mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRunResult)new ExistingAlgorithmRunResult(runConfig,RunStatus.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
 		}
 		return jobEvaluated;
 	}

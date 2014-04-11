@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aeatk.misc.jcommander.JCommanderHelper;
-import ca.ubc.cs.beta.aeatk.misc.returnvalues.ACLibReturnValues;
+import ca.ubc.cs.beta.aeatk.misc.returnvalues.AEATKReturnValues;
 import ca.ubc.cs.beta.aeatk.misc.spi.SPIClassLoaderHelper;
 import ca.ubc.cs.beta.aeatk.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
@@ -127,7 +127,7 @@ public class MySQLTAEWorker {
 			{
 				log.debug("Stack trace", e);
 			}
-			System.exit(ACLibReturnValues.PARAMETER_EXCEPTION);
+			System.exit(AEATKReturnValues.PARAMETER_EXCEPTION);
 		}
 		
 		log.info("Main Method Ended");
@@ -157,7 +157,7 @@ public class MySQLTAEWorker {
 			
 		}
 				
-		System.exit(ACLibReturnValues.SUCCESS);
+		System.exit(AEATKReturnValues.SUCCESS);
 	}
 	
 }

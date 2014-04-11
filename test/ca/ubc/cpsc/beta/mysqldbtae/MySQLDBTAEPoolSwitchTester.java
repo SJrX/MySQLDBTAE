@@ -14,8 +14,8 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -122,17 +122,17 @@ public class MySQLDBTAEPoolSwitchTester {
 			System.out.println("Performing " + runConfigs.size() + " runs");
 			MySQLTargetAlgorithmEvaluator tae = mysqlDBTae;
 			
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 			
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
@@ -140,14 +140,14 @@ public class MySQLDBTAEPoolSwitchTester {
 			
 			//Same runPartition
 			runs = tae.evaluateRun(runConfigs);
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
@@ -162,7 +162,7 @@ public class MySQLDBTAEPoolSwitchTester {
 				boolean poolSwitchAttempted = false;
 				@Override
 				public void currentStatus(
-						List<? extends AlgorithmRun> runs) {
+						List<? extends AlgorithmRunResult> runs) {
 					/*
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
@@ -181,14 +181,14 @@ public class MySQLDBTAEPoolSwitchTester {
 				
 			});
 			
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 

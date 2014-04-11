@@ -13,9 +13,9 @@ import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.concurrent.threadfactory.SequentiallyNamedThreadFactory;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.AbstractAsyncTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
@@ -128,7 +128,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		@Override
 		public synchronized void run() {
 			
-				List<AlgorithmRun> runs = null;
+				List<AlgorithmRunResult> runs = null;
 				try {
 					
 					if((runs = persistence.pollRunResults(token)) == null)
@@ -152,11 +152,11 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 						
 					}
 					
-					for(AlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
-						if(run.getRunResult().equals(RunResult.ABORT))
+						if(run.getRunStatus().equals(RunStatus.ABORT))
 						{
-							log.info("Um this was an abort {} : {} ", run.getRunConfig(), run);
+							log.info("Um this was an abort {} : {} ", run.getAlgorithmRunConfiguration(), run);
 							
 							handler.onFailure(new TargetAlgorithmAbortException(run));
 							return;

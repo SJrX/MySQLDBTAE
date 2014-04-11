@@ -26,9 +26,9 @@ import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
@@ -178,7 +178,7 @@ public class MySQLDBTAEWorkerShutdownTester {
 		
 		System.out.println("Performing " + runConfigs.size() + " runs");
 		TargetAlgorithmEvaluator tae =mysqlDBTae;
-		List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+		List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 		
 		for(int i = 0; i < 8; i++)

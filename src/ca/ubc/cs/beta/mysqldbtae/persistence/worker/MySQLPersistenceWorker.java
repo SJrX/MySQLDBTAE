@@ -22,8 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.exceptions.DeveloperMadeABooBooException;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
@@ -324,7 +324,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * add run results to the database
 	 * @param runResult a List of AlgorithmRuns to add to the database
 	 */
-	public void setRunResults(List<AlgorithmRun> runResult)
+	public void setRunResults(List<AlgorithmRunResult> runResult)
 	{
 	
 		
@@ -338,13 +338,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			conn = getConnection();
 			stmt = conn.prepareStatement(sb.toString());
 			
-				for(AlgorithmRun run : runResult)
+				for(AlgorithmRunResult run : runResult)
 				{	
-					String runConfigID = runConfigIDMap.get(run.getRunConfig());
+					String runConfigID = runConfigIDMap.get(run.getAlgorithmRunConfiguration());
 						
 					try {
 						
-						stmt.setString(1,run.getRunResult().name());
+						stmt.setString(1,run.getRunStatus().name());
 						stmt.setDouble(2, run.getRunLength());
 						stmt.setDouble(3, run.getQuality());
 						stmt.setLong(4,run.getResultSeed());
@@ -756,7 +756,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param killableAlgorithmRun
 	 * @return <code>true</code> if the job has been killed or otherwise is no longer updatedable by us
 	 */
-	public boolean updateRunStatusAndCheckKillBit(AlgorithmRun run) {
+	public boolean updateRunStatusAndCheckKillBit(AlgorithmRunResult run) {
 		
 		//This query is designed to update the database IF and only IF
 		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
@@ -768,16 +768,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			Connection conn = getConnection();
 			Calendar worstCaseEndTime = Calendar.getInstance();
 			if(run.getRuntime()==0)
-				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getRunConfig().getCutoffTime()*1.5-run.getWallclockExecutionTime()+120));
+				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getAlgorithmRunConfiguration().getCutoffTime()*1.5-run.getWallclockExecutionTime()+120));
 			else
-				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getRunConfig().getCutoffTime()*1.5-run.getRuntime()+120));
+				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getAlgorithmRunConfiguration().getCutoffTime()*1.5-run.getRuntime()+120));
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				stmt.setDouble(1, run.getRuntime());
 				stmt.setDouble(2, run.getRunLength());
 				stmt.setTimestamp(3, new java.sql.Timestamp(worstCaseEndTime.getTime().getTime()));
 				stmt.setDouble(4, run.getWallclockExecutionTime());
-				stmt.setString(5, this.runConfigIDMap.get(run.getRunConfig()));
+				stmt.setString(5, this.runConfigIDMap.get(run.getAlgorithmRunConfiguration()));
 				boolean shouldKill = (executePSUpdate(stmt) == 0);
 
 				stmt.close();

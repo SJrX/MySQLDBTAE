@@ -19,9 +19,9 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -161,7 +161,7 @@ public class MySQLDBTAEJobPushBackTester {
 			long startTime = System.currentTimeMillis();
 			
 			
-			List<AlgorithmRun> runs = mySQLTAE.evaluateRun(runConfigs,null);
+			List<AlgorithmRunResult> runs = mySQLTAE.evaluateRun(runConfigs,null);
 			
 			long endTime = System.currentTimeMillis();
 			assertTrue((endTime-startTime)<22000);

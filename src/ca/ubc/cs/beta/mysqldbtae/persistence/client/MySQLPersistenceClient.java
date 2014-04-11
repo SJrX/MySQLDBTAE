@@ -28,13 +28,13 @@ import org.slf4j.LoggerFactory;
 import com.mysql.jdbc.PacketTooBigException;
 
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.ExistingAlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunningAlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.kill.KillHandler;
-import ca.ubc.cs.beta.aeatk.algorithmrun.kill.StatusVariableKillHandler;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.ExistingAlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunningAlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.kill.KillHandler;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.kill.StatusVariableKillHandler;
 import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -110,7 +110,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores a mapping from runTokenToCompletedRuns 
 	 */
-	private final Map<RunToken, Map<AlgorithmRunConfiguration, AlgorithmRun>> runTokenToCompletedRuns = new ConcurrentHashMap<RunToken, Map<AlgorithmRunConfiguration, AlgorithmRun>>();
+	private final Map<RunToken, Map<AlgorithmRunConfiguration, AlgorithmRunResult>> runTokenToCompletedRuns = new ConcurrentHashMap<RunToken, Map<AlgorithmRunConfiguration, AlgorithmRunResult>>();
 	
 	private final Map<RunToken, Set<String>> runTokenToKilledJobs = new ConcurrentHashMap<RunToken, Set<String>>();
 	
@@ -122,7 +122,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores our current mapping of RunToken to OutstandingRuns
 	 */
-	private final Map<RunToken,  Map<AlgorithmRunConfiguration, AlgorithmRun>> runTokenToOutstandingRuns = new ConcurrentHashMap<RunToken,  Map<AlgorithmRunConfiguration, AlgorithmRun>>();
+	private final Map<RunToken,  Map<AlgorithmRunConfiguration, AlgorithmRunResult>> runTokenToOutstandingRuns = new ConcurrentHashMap<RunToken,  Map<AlgorithmRunConfiguration, AlgorithmRunResult>>();
 	
 	private final Map<RunToken, Map<AlgorithmRunConfiguration, KillHandler>> runTokenToKillHandler = new ConcurrentHashMap<RunToken, Map<AlgorithmRunConfiguration, KillHandler>>();
 	
@@ -214,7 +214,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	 * @param token - previously issued Run Token
 	 * @return <code>null</code> if the results aren't available yet, the in order sequence of runs if they are
 	 */
-	public  List<AlgorithmRun> pollRunResults(RunToken token) {
+	public  List<AlgorithmRunResult> pollRunResults(RunToken token) {
 			
 			if(token == null) { 
 				throw new IllegalStateException("RunToken cannot be null"); 
@@ -243,8 +243,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					
 					conn = getConnection();
 				
-					Map<AlgorithmRunConfiguration, AlgorithmRun> userRuns = runTokenToCompletedRuns.get(token);
-					Map<AlgorithmRunConfiguration, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(token); 
+					Map<AlgorithmRunConfiguration, AlgorithmRunResult> userRuns = runTokenToCompletedRuns.get(token);
+					Map<AlgorithmRunConfiguration, AlgorithmRunResult> outstandingRuns = runTokenToOutstandingRuns.get(token); 
 					Map<AlgorithmRunConfiguration, KillHandler> killHandlers = runTokenToKillHandler.get(token);
 					Map<AlgorithmRunConfiguration, String> runConfigToString = runTokenToRCStringMap.get(token);
 					Map<String,AlgorithmRunConfiguration> stringToRunConfig  = runTokenToStringRCMap.get(token);
@@ -296,7 +296,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										String addlRunDataStr = (this.opts.additionalRunData) ? rs.getString(9) : "";
 										
 										
-										RunResult result = RunResult.valueOf(rs.getString(3));
+										RunStatus result = RunStatus.valueOf(rs.getString(3));
 										double runtime = rs.getDouble(4);
 										double runlength = rs.getDouble(5);
 										double quality = rs.getDouble(6);
@@ -311,9 +311,9 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										 * AlgorithmExecutionConfiguration execConfig, RunConfig runConfig, String result, double wallClockTime
 										 */
 											
-										AlgorithmRun run = new ExistingAlgorithmRun( runConfig, result, runtime, runlength, quality, seed, addlRunDataStr, walltime);
+										AlgorithmRunResult run = new ExistingAlgorithmRunResult( runConfig, result, runtime, runlength, quality, seed, addlRunDataStr, walltime);
 										
-										if(run.getRunResult().equals(RunResult.ABORT))
+										if(run.getRunStatus().equals(RunStatus.ABORT))
 										{
 											Object[] args = {rs.getString(1), rs.getString(2), rs.getString(3) } ;
 											log.debug("ABORT DETECTED: {} : {} : {}",args );
@@ -332,7 +332,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 										double walltime = rs.getDouble(8);
 										
 										
-										outstandingRuns.put(runConfig, new RunningAlgorithmRun(runConfig, runtime,0,0,seed, walltime , killHandlers.get(runConfig)));
+										outstandingRuns.put(runConfig, new RunningAlgorithmRunResult(runConfig, runtime,0,0,seed, walltime , killHandlers.get(runConfig)));
 									} else
 									{	
 										throw new IllegalStateException("Must have some new status that we don't know what do with in the database");
@@ -403,7 +403,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							List<AlgorithmRunConfiguration> rcs = runTokenToRunConfigMap.get(token);
 							
 							
-							List<AlgorithmRun> runsInProgress = new ArrayList<AlgorithmRun>(rcs.size());
+							List<AlgorithmRunResult> runsInProgress = new ArrayList<AlgorithmRunResult>(rcs.size());
 							
 							for(int i=0; i < rcs.size(); i++)
 							{
@@ -443,7 +443,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						throw new IllegalStateException("SQL Error", e);
 					}
 					
-					List<AlgorithmRun> runResults = new ArrayList<AlgorithmRun>(this.runTokenToRunConfigMap.get(token).size());
+					List<AlgorithmRunResult> runResults = new ArrayList<AlgorithmRunResult>(this.runTokenToRunConfigMap.get(token).size());
 					
 					for(AlgorithmRunConfiguration rc : this.runTokenToRunConfigMap.get(token))
 					{
@@ -505,7 +505,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				{
 
 					@Override
-					public void currentStatus(List<? extends AlgorithmRun> runs) {
+					public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 						//NOOP
 					}
 					
@@ -514,14 +514,14 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			}
 		
 			conn = getConnection();
-			runTokenToOutstandingRuns.put(runToken, new HashMap<AlgorithmRunConfiguration,AlgorithmRun>());
+			runTokenToOutstandingRuns.put(runToken, new HashMap<AlgorithmRunConfiguration,AlgorithmRunResult>());
 			runTokenToObserverMap.put(runToken, obs);
 			runTokenToKillHandler.put(runToken, new HashMap<AlgorithmRunConfiguration, KillHandler>());
 			runTokenToStringRCMap.put(runToken,new HashMap<String, AlgorithmRunConfiguration>());
 			runTokenToRCStringMap.put(runToken,new HashMap<AlgorithmRunConfiguration,String>());
 			runTokenToKilledJobs.put(runToken, new HashSet<String>());
 			
-			Map<AlgorithmRunConfiguration, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(runToken);
+			Map<AlgorithmRunConfiguration, AlgorithmRunResult> outstandingRuns = runTokenToOutstandingRuns.get(runToken);
 			Map<AlgorithmRunConfiguration, KillHandler> killHandlers = runTokenToKillHandler.get(runToken);
 			Map<AlgorithmRunConfiguration, String> runConfigToString = runTokenToRCStringMap.get(runToken);
 			Map<String,AlgorithmRunConfiguration> stringToRunConfig  = runTokenToStringRCMap.get(runToken);
@@ -575,7 +575,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							
 							
 							killHandlers.put(rc, kh);
-							outstandingRuns.put(rc, new RunningAlgorithmRun(rc, 0,0,0,rc.getProblemInstanceSeedPair().getSeed() ,0, kh));
+							outstandingRuns.put(rc, new RunningAlgorithmRunResult(rc, 0,0,0,rc.getProblemInstanceSeedPair().getSeed() ,0, kh));
 							String uuid = getHash(rc, opts.runPartition);
 							uuids.add(uuid);
 							Integer execConfigID = this.getAlgorithmExecutionConfigurationID(rc.getAlgorithmExecutionConfiguration());
@@ -644,7 +644,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			unfinishedRunConfigs.addAll(runKeys);
 			this.runTokenToIncompleteRunsSet.put(runToken, unfinishedRunConfigs);
 			
-			this.runTokenToCompletedRuns.put(runToken, new HashMap<AlgorithmRunConfiguration, AlgorithmRun>());
+			this.runTokenToCompletedRuns.put(runToken, new HashMap<AlgorithmRunConfiguration, AlgorithmRunResult>());
 			this.runTokenToStringIDMap.put(runToken, runConfigToIDMap);
 			
 			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 

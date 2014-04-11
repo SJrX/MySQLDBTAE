@@ -26,9 +26,9 @@ import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
@@ -163,17 +163,17 @@ public class MySQLDBTAETester {
 			
 			System.out.println("Performing " + runConfigs.size() + " runs");
 			TargetAlgorithmEvaluator tae = new EqualTargetAlgorithmEvaluatorTester(mysqlDBTae, new EchoTargetAlgorithmEvaluator());
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 			
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
@@ -216,7 +216,7 @@ public class MySQLDBTAETester {
 			{
 
 				@Override
-				public void onSuccess(List<AlgorithmRun> runs) {
+				public void onSuccess(List<AlgorithmRunResult> runs) {
 					System.out.println("Throwing an exception in onSuccess");
 					throw new IllegalStateException("Yo Yo Yo! (This is okay and on purpose, please ignore this exception it's not really a problem)");
 				}
@@ -263,17 +263,17 @@ public class MySQLDBTAETester {
 			System.out.println("Performing " + runConfigs.size() + " runs");
 			TargetAlgorithmEvaluator tae = mysqlDBTae;
 			
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 			
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
@@ -281,14 +281,14 @@ public class MySQLDBTAETester {
 			
 			//Same runPartition
 			runs = tae.evaluateRun(runConfigs);
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
@@ -303,9 +303,9 @@ public class MySQLDBTAETester {
 			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), tae);
 			
 			runs = tae.evaluateRun(runConfigs);
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				//THIS Test will fail
 				//MODIFY THE DB, and set this RunPartition value to have the -1 as a value.
 				try {
@@ -318,7 +318,7 @@ public class MySQLDBTAETester {
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
@@ -366,7 +366,7 @@ public class MySQLDBTAETester {
 				mysqlDBTae.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 
 					@Override
-					public void onSuccess(List<AlgorithmRun> runs) {
+					public void onSuccess(List<AlgorithmRunResult> runs) {
 						// TODO Auto-generated method stub
 						
 						try {
@@ -376,14 +376,14 @@ public class MySQLDBTAETester {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-						for(AlgorithmRun run : runs)
+						for(AlgorithmRunResult run : runs)
 						{
-							ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+							ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 							assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 							assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 							assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 							assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-							assertEquals(config.get("solved"), run.getRunResult().name());
+							assertEquals(config.get("solved"), run.getRunStatus().name());
 							//This executor should not have any additional run data
 							assertEquals("",run.getAdditionalRunData());
 							runsCompleted.incrementAndGet();
@@ -465,7 +465,7 @@ public class MySQLDBTAETester {
 		BasicTargetAlgorithmEvaluatorQueue taeQueue = new BasicTargetAlgorithmEvaluatorQueue(highMySQLTAE, false);
 		
 		long time = System.currentTimeMillis();
-		List<AlgorithmRun> runs = null;
+		List<AlgorithmRunResult> runs = null;
 		taeQueue.evaluateRunAsync(runConfigs);
 		
 		while(true)
@@ -577,17 +577,17 @@ public class MySQLDBTAETester {
 			
 			System.out.println("Performing " + runConfigs.size() + " runs");
 			TargetAlgorithmEvaluator tae = new BoundedTargetAlgorithmEvaluator(mysqlDBTae, 10);
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 			
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParameterConfiguration config  = run.getRunConfig().getParameterConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 

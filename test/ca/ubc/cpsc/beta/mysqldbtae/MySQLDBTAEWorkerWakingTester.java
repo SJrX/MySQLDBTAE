@@ -16,8 +16,8 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -125,7 +125,7 @@ public class MySQLDBTAEWorkerWakingTester {
 			
 			long startTime = System.currentTimeMillis();
 			
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 			long endTime = System.currentTimeMillis();
 			

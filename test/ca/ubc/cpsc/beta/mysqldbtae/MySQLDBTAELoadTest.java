@@ -23,8 +23,8 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
@@ -162,7 +162,7 @@ public class MySQLDBTAELoadTest {
 				highMySQLTAE.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 
 					@Override
-					public void onSuccess(List<AlgorithmRun> runs) {
+					public void onSuccess(List<AlgorithmRunResult> runs) {
 						//complete.release();
 						boolean swap = completeRuns.compareAndSet(0, 1);
 						
@@ -303,7 +303,7 @@ public class MySQLDBTAELoadTest {
 					highMySQLTAE.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 		
 						@Override
-						public void onSuccess(List<AlgorithmRun> runs) {
+						public void onSuccess(List<AlgorithmRunResult> runs) {
 							//complete.release();
 							boolean swap = completeRuns.compareAndSet(0, 1);
 							

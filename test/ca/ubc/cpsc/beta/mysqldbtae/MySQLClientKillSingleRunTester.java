@@ -19,9 +19,9 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
-import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aeatk.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -167,10 +167,10 @@ public class MySQLClientKillSingleRunTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends AlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 				}
@@ -186,11 +186,11 @@ public class MySQLClientKillSingleRunTester {
 		};
 			
 		
-		List<AlgorithmRun> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
+		List<AlgorithmRunResult> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
 		
-		assertEquals("First run should be killed", RunResult.KILLED, runs.get(0).getRunResult());
-		assertEquals("First run should be SAT", RunResult.SAT, runs.get(1).getRunResult());
-		assertEquals("First run should be SAT", RunResult.KILLED, runs.get(2).getRunResult());
+		assertEquals("First run should be killed", RunStatus.KILLED, runs.get(0).getRunStatus());
+		assertEquals("First run should be SAT", RunStatus.SAT, runs.get(1).getRunStatus());
+		assertEquals("First run should be SAT", RunStatus.KILLED, runs.get(2).getRunStatus());
 		
 		assertTrue("Runtime of first element should be less than 7, not: " + runs.get(0).getRuntime(), runs.get(0).getRuntime() < 7);
 		assertTrue("Runtime of second element should be greater than 7, not: " + runs.get(1).getRuntime(), runs.get(1).getRuntime() > 7 );
