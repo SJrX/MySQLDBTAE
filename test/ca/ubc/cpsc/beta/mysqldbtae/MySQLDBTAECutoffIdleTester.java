@@ -20,7 +20,6 @@ import org.junit.Test;
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;

@@ -19,7 +19,6 @@ import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
@@ -155,7 +154,7 @@ public class DangerZoneQueue {
 					long lastUpdate = -1;
 					@Override
 					public void currentStatus(
-							List<? extends KillableAlgorithmRun> runs) {
+							List<? extends AlgorithmRun> runs) {
 						
 						
 							if(!showDetailedStatus && !showStatusOverview)

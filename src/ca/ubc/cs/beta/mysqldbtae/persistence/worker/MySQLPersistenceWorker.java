@@ -21,22 +21,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException;
-
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aclib.exceptions.DeveloperMadeABooBooException;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.misc.associatedvalue.Pair;
 import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.dzq.exec.DangerZoneQueue;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
@@ -761,7 +756,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param killableAlgorithmRun
 	 * @return <code>true</code> if the job has been killed or otherwise is no longer updatedable by us
 	 */
-	public boolean updateRunStatusAndCheckKillBit(KillableAlgorithmRun run) {
+	public boolean updateRunStatusAndCheckKillBit(AlgorithmRun run) {
 		
 		//This query is designed to update the database IF and only IF
 		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed

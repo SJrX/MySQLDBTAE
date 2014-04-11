@@ -26,25 +26,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.mysql.jdbc.PacketTooBigException;
-import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException;
-
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunningAlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillHandler;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableWrappedAlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.kill.StatusVariableKillHandler;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
 import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
 import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
-import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.util.ACLibHasher;
@@ -127,7 +121,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Stores our current mapping of RunToken to OutstandingRuns
 	 */
-	private final Map<RunToken,  Map<RunConfig, KillableAlgorithmRun>> runTokenToOutstandingRuns = new ConcurrentHashMap<RunToken,  Map<RunConfig, KillableAlgorithmRun>>();
+	private final Map<RunToken,  Map<RunConfig, AlgorithmRun>> runTokenToOutstandingRuns = new ConcurrentHashMap<RunToken,  Map<RunConfig, AlgorithmRun>>();
 	
 	private final Map<RunToken, Map<RunConfig, KillHandler>> runTokenToKillHandler = new ConcurrentHashMap<RunToken, Map<RunConfig, KillHandler>>();
 	
@@ -249,7 +243,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					conn = getConnection();
 				
 					Map<RunConfig, AlgorithmRun> userRuns = runTokenToCompletedRuns.get(token);
-					Map<RunConfig, KillableAlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(token); 
+					Map<RunConfig, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(token); 
 					Map<RunConfig, KillHandler> killHandlers = runTokenToKillHandler.get(token);
 					Map<RunConfig, String> runConfigToString = runTokenToRCStringMap.get(token);
 					Map<String,RunConfig> stringToRunConfig  = runTokenToStringRCMap.get(token);
@@ -408,7 +402,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							List<RunConfig> rcs = runTokenToRunConfigMap.get(token);
 							
 							
-							List<KillableAlgorithmRun> runsInProgress = new ArrayList<KillableAlgorithmRun>(rcs.size());
+							List<AlgorithmRun> runsInProgress = new ArrayList<AlgorithmRun>(rcs.size());
 							
 							for(int i=0; i < rcs.size(); i++)
 							{
@@ -422,7 +416,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 									runsInProgress.set(i, outstandingRuns.get(rcs.get(i)));
 								} else
 								{
-									runsInProgress.set(i, new KillableWrappedAlgorithmRun(userRuns.get(rcs.get(i))));
+									runsInProgress.set(i,userRuns.get(rcs.get(i)));
 								}
 								
 								
@@ -510,7 +504,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				{
 
 					@Override
-					public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+					public void currentStatus(List<? extends AlgorithmRun> runs) {
 						//NOOP
 					}
 					
@@ -519,14 +513,14 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			}
 		
 			conn = getConnection();
-			runTokenToOutstandingRuns.put(runToken, new HashMap<RunConfig,KillableAlgorithmRun>());
+			runTokenToOutstandingRuns.put(runToken, new HashMap<RunConfig,AlgorithmRun>());
 			runTokenToObserverMap.put(runToken, obs);
 			runTokenToKillHandler.put(runToken, new HashMap<RunConfig, KillHandler>());
 			runTokenToStringRCMap.put(runToken,new HashMap<String, RunConfig>());
 			runTokenToRCStringMap.put(runToken,new HashMap<RunConfig,String>());
 			runTokenToKilledJobs.put(runToken, new HashSet<String>());
 			
-			Map<RunConfig, KillableAlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(runToken);
+			Map<RunConfig, AlgorithmRun> outstandingRuns = runTokenToOutstandingRuns.get(runToken);
 			Map<RunConfig, KillHandler> killHandlers = runTokenToKillHandler.get(runToken);
 			Map<RunConfig, String> runConfigToString = runTokenToRCStringMap.get(runToken);
 			Map<String,RunConfig> stringToRunConfig  = runTokenToStringRCMap.get(runToken);

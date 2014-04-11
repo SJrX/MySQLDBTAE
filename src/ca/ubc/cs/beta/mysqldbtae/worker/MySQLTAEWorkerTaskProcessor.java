@@ -5,10 +5,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -21,10 +19,7 @@ import org.slf4j.LoggerFactory;
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
 import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.concurrent.threadfactory.SequentiallyNamedThreadFactory;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.misc.associatedvalue.Pair;
 import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aclib.options.AbstractOptions;
@@ -420,7 +415,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver() {
 				private long lastDBUpdate = System.currentTimeMillis();
 				@Override
-				public void currentStatus( List<? extends KillableAlgorithmRun> runs) {
+				public void currentStatus( List<? extends AlgorithmRun> runs) {
 					
 					if((System.currentTimeMillis() - lastDBUpdate) < options.delayBetweenRequests * 1000)
 					{

@@ -1,19 +1,10 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
-import java.io.File;
-
 import org.junit.BeforeClass;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
-import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
 import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.mysqldbtae.JobPriority;
-import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
-import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({

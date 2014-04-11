@@ -14,7 +14,6 @@ import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
 import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
 import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
@@ -163,7 +162,7 @@ public class MySQLDBTAEPoolSwitchTester {
 				boolean poolSwitchAttempted = false;
 				@Override
 				public void currentStatus(
-						List<? extends KillableAlgorithmRun> runs) {
+						List<? extends AlgorithmRun> runs) {
 					/*
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");

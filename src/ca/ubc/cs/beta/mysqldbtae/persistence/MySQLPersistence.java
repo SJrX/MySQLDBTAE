@@ -9,8 +9,6 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLNonTransientException;
-import java.sql.SQLTransientException;
 import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.concurrent.Callable;
@@ -26,7 +24,6 @@ import com.beust.jcommander.ParameterException;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.mchange.v2.c3p0.DataSources;
 import com.mysql.jdbc.exceptions.MySQLQueryInterruptedException;
-import com.mysql.jdbc.exceptions.jdbc4.MySQLTransientException;
 
 public class MySQLPersistence {
 

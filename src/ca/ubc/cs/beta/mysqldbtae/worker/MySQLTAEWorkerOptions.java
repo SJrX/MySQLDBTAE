@@ -26,10 +26,10 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	@UsageTextField(defaultValues="~/.aclib/mysqlworker.opt")
+	@UsageTextField(defaultValues="~/.aeatk/mysqlworker.opt")
 	@Parameter(names="--mysqlWorkerDefaultsFile", description="file that contains default settings for MySQL Workers")
 	@ParameterFile(ignoreFileNotExists = true) 
-	public File mysqlworkerDefaults = HomeFileUtils.getHomeFile(".aclib" + File.separator  + "mysqlworker.opt");
+	public File mysqlworkerDefaults = HomeFileUtils.getHomeFile(".aeatk" + File.separator  + "mysqlworker.opt");
 	
 	@ParametersDelegate
 	public MySQLOptions mysqlOptions = new MySQLOptions();

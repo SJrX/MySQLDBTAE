@@ -17,10 +17,10 @@ import com.beust.jcommander.ParameterFile;
 @UsageTextField(title="MySQL Target Algorithm Evaluator Options", description="Options that control the MySQL Target Algorithm Evaluator", level=OptionLevel.INTERMEDIATE)
 public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 
-	@UsageTextField(defaultValues="~/.aclib/mysqldbtae.opt")
+	@UsageTextField(defaultValues="~/.aeatk/mysqldbtae.opt")
 	@Parameter(names="--mysqlTaeDefaultsFile", description="file that contains default settings for MySQL")
 	@ParameterFile(ignoreFileNotExists = true) 
-	public File smacDefaults = HomeFileUtils.getHomeFile(".aclib" + File.separator  + "mysqldbtae.opt");
+	public File smacDefaults = HomeFileUtils.getHomeFile(".aeatk" + File.separator  + "mysqldbtae.opt");
 	
 	@Parameter(names="--mysqldbtae-pool", description="Pool to take tasks from")
 	public String pool;
