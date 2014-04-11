@@ -444,9 +444,9 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			if( (runConfig.getCutoffTime() < getSecondsLeft()) || !options.checkMinCutoff)
 			{
-				if(runConfig.getProblemInstanceSeedPair().getInstance().getInstanceID() > 0)
+				if(runConfig.getProblemInstanceSeedPair().getProblemInstance().getInstanceID() > 0)
 				{
-					log.info("Starting processing of job {} ", runConfig.getProblemInstanceSeedPair().getInstance().getInstanceID());
+					log.info("Starting processing of job {} ", runConfig.getProblemInstanceSeedPair().getProblemInstance().getInstanceID());
 				} else
 				{
 					log.info("Starting processing of job");

@@ -580,13 +580,13 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							uuids.add(uuid);
 							Integer execConfigID = this.getAlgorithmExecutionConfigurationID(rc.getAlgorithmExecutionConfig());
 							stmt.setInt(k++, execConfigID);
-							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getInstance().getInstanceName()));
-							if(rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation().length() > 4000)
+							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName()));
+							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation().length() > 4000)
 							{
 								throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 4K or less in this version, I'm sorry");
 							}
 							
-							stmt.setString(k++, rc.getProblemInstanceSeedPair().getInstance().getInstanceSpecificInformation());
+							stmt.setString(k++, rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation());
 							stmt.setLong(k++, rc.getProblemInstanceSeedPair().getSeed());
 							stmt.setDouble(k++, rc.getCutoffTime());
 							String configString = rc.getParamConfiguration().getFormattedParamString(StringFormat.ARRAY_STRING_SYNTAX);
@@ -812,7 +812,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
 		try {
-			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(rc.getAlgorithmExecutionConfig(),pathStrip) + runPartition).getBytes("UTF-8"));
+			byte[] result = digest.digest( (rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName() + rc.getProblemInstanceSeedPair().getSeed() +  rc.getCutoffTime() + rc.hasCutoffLessThanMax() + hasher.getHash(rc.getParamConfiguration()) + hasher.getHash(rc.getAlgorithmExecutionConfig(),pathStrip) + runPartition).getBytes("UTF-8"));
 			return new String(Hex.encodeHex(result));
 	
 		} catch (UnsupportedEncodingException e) {

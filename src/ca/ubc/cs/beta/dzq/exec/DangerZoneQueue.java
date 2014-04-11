@@ -126,7 +126,7 @@ public class DangerZoneQueue {
 						//log.info("Done");
 						for(AlgorithmRun run : runs)
 						{
-							Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
+							Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
 							log.info("Run Completed Successfully: Command: {} => (Result: {}, Runtime: {}, Exit Code: {} , Addl: {} ) ", args);
 						}
 						
@@ -184,7 +184,7 @@ public class DangerZoneQueue {
 							log.info("***** Run Status Update *****");
 							for(AlgorithmRun run : runs)
 							{
-								Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
+								Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
 								
 								if(showDetailedStatus)
 								{
