@@ -167,6 +167,17 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 				{
 					handler.onFailure(e);
 					return;
+				} catch(Throwable t)
+				{
+					handler.onFailure(new IllegalStateException("Unexpected Throwable occured", t));
+					
+					if(t instanceof Error)
+					{
+						throw t;
+					}
+					
+					
+					return;
 				}
 				try {
 					handler.onSuccess(runs);
@@ -174,6 +185,16 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 				{
 					log.error("RuntimeException occurred during invocation of onSuccess(), calling onFailure()", e);
 					handler.onFailure(e);
+				} catch(Throwable t)
+				{
+					handler.onFailure(new IllegalStateException("Unexpected Throwable occured", t));
+					
+					if(t instanceof Error)
+					{
+						
+						throw (Error) t;
+					}
+					return;
 				}
 				
 			
