@@ -6,14 +6,16 @@ public class UpdatedWorkerParameters {
 	private final int delayBetweenRequests;
 	private final String pool;
 	private final int poolIdleTimeLimit;
+	private final int concurrencyFactor;
 	
-	public UpdatedWorkerParameters(long timeLimit, int batchSize, int delayBetweenRequests, String pool, int poolIdleTimeLimit)
+	public UpdatedWorkerParameters(long timeLimit, int batchSize, int delayBetweenRequests, String pool, int poolIdleTimeLimit, int concurrencyFactor)
 	{
 		this.timeLimit = timeLimit;
 		this.batchSize = batchSize;
 		this.delayBetweenRequests = delayBetweenRequests;
 		this.pool =pool;
 		this.poolIdleTimeLimit = poolIdleTimeLimit;
+		this.concurrencyFactor = concurrencyFactor;
 	}
 
 	public int getTimeLimit() {
@@ -34,5 +36,9 @@ public class UpdatedWorkerParameters {
 	
 	public int getPoolIdleTimeLimit() {
 		return poolIdleTimeLimit;
+	}
+
+	public int getConcurrencyFactor() {
+		return concurrencyFactor;
 	}
 }

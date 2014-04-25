@@ -58,9 +58,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--poolIdleTimeLimit", description="Amount of idle time allowed to accumulate in the pool before shutdown", converter=DurationConverter.class)
 	public int poolIdleTimeLimit = 14400000;
 	
-	@UsageTextField(level=OptionLevel.BASIC)
-	@Parameter(names="--timeLimit", description="Amount of time to work for", required = true, converter=DurationConverter.class)
-	public int timeLimit;
+	@UsageTextField(level=OptionLevel.BASIC, defaultValues="no time limit")
+	@Parameter(names="--timeLimit", description="Amount of time to work for, you should set this to the time limit of the job, otherwise the database may have jobs that are stuck.", converter=DurationConverter.class)
+	public int timeLimit = Integer.MAX_VALUE;
 	
 	@UsageTextField(level=OptionLevel.DEVELOPER)
 	@Parameter(names="--shutdownBuffer", description="Amount of time to budget for shutdown tasks", converter=DurationConverter.class)
@@ -94,6 +94,10 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@Parameter(names="--pushback-threshold", description="Number of NEW jobs in the database")
 	public int pushbackThreshold = 3;
+	
+	
+	@Parameter(names="--concurrency-factor", description="How many workers should be allowed to grab jobs concurrently from the database, set to zero to disable.")
+	public int concurrencyFactor = 4;
 	
 	@ParametersDelegate
 	public HelpOptions help = new HelpOptions();

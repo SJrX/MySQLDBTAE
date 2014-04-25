@@ -9,14 +9,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +38,7 @@ import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigurationIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ec.util.MersenneTwister;
 
 public class MySQLPersistenceWorker extends MySQLPersistence {
 
@@ -60,9 +64,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	
 	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables, 0);
 	}
 	
+	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables, int concurrencyFactor)
+	{
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables, concurrencyFactor);
+	}
+	
+	
+	
+		
 
 	/**
 	 * Job Indentifier, meaningless except for logging purposes
@@ -75,17 +87,25 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Date endDateTime;
 	private final Date startDateTime;
 	
+	private final AtomicInteger concurrencyFactor = new AtomicInteger(0);
+	
+	private final Random rand = new MersenneTwister();
+	
 	public MySQLPersistenceWorker(String host, int port,
-			String databaseName, String username, String password, String pool,String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables) {
+			String databaseName, String username, String password, String pool,String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables, int concurrencyFactor) {
 		super(host, port, databaseName, username, password, pool, createTables);
 
 		log.info("My Worker ID is " + workerUUID.toString());
 		this.jobID = jobID;
 		this.endDateTime = endDateTime;
 		this.startDateTime = startDateTime;
-		
+		this.concurrencyFactor.set(concurrencyFactor);
 		logWorker(runsToBatch, delayBetweenRequest, pool, poolIdleTimeLimit, version);
 	}
+
+
+
+
 
 	private final Map<Integer, AlgorithmExecutionConfigurationIDBlacklistedException> blacklistedKeys = new HashMap<Integer, AlgorithmExecutionConfigurationIDBlacklistedException>();
 	
@@ -186,6 +206,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			//Pull workers off the queue in order of priority, do not take workers where we already tried
 			//This isn't a perfect heuristic. I'm hoping it's good enough.
 			
+
+			
+			int lock = -1;  
+			
+			if(concurrencyFactor.get() > 0)
+			{
+				lock = this.rand.nextInt(concurrencyFactor.get());
+				//We won't actually check the result and so it doesn't matter if it's once every 2 days
+				sb.append("SELECT GET_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\",172800);" );
+			}
 			
 			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (\n\t").append(
 					"SELECT runConfigID, priority FROM (");
@@ -200,35 +230,81 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					
 							
 					sb.append("\t) innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(
-					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1;");
+					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1");
 					
 					
 			//System.out.println(sb.toString());
 			
-					log.debug("SQL Query for Job Processing: {}", sb);
-			PreparedStatement stmt = null;
+				
+			Statement stmt = null;
 			try {
 				Connection conn = getConnection();
-				stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				stmt = conn.createStatement();
 				
-				executePS(stmt);
+				
+						
+						
+						//conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				
+				//stmt.addBatch(sb.toString());
+				
+				
+				//executePS(stmt);
 				
 				//if(true) return Collections.emptyMap();
 				//conn.commit();
 				
-				sb = new StringBuffer();
+			 
 				//
-				sb.append("SELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
-				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
+				sb.append(";\nSELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
+				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\";");
 				
 		
-				stmt.close();
+				//stmt.close();
 				
-				stmt = conn.prepareStatement(sb.toString());
+				String releaseLockSQL = "\nSELECT RELEASE_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\");";
+				if(concurrencyFactor.get() > 0)
+				{
+						sb.append(releaseLockSQL);
+				}
+
+				
+				//stmt.addBatch(sb.toString());
+				//stmt = conn.prepareStatement(sb.toString());
+				log.debug("SQL Query for Job Processing:\n {}", sb);
+				try {
+					stmt.execute(sb.toString());
+				} catch(SQLException e)
+				{
+					
+					try 
+					{
+						stmt.execute(releaseLockSQL);
+					} catch(SQLException e2)
+					{
+						log.error("Couldn't release lock: ", e2);
+						conn.close();
+					}
+					
+					throw e;
+				}
+				
+				ResultSet rs = stmt.getResultSet();
+				
+				//System.out.println(Arrays.toString(res));
 				
 				
-				ResultSet rs = stmt.executeQuery();
-				
+				if(concurrencyFactor.get() > 0)
+				{
+					stmt.getMoreResults();
+				}
+								
+				if(stmt.getMoreResults())
+				{
+					
+					rs = stmt.getResultSet();
+				} 
+			
 				List<AlgorithmRunConfiguration> rcList = new ArrayList<AlgorithmRunConfiguration>();
 			
 				while(rs.next())
@@ -418,6 +494,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 */
 	public void resetUnfinishedRuns()
 	{
+		
 		log.debug("Resetting Unfinished Runs");
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"NEW\", priority=\""+JobPriority.LOW+ "\" WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\"");
 		
@@ -457,7 +534,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, int poolIdleTimeLimit, String version)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID, startTime, startWeekYear, originalEndTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE, poolIdleTimeLimit_UPDATEABLE, workerIdleTime_UPDATEABLE, upToDate, version)  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,1,?)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID, startTime, startWeekYear, originalEndTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE, poolIdleTimeLimit_UPDATEABLE, concurrencyFactor_UPDATEABLE, workerIdleTime_UPDATEABLE,  upToDate, version)  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,1,?)");
 		
 		
 		try {
@@ -496,8 +573,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			stmt.setInt(10, delayBetweenRequests);
 			stmt.setString(11, pool);
 			stmt.setLong(12, poolIdleTimeLimit);
-			stmt.setString(13,version);
-			executePS(stmt);
+			stmt.setInt(13, this.concurrencyFactor.get());
+			stmt.setString(14,version);
+			
+			try {
+				stmt.execute();
+			} catch(SQLException e)
+			{
+				log.error("Couldn't log worker, most likely because of missing columns. Maybe try executing: ALTER TABLE "+TABLE_WORKERS+" ADD COLUMN concurrencyFactor_UPDATEABLE int(11) NOT NULL DEFAULT 0;");
+				throw new IllegalStateException("=========================================\n\n\n\nCouldn't create entry for worker in database, maybe try the following query:\n ALTER TABLE "+TABLE_WORKERS+" ADD COLUMN concurrencyFactor_UPDATEABLE int(11) NOT NULL DEFAULT 0;\n\n\n=========================================\n\n", e);
+			}
 			stmt.close();
 			conn.close();
 			
@@ -539,7 +624,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @return UpdatedWorkerParameters
 	 */
 	public UpdatedWorkerParameters getUpdatedParameters() {
-		StringBuilder sb = new StringBuilder("SELECT endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+		StringBuilder sb = new StringBuilder("SELECT endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE,concurrencyFactor_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
@@ -566,7 +651,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				}
 				
 				long timeLimit = rs.getTimestamp(1).getTime()-startDateTime.getTime();
-				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getInt(5));
+				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getInt(5),rs.getInt(6));
+				
+				this.concurrencyFactor.set(newParameters.getConcurrencyFactor());
 				stmt.close();
 				
 				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET upToDate=1 WHERE workerUUID=\""+workerUUID.toString()+"\" ");

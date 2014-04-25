@@ -157,7 +157,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			assertTrue(isRunning(proc1));
 			
-			Thread.sleep(5000);
+			Thread.sleep(6000);
 			
 			assertTrue(!isRunning(proc1));
 

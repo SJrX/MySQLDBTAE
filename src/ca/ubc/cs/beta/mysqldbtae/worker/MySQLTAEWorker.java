@@ -30,6 +30,27 @@ public class MySQLTAEWorker {
 	private static final long startTimeSecs = System.currentTimeMillis() / 1000;
 	
 	
+	public static String getStringForPossibleNull(String possiblyNull)
+	{
+		return getStringForPossibleNull(possiblyNull, "", "");
+	}
+	
+	public static String getStringForPossibleNull(String possiblyNull, String pre, String post)
+	{
+		if(possiblyNull == null)
+		{
+			return "";
+		} 
+		
+		if(possiblyNull.trim().length() == 0)
+		{
+			return "";
+		} else
+		{
+			return possiblyNull.trim();
+		}
+	}
+	
 	public static void main(String[] args) {
 		
 		MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
@@ -44,7 +65,26 @@ public class MySQLTAEWorker {
 				
 			} finally
 			{
-				String workerID = options.jobID  + "/" + ManagementFactory.getRuntimeMXBean().getName();
+				
+				String jobID = "";
+				jobID = getStringForPossibleNull(System.getenv("JOB_ID"));
+				
+				jobID += getStringForPossibleNull(System.getenv("SGE_TASK_ID"),"[","]");
+				
+				jobID += getStringForPossibleNull(System.getenv("PBS_JOBID"));
+				
+				jobID += getStringForPossibleNull(System.getenv("PBS_ARRAYID"),"[","]");
+				
+				
+				
+				if(!options.jobID.equals("CLI"))
+				{
+					jobID = options.jobID;
+				} else if(jobID.trim().length() == 0)
+				{
+					jobID= "CLI";
+				}
+				String workerID = jobID  + "/" + ManagementFactory.getRuntimeMXBean().getName();
 				String logLocation = options.logDirectory.getAbsolutePath() + File.separator + "log-worker-"+workerID.replaceAll("[^A-Za-z0-9_]+", "_")+".txt";
 				System.setProperty("LOG_LOCATION", logLocation);
 				System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");

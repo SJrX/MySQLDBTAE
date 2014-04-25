@@ -1,5 +1,7 @@
 package ca.ubc.cs.beta.mysqldbtae.persistence;
 
+import java.sql.Connection;
+
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -7,6 +9,7 @@ import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEv
 
 public class MySQLPersistenceUtil {
 
+	
 	/**
 	 * Utility method that executes a query via the Persistence object
 	 * 
@@ -18,6 +21,10 @@ public class MySQLPersistenceUtil {
 		persistence.debugExecuteUpdate(sql);
 	}
 	
+	public static Connection getConnection(MySQLPersistence persistence)
+	{
+		return persistence.getConnection();
+	}
 	/**
 	 * Utility method that executes a query via the Persistence object
 	 * 
@@ -42,6 +49,10 @@ public class MySQLPersistenceUtil {
 			throw new IllegalArgumentException("This is a debug method, and requires a MySQLTargetAlgorithmEvaluator");
 		}
 		executeQueryForDebugPurposes(sql, MySQLTargetAlgorithmEvaluatorPersistenceRetriever.getPersistence((MySQLTargetAlgorithmEvaluator) tae));
+	}
+
+	public static String getRunConfigTable(MySQLTargetAlgorithmEvaluator tae) {
+		return MySQLTargetAlgorithmEvaluatorPersistenceRetriever.getPersistence(tae).TABLE_RUNCONFIG; 
 	}
 	
 

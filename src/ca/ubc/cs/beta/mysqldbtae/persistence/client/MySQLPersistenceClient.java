@@ -717,7 +717,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				stmt.setBoolean(5, execConfig.isDeterministicAlgorithm());
 				stmt.setDouble(6,execConfig.getAlgorithmMaximumCutoffTime());
 				stmt.setString(7, hasher.getHash(execConfig,pathStrip));
-				
+				/*
 				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutable()));
 				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()));
 				System.out.println(pathStrip.stripPath(execConfig.getParameterConfigurationSpace().getParamFileName()));
@@ -725,9 +725,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				System.out.println(execConfig.isDeterministicAlgorithm());
 				System.out.println(execConfig.getAlgorithmMaximumCutoffTime());
 				System.out.println(hasher.getHash(execConfig,pathStrip));
+				*/
 				executePS(stmt);
 				ResultSet rs = stmt.getGeneratedKeys();
-				System.out.println(stmt.toString());
+				//System.out.println(stmt.toString());
 				rs.next();
 				id = rs.getInt(1);
 				
@@ -972,7 +973,7 @@ outerloop:
 			log.debug("Data in database will be left alone");
 		}
 		
-
+		super.shutdown();
 		
 		
 		

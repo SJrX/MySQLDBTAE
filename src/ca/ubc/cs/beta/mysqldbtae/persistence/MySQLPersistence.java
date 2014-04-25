@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -25,7 +26,7 @@ import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.mchange.v2.c3p0.DataSources;
 import com.mysql.jdbc.exceptions.MySQLQueryInterruptedException;
 
-public class MySQLPersistence {
+public class MySQLPersistence implements AutoCloseable{
 
 	//private final Connection conn;
 	
@@ -61,7 +62,7 @@ public class MySQLPersistence {
 			return cpds.getConnection();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
-			throw new IllegalStateException("Couldn't get connection");
+			throw new IllegalStateException("Couldn't get connection",e);
 		}
 	}
 	
@@ -94,7 +95,7 @@ public class MySQLPersistence {
 		}
 		
 		
-		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
+		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?allowMultiQueries=true";
 		
 		try {
 			
@@ -148,6 +149,7 @@ public class MySQLPersistence {
 			boolean databaseExists = false;
 			
 			Connection conn = cpds.getConnection();
+	
 			try {
 				try {
 					conn.createStatement().execute("SELECT 1 FROM " + TABLE_VERSION + " LIMIT 1");
@@ -322,14 +324,32 @@ public class MySQLPersistence {
 		}
 		
 	}
+	
+	private final AtomicBoolean closed = new AtomicBoolean(false);
+	public boolean isClosed()
+	{
+		return closed.get();
+	}
 	public void shutdown()
 	{
-		try {
-			DataSources.destroy(cpds);
-		} catch (SQLException e) {
-			log.error("Unknown exception occurred {}",e );
+		if(closed.compareAndSet(false, true))
+		{
+			try {
+				DataSources.destroy(cpds);
+			} catch (SQLException e) {
+				log.error("Unknown exception occurred on shutdown {}",e );
+			}
+		} else
+		{
+			log.debug("Already closed");
 		}
 	}
+	
+	@Override
+	public void close() {
+		shutdown();		
+	}
+	
 	
 	/**
 	 * Executes a SQL query against the database
@@ -498,5 +518,7 @@ public class MySQLPersistence {
 		throw new IllegalStateException("Database queries have failed too many times in a row, giving up");
 	
 	}
+
+	
 	
 }
