@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.sql.Date;
 import java.text.DateFormat;
 import java.util.ArrayList;
@@ -132,7 +133,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			assertTrue(isRunning(proc1));
 			
-			Thread.sleep(6000);
+			Thread.sleep(4000);
 			
 			assertTrue(!isRunning(proc1));
 
@@ -157,7 +158,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			assertTrue(isRunning(proc1));
 			
-			Thread.sleep(6000);
+			Thread.sleep(3000);
 			
 			assertTrue(!isRunning(proc1));
 
@@ -166,6 +167,40 @@ public class MySQLDBTAEEndTimeTester {
 		}	
 			
 	}	
+	
+	private static int getPID(Process p)
+	{
+		int pid = 0;
+		
+		try {
+			Field f = p.getClass().getDeclaredField("pid");
+			
+			f.setAccessible(true);
+			pid = Integer.valueOf(f.get(p).toString());
+			f.setAccessible(false);
+		} catch (SecurityException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchFieldException e) {
+			return -1;
+		} catch (IllegalArgumentException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	
+		if(pid > 0)
+		{
+			return pid;
+		} else
+		{
+			return -1;
+		}
+	}
+	
 	
 	/**
 	 * Test initially creates a worker with high
@@ -197,7 +232,7 @@ public class MySQLDBTAEEndTimeTester {
 				
 			assertTrue(isRunning(proc1));
 
-			Thread.sleep(5000);
+			Thread.sleep(4000);
 			
 			assertTrue(!isRunning(proc1));
 
@@ -209,10 +244,30 @@ public class MySQLDBTAEEndTimeTester {
 	
 	public boolean isRunning(Process process) {
 	    try {
-	        process.exitValue();
+	    	process.exitValue();
 	        return false;
 	    } catch (IllegalThreadStateException e) {
-	        return true;
+	    	/*
+	    	if(new File("/proc").exists())
+	    	{
+	    		if(new File("/proc/" + getPID(process)).exists())
+		    	{
+	    			for(File f : (new File("/proc/" + getPID(process)).listFiles()))
+	    			{
+	    				System.out.println(f.getAbsolutePath());
+	    			}
+	    					
+	    			return true; 
+		    	} else 
+		    	{
+		    		return false;
+		    	}
+	    	} else*/
+	    	{
+	    		return true;
+	    	}
+	    	
+	        
 	    }
 	}
 	

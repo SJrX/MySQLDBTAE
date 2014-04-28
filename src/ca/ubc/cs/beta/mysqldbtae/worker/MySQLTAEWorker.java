@@ -2,7 +2,9 @@ package ca.ubc.cs.beta.mysqldbtae.worker;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.util.Arrays;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -177,27 +179,73 @@ public class MySQLTAEWorker {
 		//as this is better than wasting a bunch of CPU time.
 		
 		ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
-		int nonDaemonThreadCount = threadMXBean.getThreadCount() - threadMXBean.getDaemonThreadCount();
-		for(int i=0; i < 60; i++)
+		
+		for(int i=0; i < 600; i++)
 		{
+			int nonDaemonThreadCount = threadMXBean.getThreadCount() - threadMXBean.getDaemonThreadCount();
 			if(nonDaemonThreadCount <= 1)
 			{ //This main thread is the only thread left
 				break;
 			} else
 			{
-				log.warn("There seems to be many non-daemon threads around {}. Chances are some target algorithm evaluator has some threads around or wasn't cleaned up properly.", nonDaemonThreadCount);
 				try {
-					Thread.sleep(1000);
+					Thread.sleep(100);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 					return;
 				}
+				
+			
+				if(i < 50 )
+				{
+					//Don't log anything for the first 5 seconds
+					//System.out.println(".");
+					continue;
+				}
+				
+				
+				StringBuilder nonDaemonThreads = new StringBuilder();
+				
+				for(Thread t : getAllThreads())
+				{
+					
+					if(!t.isDaemon())
+					{
+						nonDaemonThreads.append("Name:["+t.getName() + "], State:[" + t.getState()+ "]\n");
+					}
+				}
+				
+				log.warn("There seems to be many non-daemon threads around {}. Chances are some target algorithm evaluator has some threads around or wasn't cleaned up properly:\n{}", nonDaemonThreadCount, nonDaemonThreads.toString());
 			}
-			nonDaemonThreadCount = threadMXBean.getThreadCount() - threadMXBean.getDaemonThreadCount();
+			
 			
 		}
-				
+			log.info("Shutdown");
 		System.exit(AEATKReturnValues.SUCCESS);
 	}
+	
+	private static Thread[] getAllThreads( ) {
+	    final ThreadGroup root = getRootThreadGroup( );
+	    final ThreadMXBean thbean = ManagementFactory.getThreadMXBean( );
+	    int nAlloc = thbean.getThreadCount( );
+	    int n = 0;
+	    Thread[] threads;
+	    do {
+	        nAlloc *= 2;
+	        threads = new Thread[ nAlloc ];
+	        n = root.enumerate( threads, true );
+	    } while ( n == nAlloc );
+	    return java.util.Arrays.copyOf( threads, n );
+	}
+	
+ 
+	private static ThreadGroup getRootThreadGroup( ) {
+	    ThreadGroup tg = Thread.currentThread( ).getThreadGroup( );
+	    ThreadGroup ptg;
+	    while ( (ptg = tg.getParent( )) != null )
+	        tg = ptg;
+	    return tg;
+	}
+	
 	
 }
