@@ -18,23 +18,22 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
-import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
@@ -47,9 +46,9 @@ public class MySQLDBTAEPoolIdleTester {
 
 
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 		
 	private static MySQLOptions mysqlConfig;
 	
@@ -75,14 +74,14 @@ public class MySQLDBTAEPoolIdleTester {
 		
 		
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
+		configSpace = new ParameterConfigurationSpace(paramFile);
 	
 		StringBuilder b = new StringBuilder();
 		b.append("java -cp ");
 		b.append(System.getProperty("java.class.path"));
 		b.append(" ");
 		b.append(TrueSleepyParamEchoExecutor.class.getCanonicalName());
-		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
+		execConfig = new AlgorithmExecutionConfiguration(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
 		
 		rand = new MersenneTwister();
 	}
@@ -126,8 +125,10 @@ public class MySQLDBTAEPoolIdleTester {
 	public void testPoolIdleTime()
 	{
 		try {
-			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
+					
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", tae);
 			
 			Process proc1 = setupWorker();
 			Process proc2 = setupWorker();
@@ -168,8 +169,10 @@ public class MySQLDBTAEPoolIdleTester {
 	public void testPoolIdleTimeUpdate()
 	{
 		try {
-			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", tae);
 			
 			Process proc1 = setupWorker();
 			Process proc2 = setupWorker();
@@ -178,7 +181,10 @@ public class MySQLDBTAEPoolIdleTester {
 			assertTrue(isRunning(proc1));
 			assertTrue(isRunning(proc2));
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=\"4\", upToDate=0", mysqlPersistence);
+
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=\"4\", upToDate=0", tae);
+
+
 			
 			Thread.sleep(5000);
 			assertTrue(!isRunning(proc1));
@@ -207,15 +213,17 @@ public class MySQLDBTAEPoolIdleTester {
 	public void testPoolIdleTimeWeekYear()
 	{
 		try {
-			MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", mysqlPersistence);
+			
+			MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+"_workers", tae);
 			
 			Process proc1 = setupWorker();
 			Thread.sleep(4000);
 
 			assertTrue(isRunning(proc1));
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=0, upToDate=0, startWeekYear=0", mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=0, upToDate=0, startWeekYear=0", tae);
 			
 			Thread.sleep(2000);
 			assertTrue(isRunning(proc1));
@@ -230,9 +238,9 @@ public class MySQLDBTAEPoolIdleTester {
 			cal.add(Calendar.WEEK_OF_YEAR, -2);
 			int current = Integer.parseInt(cal.get(Calendar.WEEK_OF_YEAR)+""+cal.get(Calendar.YEAR));
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=10, upToDate=0, startWeekYear="+current, mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET poolIdleTimeLimit_UPDATEABLE=10, upToDate=0, startWeekYear="+current, tae);
 			
-			Thread.sleep(2000);
+			Thread.sleep(3000);
 			
 			assertTrue(!isRunning(proc1));
 			assertTrue(!isRunning(proc2));

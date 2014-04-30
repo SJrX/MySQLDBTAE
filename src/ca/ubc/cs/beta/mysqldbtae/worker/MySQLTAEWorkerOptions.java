@@ -7,15 +7,15 @@ import com.beust.jcommander.ParameterFile;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
-import ca.ubc.cs.beta.aclib.help.HelpOptions;
-import ca.ubc.cs.beta.aclib.misc.file.HomeFileUtils;
-import ca.ubc.cs.beta.aclib.misc.jcommander.converter.DurationConverter;
-import ca.ubc.cs.beta.aclib.misc.options.OptionLevel;
-import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
-import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorOptions;
-import ca.ubc.cs.beta.aclib.misc.jcommander.converter.WritableDirectoryConverter;
+import ca.ubc.cs.beta.aeatk.help.HelpOptions;
+import ca.ubc.cs.beta.aeatk.misc.file.HomeFileUtils;
+import ca.ubc.cs.beta.aeatk.misc.jcommander.converter.DurationConverter;
+import ca.ubc.cs.beta.aeatk.misc.options.OptionLevel;
+import ca.ubc.cs.beta.aeatk.misc.options.UsageTextField;
+import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorOptions;
+import ca.ubc.cs.beta.aeatk.misc.jcommander.converter.WritableDirectoryConverter;
 
 @UsageTextField(title="MySQL TAE Worker Options", description="Options that describe and control the MySQL TAE Worker Process ")
 public class MySQLTAEWorkerOptions extends AbstractOptions {
@@ -26,10 +26,10 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	@UsageTextField(defaultValues="~/.aclib/mysqlworker.opt")
+	@UsageTextField(defaultValues="~/.aeatk/mysqlworker.opt")
 	@Parameter(names="--mysqlWorkerDefaultsFile", description="file that contains default settings for MySQL Workers")
 	@ParameterFile(ignoreFileNotExists = true) 
-	public File mysqlworkerDefaults = HomeFileUtils.getHomeFile(".aclib" + File.separator  + "mysqlworker.opt");
+	public File mysqlworkerDefaults = HomeFileUtils.getHomeFile(".aeatk" + File.separator  + "mysqlworker.opt");
 	
 	@ParametersDelegate
 	public MySQLOptions mysqlOptions = new MySQLOptions();
@@ -58,9 +58,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--poolIdleTimeLimit", description="Amount of idle time allowed to accumulate in the pool before shutdown", converter=DurationConverter.class)
 	public int poolIdleTimeLimit = 14400000;
 	
-	@UsageTextField(level=OptionLevel.BASIC)
-	@Parameter(names="--timeLimit", description="Amount of time to work for", required = true, converter=DurationConverter.class)
-	public int timeLimit;
+	@UsageTextField(level=OptionLevel.BASIC, defaultValues="no time limit")
+	@Parameter(names="--timeLimit", description="Amount of time to work for, you should set this to the time limit of the job, otherwise the database may have jobs that are stuck.", converter=DurationConverter.class)
+	public int timeLimit = Integer.MAX_VALUE;
 	
 	@UsageTextField(level=OptionLevel.DEVELOPER)
 	@Parameter(names="--shutdownBuffer", description="Amount of time to budget for shutdown tasks", converter=DurationConverter.class)
@@ -94,6 +94,10 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@Parameter(names="--pushback-threshold", description="Number of NEW jobs in the database")
 	public int pushbackThreshold = 3;
+	
+	
+	@Parameter(names="--concurrency-factor", description="How many workers should be allowed to grab jobs concurrently from the database, set to zero to disable.")
+	public int concurrencyFactor = 4;
 	
 	@ParametersDelegate
 	public HelpOptions help = new HelpOptions();

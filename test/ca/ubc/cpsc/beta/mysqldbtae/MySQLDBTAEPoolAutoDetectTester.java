@@ -17,21 +17,22 @@ import org.junit.Test;
 import com.beust.jcommander.ParameterException;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 
@@ -41,9 +42,9 @@ public class MySQLDBTAEPoolAutoDetectTester {
 	
 	private static Process proc;
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -63,8 +64,8 @@ public class MySQLDBTAEPoolAutoDetectTester {
 		mysqlConfig = MySQLDBUnitTestConfig.getMySQLConfig();
 	
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
-		execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
+		configSpace = new ParameterConfigurationSpace(paramFile);
+		execConfig = new AlgorithmExecutionConfiguration("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
 		
 	}
 	
@@ -73,34 +74,43 @@ public class MySQLDBTAEPoolAutoDetectTester {
 	public void testPoolCreation()
 	{
 		
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, null ,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
+			MySQLTargetAlgorithmEvaluator mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, null, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPersistence.TABLE_COMMAND,mysqlPersistence);
+			//MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, null ,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPersistence.TABLE_EXECCONFIG,mysqlPersistence);
+			MySQLPersistenceClient mysqlPeristence = MySQLPersistenceUtil.getPersistence(mySQLTAE);
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPersistence.TABLE_RUNCONFIG,mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPeristence.TABLE_COMMAND,mysqlPeristence);
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPersistence.TABLE_WORKERS,mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPeristence.TABLE_EXECCONFIG,mysqlPeristence);
 			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPersistence.TABLE_VERSION,mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPeristence.TABLE_RUNCONFIG,mysqlPeristence);
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPeristence.TABLE_WORKERS,mysqlPeristence);
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DROP TABLE " + mysqlPeristence.TABLE_VERSION,mysqlPeristence);
 			
 			
 			try {
-				mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, false ,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
+				
+				mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, false, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
+				
+				
+
+				
+		
 				fail("Expected Exception");
 			} catch(ParameterException e)
 			{
-				
+				//We expect this because we deleted the table and aren't creating it.
 			}
 			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true ,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
+			mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
+			mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, null, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, null ,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
+			mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, false, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
-			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, false ,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
 			
 	}
 	

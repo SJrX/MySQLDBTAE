@@ -16,15 +16,15 @@
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 //
-//import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-//import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
-//import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-//import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
-//import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
-//import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
-//import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-//import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-//import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
+//import ca.ubc.cs.beta.aeatk.algorithmrun.AlgorithmRun;
+//import ca.ubc.cs.beta.aeatk.algorithmrun.ExistingAlgorithmRun;
+//import ca.ubc.cs.beta.aeatk.execconfig.AlgorithmExecutionConfiguration;
+//import ca.ubc.cs.beta.aeatk.misc.version.VersionTracker;
+//import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
+//import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
+//import ca.ubc.cs.beta.aeatk.runconfig.RunConfig;
+//import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+//import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorBuilder;
 //import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 //import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
 //
@@ -206,7 +206,7 @@
 //		
 //			MySQLPersistence mysqlPersistence = new MySQLPersistence(options.mysqlOptions,options.pool,100);
 //		
-//			Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
+//			Map<AlgorithmExecutionConfiguration, TargetAlgorithmEvaluator> taeMap = new HashMap<AlgorithmExecutionConfiguration, TargetAlgorithmEvaluator>();
 //			
 //			log.info("Waiting for Work");
 //			int i=0;
@@ -214,7 +214,7 @@
 //			{
 //				
 //				//mysqlPersistence.startTransaction();
-//				Map<AlgorithmExecutionConfig, List<RunConfig>> runs = null;
+//				Map<AlgorithmExecutionConfiguration, List<RunConfig>> runs = null;
 //				try {
 //					try {
 //						latch.countDown();
@@ -246,10 +246,10 @@
 //			
 //				List<AlgorithmRun> algorithmRuns = new ArrayList<AlgorithmRun>(options.runsToBatch);
 //				boolean zeroJobs = true;
-//				for(Entry<AlgorithmExecutionConfig, List<RunConfig>> ent : runs.entrySet())
+//				for(Entry<AlgorithmExecutionConfiguration, List<RunConfig>> ent : runs.entrySet())
 //				{
 //					zeroJobs = false;
-//					AlgorithmExecutionConfig execConfig = ent.getKey();
+//					AlgorithmExecutionConfiguration execConfig = ent.getKey();
 //					
 //					log.info("Have {} jobs to do ", ent.getValue().size());
 //					if(taeMap.get(execConfig) == null)

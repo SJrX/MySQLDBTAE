@@ -11,31 +11,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Semaphore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.misc.jcommander.JCommanderHelper;
-import ca.ubc.cs.beta.aclib.misc.spi.SPIClassLoaderHelper;
-import ca.ubc.cs.beta.aclib.misc.version.VersionTracker;
-import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.WaitableTAECallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.misc.jcommander.JCommanderHelper;
+import ca.ubc.cs.beta.aeatk.misc.spi.SPIClassLoaderHelper;
+import ca.ubc.cs.beta.aeatk.misc.version.VersionTracker;
+import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.WaitableTAECallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.dzq.options.DangerZoneQueueOptions;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.util.PathStripper;
@@ -76,7 +75,7 @@ public class DangerZoneQueue {
 			}
 			
 	
-			ParamConfigurationSpace configSpace = ParamConfigurationSpace.getSingletonConfigurationSpace();
+			ParameterConfigurationSpace configSpace = ParameterConfigurationSpace.getSingletonConfigurationSpace();
 			
 			
 			
@@ -86,13 +85,13 @@ public class DangerZoneQueue {
 				 ps = new PathStripper(((MySQLTargetAlgorithmEvaluatorOptions) taeOpts.get("MYSQLDB")).pathStrip);
 			}
 			
-			AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(getExecutionString(dzOpts.wrapper, dzOpts.wrapperMemLimit), "/", configSpace, true, true, dzOpts.runtimeLimit);
+			AlgorithmExecutionConfiguration execConfig = new AlgorithmExecutionConfiguration(getExecutionString(dzOpts.wrapper, dzOpts.wrapperMemLimit), "/", configSpace, true, true, dzOpts.runtimeLimit);
 			
-			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(dzOpts.taeOptions, execConfig, false, dzOpts.ignoreTAEBounds, taeOpts, null);
+			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(dzOpts.taeOptions, false, dzOpts.ignoreTAEBounds, taeOpts, null);
 			try {
 				
 				
-				List<RunConfig> runConfigs = new ArrayList<RunConfig>();
+				List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>();
 				
 				
 				StringBuilder sb = new StringBuilder();
@@ -114,7 +113,7 @@ public class DangerZoneQueue {
 						ProblemInstance pi = new ProblemInstance("DIR=>" + ps.stripPath(dzOpts.dir) + ";CMD=>" + ps.stripPath(cmd2)+";ENFORCETIME=>" + dzOpts.enforceTimeLimit + ";SHOWOUTPUT=>" + dzOpts.showOutput  + ";PILSLINE=>" + dzOpts.wrapperPils, "DZQFTW");
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi, i);
 						
-						runConfigs.add(new RunConfig(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration()));
+						runConfigs.add(new AlgorithmRunConfiguration(pisp,dzOpts.runtimeLimit, configSpace.getDefaultConfiguration(), execConfig));
 					}
 				}
 				
@@ -123,11 +122,11 @@ public class DangerZoneQueue {
 				{
 	
 					@Override
-					public void onSuccess(List<AlgorithmRun> runs) {
+					public void onSuccess(List<AlgorithmRunResult> runs) {
 						//log.info("Done");
-						for(AlgorithmRun run : runs)
+						for(AlgorithmRunResult run : runs)
 						{
-							Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
+							Object[] args = { run.getAlgorithmRunConfiguration().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunStatus(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
 							log.info("Run Completed Successfully: Command: {} => (Result: {}, Runtime: {}, Exit Code: {} , Addl: {} ) ", args);
 						}
 						
@@ -155,7 +154,7 @@ public class DangerZoneQueue {
 					long lastUpdate = -1;
 					@Override
 					public void currentStatus(
-							List<? extends KillableAlgorithmRun> runs) {
+							List<? extends AlgorithmRunResult> runs) {
 						
 						
 							if(!showDetailedStatus && !showStatusOverview)
@@ -166,7 +165,7 @@ public class DangerZoneQueue {
 							Map<String, Double> runtimes = new HashMap<String, Double>();
 							
 							
-							for(RunResult r : RunResult.values())
+							for(RunStatus r : RunStatus.values())
 							{
 								counts.put(r.toString(), 0);
 								runtimes.put(r.toString(),0.0);
@@ -183,22 +182,22 @@ public class DangerZoneQueue {
 							} 
 							
 							log.info("***** Run Status Update *****");
-							for(AlgorithmRun run : runs)
+							for(AlgorithmRunResult run : runs)
 							{
-								Object[] args = { run.getRunConfig().getProblemInstanceSeedPair().getInstance().getInstanceName(), run.getRunResult(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
+								Object[] args = { run.getAlgorithmRunConfiguration().getProblemInstanceSeedPair().getProblemInstance().getInstanceName(), run.getRunStatus(), run.getRuntime(), run.getQuality(), run.getAdditionalRunData() };
 								
 								if(showDetailedStatus)
 								{
 									log.info("Current Run Status: Command: {} => (Result: {}, Runtime: {}, Exit Code: {} , Addl: {} ) ", args);
 								}
 								
-								if(run.getRunResult().equals(RunResult.RUNNING) && run.getRuntime() <= 0.0)
+								if(run.getRunStatus().equals(RunStatus.RUNNING) && run.getRuntime() <= 0.0)
 								{
 									counts.put("NOT-STARTED", counts.get("NOT-STARTED")+1);
 								} else
 								{
-									counts.put(run.getRunResult().toString(), counts.get(run.getRunResult().toString())+1);
-									runtimes.put(run.getRunResult().toString(), runtimes.get(run.getRunResult().toString())+run.getRuntime());
+									counts.put(run.getRunStatus().toString(), counts.get(run.getRunStatus().toString())+1);
+									runtimes.put(run.getRunStatus().toString(), runtimes.get(run.getRunStatus().toString())+run.getRuntime());
 								}
 								
 								
@@ -334,7 +333,7 @@ public class DangerZoneQueue {
 				log.debug("Built In Wrapper parsed to location {} ", root);
 			
 				
-				return AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX + "java -Xmx"+wrapperMemLimit+"m -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
+				return AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX + "java -Xmx"+wrapperMemLimit+"m -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
 			
 			//System.out.println(DangerZoneWrapper.class.getClassLoader().getResource(ProviderFor.class.getCanonicalName().replace(".", File.separator)  + ".class").getFile());
 			

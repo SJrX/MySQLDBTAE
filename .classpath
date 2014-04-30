@@ -4,8 +4,8 @@
 	<classpathentry kind="src" path="conf"/>
 	<classpathentry kind="src" path="test"/>
 	<classpathentry kind="src" path="version"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/AutomaticConfiguratorLibrary"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/AEATK"/>
 	<classpathentry kind="lib" path="lib/commons-codec-1.7.jar"/>
 	<classpathentry kind="lib" path="lib/spi-0.2.4.jar"/>
 	<classpathentry kind="lib" path="lib/c3p0-0.9.2-pre8.jar"/>
@@ -17,9 +17,10 @@
 	</classpathentry>
 	<classpathentry kind="lib" path="lib/c3p0-oracle-thin-extras-0.9.2-pre8.jar"/>
 	<classpathentry kind="lib" path="lib/mchange-commons-java-0.2.3.3.jar"/>
-	<classpathentry kind="lib" path="/AutomaticConfiguratorLibrary/lib/jcip-annotations.jar" sourcepath="/AutomaticConfiguratorLibrary/lib/jcip-annotations-src.jar"/>
-	<classpathentry kind="lib" path="/AutomaticConfiguratorLibrary/lib/jcommander.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
-	<classpathentry kind="lib" path="/AutomaticConfiguratorLibrary/lib/slf4j-api-1.7.5.jar"/>
+	<classpathentry kind="lib" path="/AEATK/lib/jcommander.jar"/>
+	<classpathentry kind="lib" path="/AEATK/lib/slf4j-api-1.7.5.jar"/>
+	<classpathentry kind="lib" path="/AEATK/lib/spi-0.2.4.jar"/>
+	<classpathentry kind="lib" path="/AEATK/lib/jcip-annotations.jar" sourcepath="/AEATK/lib/jcip-annotations-src.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

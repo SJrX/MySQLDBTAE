@@ -9,11 +9,10 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLNonTransientException;
-import java.sql.SQLTransientException;
 import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -26,9 +25,8 @@ import com.beust.jcommander.ParameterException;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.mchange.v2.c3p0.DataSources;
 import com.mysql.jdbc.exceptions.MySQLQueryInterruptedException;
-import com.mysql.jdbc.exceptions.jdbc4.MySQLTransientException;
 
-public class MySQLPersistence {
+public class MySQLPersistence implements AutoCloseable{
 
 	//private final Connection conn;
 	
@@ -64,7 +62,7 @@ public class MySQLPersistence {
 			return cpds.getConnection();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
-			throw new IllegalStateException("Couldn't get connection");
+			throw new IllegalStateException("Couldn't get connection",e);
 		}
 	}
 	
@@ -77,6 +75,7 @@ public class MySQLPersistence {
 	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, Boolean createTables)
 	{
 		
+		pool = pool.trim();
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
 		if(pool.length() > 32) throw new ParameterException("Pool name must be at most 32 characters");
 		
@@ -96,7 +95,7 @@ public class MySQLPersistence {
 		}
 		
 		
-		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName;
+		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?allowMultiQueries=true";
 		
 		try {
 			
@@ -150,6 +149,7 @@ public class MySQLPersistence {
 			boolean databaseExists = false;
 			
 			Connection conn = cpds.getConnection();
+	
 			try {
 				try {
 					conn.createStatement().execute("SELECT 1 FROM " + TABLE_VERSION + " LIMIT 1");
@@ -324,14 +324,32 @@ public class MySQLPersistence {
 		}
 		
 	}
+	
+	private final AtomicBoolean closed = new AtomicBoolean(false);
+	public boolean isClosed()
+	{
+		return closed.get();
+	}
 	public void shutdown()
 	{
-		try {
-			DataSources.destroy(cpds);
-		} catch (SQLException e) {
-			log.error("Unknown exception occurred {}",e );
+		if(closed.compareAndSet(false, true))
+		{
+			try {
+				DataSources.destroy(cpds);
+			} catch (SQLException e) {
+				log.error("Unknown exception occurred on shutdown {}",e );
+			}
+		} else
+		{
+			log.debug("Already closed");
 		}
 	}
+	
+	@Override
+	public void close() {
+		shutdown();		
+	}
+	
 	
 	/**
 	 * Executes a SQL query against the database
@@ -500,5 +518,7 @@ public class MySQLPersistence {
 		throw new IllegalStateException("Database queries have failed too many times in a row, giving up");
 	
 	}
+
+	
 	
 }

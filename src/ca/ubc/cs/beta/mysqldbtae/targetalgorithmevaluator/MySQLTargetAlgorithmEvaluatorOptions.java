@@ -4,11 +4,11 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
-import ca.ubc.cs.beta.aclib.misc.file.HomeFileUtils;
-import ca.ubc.cs.beta.aclib.misc.jcommander.validator.FixedPositiveInteger;
-import ca.ubc.cs.beta.aclib.misc.options.OptionLevel;
-import ca.ubc.cs.beta.aclib.misc.options.UsageTextField;
-import ca.ubc.cs.beta.aclib.options.AbstractOptions;
+import ca.ubc.cs.beta.aeatk.misc.file.HomeFileUtils;
+import ca.ubc.cs.beta.aeatk.misc.jcommander.validator.FixedPositiveInteger;
+import ca.ubc.cs.beta.aeatk.misc.options.OptionLevel;
+import ca.ubc.cs.beta.aeatk.misc.options.UsageTextField;
+import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 
 import com.beust.jcommander.Parameter;
@@ -17,10 +17,10 @@ import com.beust.jcommander.ParameterFile;
 @UsageTextField(title="MySQL Target Algorithm Evaluator Options", description="Options that control the MySQL Target Algorithm Evaluator", level=OptionLevel.INTERMEDIATE)
 public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 
-	@UsageTextField(defaultValues="~/.aclib/mysqldbtae.opt")
+	@UsageTextField(defaultValues="~/.aeatk/mysqldbtae.opt")
 	@Parameter(names="--mysqlTaeDefaultsFile", description="file that contains default settings for MySQL")
 	@ParameterFile(ignoreFileNotExists = true) 
-	public File smacDefaults = HomeFileUtils.getHomeFile(".aclib" + File.separator  + "mysqldbtae.opt");
+	public File smacDefaults = HomeFileUtils.getHomeFile(".aeatk" + File.separator  + "mysqldbtae.opt");
 	
 	@Parameter(names="--mysqldbtae-pool", description="Pool to take tasks from")
 	public String pool;
@@ -52,7 +52,7 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	public String password;
 	
 	@Parameter(names="--mysqldbtae-database", description="Name of Database" )
-	public String databaseName = "mysql_db_tae_" + System.getProperty("user.name");
+	public String databaseName = System.getProperty("user.name") + "_mysqldbtae";
 	
 	
 	@Parameter(names="--mysqldbtae-username", description="Username of the Database")

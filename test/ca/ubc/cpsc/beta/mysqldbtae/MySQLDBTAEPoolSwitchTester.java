@@ -1,31 +1,33 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
 import static org.junit.Assert.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ec.util.MersenneTwister;
@@ -36,9 +38,9 @@ public class MySQLDBTAEPoolSwitchTester {
 	
 	private static Process proc;
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -85,8 +87,8 @@ public class MySQLDBTAEPoolSwitchTester {
 			e.printStackTrace();
 		}
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
-		execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
+		configSpace = new ParameterConfigurationSpace(paramFile);
+		execConfig = new AlgorithmExecutionConfiguration("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
 		
 		rand = new MersenneTwister();
 		
@@ -99,47 +101,38 @@ public class MySQLDBTAEPoolSwitchTester {
 	public void testPoolSwitch()
 	{
 		
+		
 			
-			MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+1, 25, true,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+1, 25, true, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
 			
 			
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(5);
+			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(5);
 			for(int i=0; i < 5; i++)
 			{
-				ParamConfiguration config = configSpace.getDefaultConfiguration();
+				ParameterConfiguration config = configSpace.getDefaultConfiguration();
 			
 				config.put("seed", String.valueOf(i));
 				config.put("runtime", String.valueOf(2*i+1));
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				runConfigs.add(rc);
 				
 			}
 			
 			System.out.println("Performing " + runConfigs.size() + " runs");
-			TargetAlgorithmEvaluator tae = mysqlDBTae;
+			MySQLTargetAlgorithmEvaluator tae = mysqlDBTae;
 			
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 			
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
@@ -147,40 +140,29 @@ public class MySQLDBTAEPoolSwitchTester {
 			
 			//Same runPartition
 			runs = tae.evaluateRun(runConfigs);
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 
 			}
 			
-			
-			mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+2, 25, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
-			try {
-			mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			tae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+			tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+2, 25, true, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 
-			final MySQLPersistence sqlExec = mysqlPersistence;
+			final MySQLTargetAlgorithmEvaluator mySQL = tae;
 			runs = tae.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver()
 			{
 
 				boolean poolSwitchAttempted = false;
 				@Override
 				public void currentStatus(
-						List<? extends KillableAlgorithmRun> runs) {
+						List<? extends AlgorithmRunResult> runs) {
 					/*
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
 					System.err.println("For this test to pass you must the following query:  UPDATE " + mysqlConfig.databaseName+".workers_" + MYSQL_POOL+1 + " SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0");
@@ -194,19 +176,19 @@ public class MySQLDBTAEPoolSwitchTester {
 						e.printStackTrace();
 					}
 				
-					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+1 + "_workers SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0", sqlExec);
+					MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+1 + "_workers SET pool_UPDATEABLE=\"" + MYSQL_POOL+2 +"\", upToDate=0", mySQL);
 				}
 				
 			});
 			
-			for(AlgorithmRun run : runs)
+			for(AlgorithmRunResult run : runs)
 			{
-				ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+				ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 				assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 				assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 				assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-				assertEquals(config.get("solved"), run.getRunResult().name());
+				assertEquals(config.get("solved"), run.getRunStatus().name());
 				//This executor should not have any additional run data
 				assertEquals("",run.getAdditionalRunData());
 

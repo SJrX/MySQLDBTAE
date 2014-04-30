@@ -8,32 +8,32 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.helpers.WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.resource.BoundedTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.decorators.helpers.WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.decorators.resource.BoundedTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.targetalgorithmevaluator.TrueSleepyParamEchoExecutor;
-
 import ec.util.MersenneTwister;
 
 @SuppressWarnings("unused")
@@ -42,9 +42,9 @@ public class MySQLDBObserverTester {
 	
 	private static Process proc;
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -100,14 +100,14 @@ public class MySQLDBObserverTester {
 			e.printStackTrace();
 		}
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
+		configSpace = new ParameterConfigurationSpace(paramFile);
 		
 		StringBuilder b = new StringBuilder();
 		b.append("java -cp ");
 		b.append(System.getProperty("java.class.path"));
 		b.append(" ");
 		b.append(TrueSleepyParamEchoExecutor.class.getCanonicalName());
-		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 0.01);
+		execConfig = new AlgorithmExecutionConfiguration(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 0.01);
 		
 		
 		rand = new MersenneTwister();
@@ -126,32 +126,17 @@ public class MySQLDBObserverTester {
 	@Test
 	public void testDynamicAdaptiveCappingSingleRunUnBounded()
 	{
-
-		
-		
-		
-		
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		TargetAlgorithmEvaluator mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence));	
+		TargetAlgorithmEvaluator mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority));	
 		
 		
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 1; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -160,7 +145,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -177,10 +162,10 @@ public class MySQLDBObserverTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 					System.out.println(run);
@@ -191,7 +176,7 @@ public class MySQLDBObserverTester {
 				if(runtimeSum > 1)
 				{
 					System.out.println("Attempting kill");
-					for(KillableAlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						run.kill();
 					}
@@ -201,18 +186,18 @@ public class MySQLDBObserverTester {
 		};
 		
 		long startTime  = System.currentTimeMillis();
-		List<AlgorithmRun> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
+		List<AlgorithmRunResult> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
 		long endTime = System.currentTimeMillis();
 		//System.setOut(out);
 		//System.out.println(bout.toString());
 		
-		for(AlgorithmRun run : runs)
+		for(AlgorithmRunResult run : runs)
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 			
-			if(run.getRunResult().isSuccessfulAndCensored())
+			if(run.getRunStatus().isSuccessfulAndCensored())
 			{
 				
 				continue;
@@ -221,7 +206,7 @@ public class MySQLDBObserverTester {
 			assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 			assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 			assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-			assertEquals(config.get("solved"), run.getRunResult().name());
+			assertEquals(config.get("solved"), run.getRunStatus().name());
 			//This executor should not have any additional run data
 			assertEquals("",run.getAdditionalRunData());
 			
@@ -238,26 +223,19 @@ public class MySQLDBObserverTester {
 	@Test
 	public void testDynamicAdaptiveCappingSingleRunBounded()
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence), 1, execConfig);	
+		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority),1);
+				
+				
+			
 		
 		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 1; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -266,7 +244,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -283,10 +261,10 @@ public class MySQLDBObserverTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 				}
@@ -295,7 +273,7 @@ public class MySQLDBObserverTester {
 				if(runtimeSum > 1)
 				{
 					System.out.println("Attempting kill");
-					for(KillableAlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						run.kill();
 					}
@@ -305,27 +283,27 @@ public class MySQLDBObserverTester {
 		};
 		
 		long startTime  = System.currentTimeMillis();
-		List<AlgorithmRun> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
+		List<AlgorithmRunResult> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
 		long endTime = System.currentTimeMillis();
 		//System.setOut(out);
 		//System.out.println(bout.toString());
 		
-		for(AlgorithmRun run : runs)
+		for(AlgorithmRunResult run : runs)
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 			
-			if(run.getRunResult().isSuccessfulAndCensored())
+			if(run.getRunStatus().isSuccessfulAndCensored())
 			{
-				assertTrue("Run Result Killed",run.getRunResult().equals(RunResult.KILLED));
+				assertTrue("Run Result Killed",run.getRunStatus().equals(RunStatus.KILLED));
 				continue;
 			}
 			assertDEquals(config.get("runtime"), run.getRuntime(), 0.1);
 			assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 			assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 			assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-			assertEquals(config.get("solved"), run.getRunResult().name());
+			assertEquals(config.get("solved"), run.getRunStatus().name());
 			//This executor should not have any additional run data
 			assertEquals("",run.getAdditionalRunData());
 			
@@ -341,26 +319,18 @@ public class MySQLDBObserverTester {
 	@Test
 	public void testDynamicAdaptiveCappingMultiRunBoundedtoOne()
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+
 		
-		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence), 1, execConfig);	
+		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority), 1);	
 		
 		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 4; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -369,7 +339,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -386,10 +356,10 @@ public class MySQLDBObserverTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 				}
@@ -398,7 +368,7 @@ public class MySQLDBObserverTester {
 				if(runtimeSum > 1)
 				{
 					System.out.println("Attempting kill");
-					for(KillableAlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						run.kill();
 					}
@@ -408,18 +378,18 @@ public class MySQLDBObserverTester {
 		};
 		
 		long startTime  = System.currentTimeMillis();
-		List<AlgorithmRun> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
+		List<AlgorithmRunResult> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
 		long endTime = System.currentTimeMillis();
 		//System.setOut(out);
 		//System.out.println(bout.toString());
 		
-		for(AlgorithmRun run : runs)
+		for(AlgorithmRunResult run : runs)
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 			
-			if(run.getRunResult().isSuccessfulAndCensored())
+			if(run.getRunStatus().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -427,7 +397,7 @@ public class MySQLDBObserverTester {
 			assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 			assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 			assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-			assertEquals(config.get("solved"), run.getRunResult().name());
+			assertEquals(config.get("solved"), run.getRunStatus().name());
 			//This executor should not have any additional run data
 			assertEquals("",run.getAdditionalRunData());
 			
@@ -444,26 +414,18 @@ public class MySQLDBObserverTester {
 	@Test
 	public void testDynamicAdaptiveCappingMultiRunBoundedtoTwo()
 	{
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 		
-		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence), 2, execConfig);	
+		
+		TargetAlgorithmEvaluator mysqlDBTae = new BoundedTargetAlgorithmEvaluator(MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority), 2);	
 		
 		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 4; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			config.put("runtime", "100");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -472,7 +434,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -489,10 +451,10 @@ public class MySQLDBObserverTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 				}
@@ -501,7 +463,7 @@ public class MySQLDBObserverTester {
 				if(runtimeSum > 1)
 				{
 					System.out.println("Attempting kill");
-					for(KillableAlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						run.kill();
 					}
@@ -511,18 +473,18 @@ public class MySQLDBObserverTester {
 		};
 		
 		long startTime  = System.currentTimeMillis();
-		List<AlgorithmRun> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
+		List<AlgorithmRunResult> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
 		long endTime = System.currentTimeMillis();
 		//System.setOut(out);
 		//System.out.println(bout.toString());
 		
-		for(AlgorithmRun run : runs)
+		for(AlgorithmRunResult run : runs)
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 			
-			if(run.getRunResult().isSuccessfulAndCensored())
+			if(run.getRunStatus().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -530,7 +492,7 @@ public class MySQLDBObserverTester {
 			assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 			assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 			assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-			assertEquals(config.get("solved"), run.getRunResult().name());
+			assertEquals(config.get("solved"), run.getRunStatus().name());
 			//This executor should not have any additional run data
 			assertEquals("",run.getAdditionalRunData());
 			
@@ -551,28 +513,16 @@ public class MySQLDBObserverTester {
 	public void testDynamicAdaptiveCappingMultiRunSingleCore()
 	{
 		
-	
-		
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		TargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
+		TargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority);
 		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(10);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(10);
 		for(int i=0; i < 10; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			config.put("runtime", ""+(i+1));
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -581,7 +531,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config, execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -598,10 +548,10 @@ public class MySQLDBObserverTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 				}
@@ -610,7 +560,7 @@ public class MySQLDBObserverTester {
 				if(runtimeSum > 5)
 				{
 					System.out.println("Issuing kill order on " + runtimeSum);
-					for(KillableAlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						run.kill();
 					}
@@ -620,18 +570,18 @@ public class MySQLDBObserverTester {
 		};
 		
 		long startTime  = System.currentTimeMillis();
-		List<AlgorithmRun> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
+		List<AlgorithmRunResult> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
 		long endTime = System.currentTimeMillis();
 		//System.setOut(out);
 		//System.out.println(bout.toString());
 		
-		for(AlgorithmRun run : runs)
+		for(AlgorithmRunResult run : runs)
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 			
-			if(run.getRunResult().isSuccessfulAndCensored())
+			if(run.getRunStatus().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -639,7 +589,7 @@ public class MySQLDBObserverTester {
 			assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 			assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 			assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-			assertEquals(config.get("solved"), run.getRunResult().name());
+			assertEquals(config.get("solved"), run.getRunStatus().name());
 			//This executor should not have any additional run data
 			assertEquals("",run.getAdditionalRunData());
 			
@@ -661,27 +611,16 @@ public class MySQLDBObserverTester {
 	public void testDynamicAdaptiveCappingMultiRunMultiCore()
 	{
 		
-	
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true,MYSQL_RUN_PARTITION,DELETE_ON_SHUTDOWN, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		TargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);	
+		TargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, DELETE_ON_SHUTDOWN, priority)	;
 		mysqlDBTae =new WalltimeAsRuntimeTargetAlgorithmEvaluatorDecorator(mysqlDBTae);
 		assertTrue(mysqlDBTae.areRunsObservable());
 		
 		
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(10);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(10);
 		for(int i=0; i < 10; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			config.put("runtime", ""+(i+1));
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
@@ -690,7 +629,7 @@ public class MySQLDBObserverTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 3000, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -707,10 +646,10 @@ public class MySQLDBObserverTester {
 		{
 			
 			@Override
-			public void currentStatus(List<? extends KillableAlgorithmRun> runs) {
+			public void currentStatus(List<? extends AlgorithmRunResult> runs) {
 				
 				double runtimeSum = 0.0; 
-				for(AlgorithmRun run : runs)
+				for(AlgorithmRunResult run : runs)
 				{
 					runtimeSum += run.getRuntime();
 				}
@@ -718,7 +657,7 @@ public class MySQLDBObserverTester {
 				//System.out.println(runtimeSum);
 				if(runtimeSum > 5)
 				{
-					for(KillableAlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
 						run.kill();
 					}
@@ -728,18 +667,18 @@ public class MySQLDBObserverTester {
 		};
 		
 		long startTime  = System.currentTimeMillis();
-		List<AlgorithmRun> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
+		List<AlgorithmRunResult> runs = mysqlDBTae.evaluateRun(runConfigs,obs);
 		long endTime = System.currentTimeMillis();
 		//System.setOut(out);
 		//System.out.println(bout.toString());
 		
-		for(AlgorithmRun run : runs)
+		for(AlgorithmRunResult run : runs)
 		{
 			System.out.println(run.getResultLine());
 			
-			ParamConfiguration config  = run.getRunConfig().getParamConfiguration();
+			ParameterConfiguration config  = run.getAlgorithmRunConfiguration().getParameterConfiguration();
 			
-			if(run.getRunResult().isSuccessfulAndCensored())
+			if(run.getRunStatus().isSuccessfulAndCensored())
 			{
 				continue;
 			}
@@ -747,7 +686,7 @@ public class MySQLDBObserverTester {
 			assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);
 			assertDEquals(config.get("quality"), run.getQuality(), 0.1);
 			assertDEquals(config.get("seed"), run.getResultSeed(), 0.1);
-			assertEquals(config.get("solved"), run.getRunResult().name());
+			assertEquals(config.get("solved"), run.getRunStatus().name());
 			//This executor should not have any additional run data
 			assertEquals("",run.getAdditionalRunData());
 			

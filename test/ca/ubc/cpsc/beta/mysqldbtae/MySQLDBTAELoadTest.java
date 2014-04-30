@@ -1,6 +1,7 @@
 package ca.ubc.cpsc.beta.mysqldbtae;
 
 import static org.junit.Assert.*;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
@@ -21,20 +22,21 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerTaskProcessor;
@@ -48,9 +50,9 @@ public class MySQLDBTAELoadTest {
 	
 	private static Process proc;
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -76,8 +78,8 @@ public class MySQLDBTAELoadTest {
 		
 		
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
-		execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
+		configSpace = new ParameterConfigurationSpace(paramFile);
+		execConfig = new AlgorithmExecutionConfiguration("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
 		rand = new MersenneTwister();
 
 		
@@ -113,29 +115,10 @@ public class MySQLDBTAELoadTest {
 	public void testInsertionLoad()
 	{
 
-			MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.NORMAL);
-			try {
-			normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			MySQLTargetAlgorithmEvaluator normalMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.NORMAL);
 			
-			MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
 			
-			MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.HIGH);
-			try {
-			highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
-			highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-			
-			MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);
+			MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.HIGH)	;
 			
 			
 			
@@ -143,7 +126,7 @@ public class MySQLDBTAELoadTest {
 			
 			final AtomicBoolean failure = new AtomicBoolean(false);
 			
-			final AtomicReference<RunConfig> ref = new AtomicReference<RunConfig>();
+			final AtomicReference<AlgorithmRunConfiguration> ref = new AtomicReference<AlgorithmRunConfiguration>();
 			
 			final Semaphore complete = new Semaphore(-TARGET_RUNS_IN_LOOPS+1);
 			
@@ -157,11 +140,11 @@ public class MySQLDBTAELoadTest {
 			
 			for(int j=0; j < 100; j++)
 			{
-				List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+				List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 				
 				for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 				{
-					ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+					ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 					if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 					{
 						//Only want good configurations
@@ -169,7 +152,7 @@ public class MySQLDBTAELoadTest {
 						continue;
 					} else
 					{
-						RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+						AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 						
 						runConfigs.add(rc);
 					}
@@ -179,7 +162,7 @@ public class MySQLDBTAELoadTest {
 				highMySQLTAE.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 
 					@Override
-					public void onSuccess(List<AlgorithmRun> runs) {
+					public void onSuccess(List<AlgorithmRunResult> runs) {
 						//complete.release();
 						boolean swap = completeRuns.compareAndSet(0, 1);
 						
@@ -272,31 +255,11 @@ public class MySQLDBTAELoadTest {
 		
 			
 			if(System.currentTimeMillis() > 0)
-			{
-			
-				MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.NORMAL);
-				try {
-				normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-				} catch(RuntimeException e)
-				{
-					e.printStackTrace();
-					throw e;
-				}
-				normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
+			{				
+				MySQLTargetAlgorithmEvaluator normalMySQLTAE =MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+"processing", 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.NORMAL)	;
 				
-				MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
 				
-				MySQLPersistenceClient  highMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"processing", 1500, true,MYSQL_RUN_PARTITION,true, JobPriority.HIGH);
-				try {
-				highMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-				} catch(RuntimeException e)
-				{
-					e.printStackTrace();
-					throw e;
-				}
-				highMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-				
-				MySQLTargetAlgorithmEvaluator highMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, highMysqlPersistence);
+				MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+"processing", 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.HIGH)	;
 				
 				
 				
@@ -304,7 +267,7 @@ public class MySQLDBTAELoadTest {
 				
 				final AtomicBoolean failure = new AtomicBoolean(false);
 				
-				final AtomicReference<RunConfig> ref = new AtomicReference<RunConfig>();
+				final AtomicReference<AlgorithmRunConfiguration> ref = new AtomicReference<AlgorithmRunConfiguration>();
 				
 				final Semaphore complete = new Semaphore(-TARGET_RUNS_IN_LOOPS+1);
 				
@@ -318,11 +281,11 @@ public class MySQLDBTAELoadTest {
 				
 				for(int j=0; j < 100; j++)
 				{
-					List<RunConfig> runConfigs = new ArrayList<RunConfig>(TARGET_RUNS_IN_LOOPS);
+					List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 					
 					for(int i=0; i < TARGET_RUNS_IN_LOOPS; i++)
 					{
-						ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+						ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 						if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 						{
 							//Only want good configurations
@@ -330,7 +293,7 @@ public class MySQLDBTAELoadTest {
 							continue;
 						} else
 						{
-							RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+							AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 							
 							runConfigs.add(rc);
 						}
@@ -340,7 +303,7 @@ public class MySQLDBTAELoadTest {
 					highMySQLTAE.evaluateRunsAsync(runConfigs, new TargetAlgorithmEvaluatorCallback() {
 		
 						@Override
-						public void onSuccess(List<AlgorithmRun> runs) {
+						public void onSuccess(List<AlgorithmRunResult> runs) {
 							//complete.release();
 							boolean swap = completeRuns.compareAndSet(0, 1);
 							

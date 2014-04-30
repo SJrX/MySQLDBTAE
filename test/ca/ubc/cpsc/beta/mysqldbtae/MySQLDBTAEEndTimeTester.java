@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.sql.Date;
 import java.text.DateFormat;
 import java.util.ArrayList;
@@ -16,22 +17,21 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
-import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
@@ -43,9 +43,9 @@ public class MySQLDBTAEEndTimeTester {
 
 
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -71,14 +71,14 @@ public class MySQLDBTAEEndTimeTester {
 		
 		
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
+		configSpace = new ParameterConfigurationSpace(paramFile);
 	
 		StringBuilder b = new StringBuilder();
 		b.append("java -cp ");
 		b.append(System.getProperty("java.class.path"));
 		b.append(" ");
 		b.append(ParamEchoExecutor.class.getCanonicalName());
-		execConfig = new AlgorithmExecutionConfig(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
+		execConfig = new AlgorithmExecutionConfiguration(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
 		
 		
 		
@@ -133,7 +133,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			assertTrue(isRunning(proc1));
 			
-			Thread.sleep(6000);
+			Thread.sleep(4000);
 			
 			assertTrue(!isRunning(proc1));
 
@@ -158,7 +158,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			assertTrue(isRunning(proc1));
 			
-			Thread.sleep(5000);
+			Thread.sleep(3000);
 			
 			assertTrue(!isRunning(proc1));
 
@@ -167,6 +167,40 @@ public class MySQLDBTAEEndTimeTester {
 		}	
 			
 	}	
+	
+	private static int getPID(Process p)
+	{
+		int pid = 0;
+		
+		try {
+			Field f = p.getClass().getDeclaredField("pid");
+			
+			f.setAccessible(true);
+			pid = Integer.valueOf(f.get(p).toString());
+			f.setAccessible(false);
+		} catch (SecurityException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchFieldException e) {
+			return -1;
+		} catch (IllegalArgumentException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	
+		if(pid > 0)
+		{
+			return pid;
+		} else
+		{
+			return -1;
+		}
+	}
+	
 	
 	/**
 	 * Test initially creates a worker with high
@@ -178,7 +212,9 @@ public class MySQLDBTAEEndTimeTester {
 	@Test
 	public void testEndTimeUpdate()
 	{
-		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
+		//MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true,MYSQL_PERMANENT_RUN_PARTITION+1,false, priority);
+		
+		MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_RUN_PARTITION, false, priority);
 		
 		try {
 			long startTime = System.currentTimeMillis();
@@ -192,11 +228,11 @@ public class MySQLDBTAEEndTimeTester {
 			calendar.setTimeInMillis(endTime);
 			java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String sqlTime = sdf.format(calendar.getTime());
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc1%\"", mysqlPersistence);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc1%\"", tae);
 				
 			assertTrue(isRunning(proc1));
 
-			Thread.sleep(5000);
+			Thread.sleep(4000);
 			
 			assertTrue(!isRunning(proc1));
 
@@ -208,10 +244,30 @@ public class MySQLDBTAEEndTimeTester {
 	
 	public boolean isRunning(Process process) {
 	    try {
-	        process.exitValue();
+	    	process.exitValue();
 	        return false;
 	    } catch (IllegalThreadStateException e) {
-	        return true;
+	    	/*
+	    	if(new File("/proc").exists())
+	    	{
+	    		if(new File("/proc/" + getPID(process)).exists())
+		    	{
+	    			for(File f : (new File("/proc/" + getPID(process)).listFiles()))
+	    			{
+	    				System.out.println(f.getAbsolutePath());
+	    			}
+	    					
+	    			return true; 
+		    	} else 
+		    	{
+		    		return false;
+		    	}
+	    	} else*/
+	    	{
+	    		return true;
+	    	}
+	    	
+	        
 	    }
 	}
 	

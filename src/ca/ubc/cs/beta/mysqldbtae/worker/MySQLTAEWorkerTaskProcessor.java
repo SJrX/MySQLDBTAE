@@ -5,33 +5,29 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.ExistingAlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.concurrent.threadfactory.SequentiallyNamedThreadFactory;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.misc.associatedvalue.Pair;
-import ca.ubc.cs.beta.aclib.misc.watch.AutoStartStopWatch;
-import ca.ubc.cs.beta.aclib.misc.watch.StopWatch;
-import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.ExistingAlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.concurrent.threadfactory.SequentiallyNamedThreadFactory;
+import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
+import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
+import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
@@ -110,192 +106,193 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		ScheduledExecutorService executePushBack = Executors.newSingleThreadScheduledExecutor(new SequentiallyNamedThreadFactory("pushBackThread", true));
 		
-		final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables);
+		
+		
+		
+		
+		
+		try (final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables, options.concurrencyFactor))
+		{
+			
+		
 	
-		Runtime.getRuntime().addShutdownHook(new Thread() {
-			
-			@Override
-			public void run()
-			{
-				//
-				mysqlPersistence.resetUnfinishedRuns();
-				try {
-					mysqlPersistence.markWorkerCompleted("Triggered By Shutdown Hook (probably shutting down due to SIGTERM or SIGINT)");
-				} catch(RuntimeException e)
+			Runtime.getRuntime().addShutdownHook(new Thread() {
+				
+				@Override
+				public void run()
 				{
-					e.printStackTrace();
-					System.err.println("Error occured during shutdown hook?");
-				}
-			log.info("Shutdown hook finished");
-			}
-			
-		});
-		
-		Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap = new ConcurrentHashMap<AlgorithmExecutionConfig, TargetAlgorithmEvaluator>();
-		try {
-			
-			try {
-		
-				
-				
-				log.info("Starting Job Processing");
-
-				while(true)
-				{
-					StopWatch runFetchTime = new AutoStartStopWatch();
-					List<Pair<AlgorithmExecutionConfig, RunConfig>> runs = mysqlPersistence.getRuns(options.runsToBatch);
-					totalRunFetchTimeInMS += runFetchTime.stop();
-					
-					LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue = new LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>>();
-					log.debug("Retrieved {} jobs from the database",runs.size());	
-					for(Pair<AlgorithmExecutionConfig, RunConfig> ent : runs)
+					if(!mysqlPersistence.isClosed())
 					{
-						try{
-							runsQueue.put(ent);
-						}  catch (InterruptedException e) {
-							Thread.currentThread().interrupt();
-							return;
-						}
-					}
-					
-					executePushBack.schedule(new PushBack(mysqlPersistence, runsQueue,options.delayBetweenRequests, executePushBack, options.pushbackThreshold), options.delayBetweenRequests, TimeUnit.SECONDS);
-					log.debug("Job push back scheduled for {} seconds", options.delayBetweenRequests);
-					
-					
-				
-					totalRunFetchRequests++;
-					
-					StopWatch loopStart = new AutoStartStopWatch();
-					
-				
-					int jobsEvaluated = 0;
-					
-					Pair<AlgorithmExecutionConfig, RunConfig> ent;
-					while((ent = runsQueue.poll())!=null)
-					{
-						boolean jobSuccess = processPair(mysqlPersistence, taeMap, ent);
-						
-						if(jobSuccess)
-						{
-							jobsEvaluated++;
-						}
-					}
-						
-					synchronized(lock){
 						mysqlPersistence.resetUnfinishedRuns();
-					}
-					
-					int minCutoffInDB = mysqlPersistence.getMinCutoff();
-					if(jobsEvaluated==0)
-					{
-						log.info("No jobs were evaluated");
-
-						if(minCutoffInDB>getSecondsLeft() && minCutoffDeathTimestampInMillis==Long.MAX_VALUE)
+						try {
+							mysqlPersistence.markWorkerCompleted("Triggered By Shutdown Hook (probably shutting down due to SIGTERM or SIGINT)");
+						} catch(RuntimeException e)
 						{
-							minCutoffDeathTimestampInMillis = System.currentTimeMillis()+options.minCutoffDeathTime*1000;
+							e.printStackTrace();
+							System.err.println("Error occured during shutdown hook?");
 						}
-					} else
-					{
-						lastJobFinished = System.currentTimeMillis();
-						minCutoffDeathTimestampInMillis = Long.MAX_VALUE;
-					}
+					} 
+					log.info("Shutdown hook finished");
+				}
+				
+			});
+	
+			log.info("Initializing Target Algorithm Evaluator");
+			
+			try(TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions,  false, taeOptions))
+			{
+				try {
 					
-					
-					long loopStop = loopStart.stop();
-					
-					
-					
-					if(System.currentTimeMillis() - lastUpdateTime > (options.updateFrequency * 1000))
-					{
-						
-						lastUpdateTime = checkForUpdatedParameters(mysqlPersistence);
-						
-					}
-					
-					double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
-					
-					if(checkShutdownConditions(minCutoffDeathTimestampInMillis,lastJobFinished, mysqlPersistence, minCutoffInDB,waitTime))
-					{
-						return;
-					} else
-					{
-						if(waitTime > 0.0)
+					try {
+		
+				
+		
+						log.info("Starting Job Processing");
+		
+						while(true)
 						{
-							log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
-							boolean fullSleep = mysqlPersistence.sleep(waitTime);
+							StopWatch runFetchTime = new AutoStartStopWatch();
+							List<AlgorithmRunConfiguration> runs = mysqlPersistence.getRuns(options.runsToBatch);
+							totalRunFetchTimeInMS += runFetchTime.stop();
 							
-							if(!fullSleep)
+							LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue = new LinkedBlockingQueue<AlgorithmRunConfiguration>();
+							log.debug("Retrieved {} jobs from the database",runs.size());	
+							for( AlgorithmRunConfiguration ent : runs)
 							{
-								log.debug("Worker interrupted, checking for updated parameters");
-								lastUpdateTime= checkForUpdatedParameters(mysqlPersistence);
-							} else 
-							{
-								if(jobsEvaluated==0)
-								{
-									workerIdleTime+=waitTime;
+								try{
+									runsQueue.put(ent);
+								}  catch (InterruptedException e) {
+									Thread.currentThread().interrupt();
+									return;
 								}
+							}
+							
+							executePushBack.schedule(new PushBack(mysqlPersistence, runsQueue,options.delayBetweenRequests, executePushBack, options.pushbackThreshold), options.delayBetweenRequests, TimeUnit.SECONDS);
+							log.debug("Job push back scheduled for {} seconds", options.delayBetweenRequests);
+		
+							totalRunFetchRequests++;
+							
+							StopWatch loopStart = new AutoStartStopWatch();
+							
+						
+							int jobsEvaluated = 0;
+							
+							AlgorithmRunConfiguration ent;
+							while((ent = runsQueue.poll())!=null)
+							{
+								boolean jobSuccess = processPair(mysqlPersistence, tae, ent);
 								
+								if(jobSuccess)
+								{
+									jobsEvaluated++;
+								}
+							}
+								
+							synchronized(lock){
+								mysqlPersistence.resetUnfinishedRuns();
+							}
+							
+							int minCutoffInDB = mysqlPersistence.getMinCutoff();
+							if(jobsEvaluated==0)
+							{
+								log.info("No jobs were evaluated");
+		
+								if(minCutoffInDB>getSecondsLeft() && minCutoffDeathTimestampInMillis==Long.MAX_VALUE)
+								{
+									minCutoffDeathTimestampInMillis = System.currentTimeMillis()+options.minCutoffDeathTime*1000;
+								}
+							} else
+							{
+								lastJobFinished = System.currentTimeMillis();
+								minCutoffDeathTimestampInMillis = Long.MAX_VALUE;
+							}
+							
+							
+							long loopStop = loopStart.stop();
+							
+							
+							
+							if(System.currentTimeMillis() - lastUpdateTime > (options.updateFrequency * 1000))
+							{
+								lastUpdateTime = checkForUpdatedParameters(mysqlPersistence);	
+							}
+							
+							double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
+							
+							if(checkShutdownConditions(minCutoffDeathTimestampInMillis,lastJobFinished, mysqlPersistence, minCutoffInDB,waitTime))
+							{
+								return;
+							} else
+							{
+								if(waitTime > 0.0)
+								{
+									log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
+									boolean fullSleep = mysqlPersistence.sleep(waitTime);
+									
+									if(!fullSleep)
+									{
+										log.debug("Worker interrupted, checking for updated parameters");
+										lastUpdateTime= checkForUpdatedParameters(mysqlPersistence);
+									} else 
+									{
+										if(jobsEvaluated==0)
+										{
+											workerIdleTime+=waitTime;
+										}
+										
+									}
+									
+								}
+							}
+							 
+							
+								
+							if(Thread.interrupted())
+							{
+								Thread.currentThread().interrupt();
+								return;
 							}
 							
 						}
-						
-					}
-					 
-					
-						
-					if(Thread.interrupted())
-					{
-						Thread.currentThread().interrupt();
-						return;
-					}
-					
-				}
-			} catch(RuntimeException t)
-			{
-				ByteArrayOutputStream bout = new ByteArrayOutputStream();
-				
-				PrintStream pout = new PrintStream(bout);
-				
-				t.printStackTrace(pout);
-				mysqlPersistence.markWorkerCompleted("RuntimeException of some kind:"+bout.toString());
-				crashReason = t;
-				throw t;
-				
-			}
-			
-		} finally
-		{
-			if(Thread.interrupted())
-			{
-				Thread.currentThread().interrupt();
-				//This really shouldn't happen
-				mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
-			}
-			else
-			{
-				mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
-			}
-			
-			try 
-			{
-				mysqlPersistence.resetUnfinishedRuns();
-			} finally
-			{
-				for(TargetAlgorithmEvaluator tae : taeMap.values())
-				{
-					try {
-						tae.notifyShutdown();
 					} catch(RuntimeException t)
 					{
-						log.error("Error occurred shutting down Target Algorithm Evaluator {}", tae);
-						log.error("Throwable ", t);
+						ByteArrayOutputStream bout = new ByteArrayOutputStream();
+						
+						PrintStream pout = new PrintStream(bout);
+						
+						t.printStackTrace(pout);
+						mysqlPersistence.markWorkerCompleted("RuntimeException of some kind:"+bout.toString());
+						crashReason = t;
+						throw t;
+						
 					}
+					
+				} finally
+				{
+					try
+					{
+							if(Thread.interrupted())
+							{
+								Thread.currentThread().interrupt();
+								//This really shouldn't happen
+								mysqlPersistence.markWorkerCompleted("Thread Interrupted which is actually exceptionally odd?");				
+							}
+							else
+							{
+								mysqlPersistence.markWorkerCompleted("Shutdown for unknown reason?");
+							}
+						
+						
+							mysqlPersistence.resetUnfinishedRuns();
+					} catch(Exception e)
+					{
+						log.error("Exception occurred while Task Processor shutting down", e);
+					}
+		
 				}
 			}
 			
-			
 		}
-		
 	
 	}
 
@@ -318,7 +315,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			options.runsToBatch = params.getBatchSize();
 			options.timeLimit = params.getTimeLimit();
 			options.poolIdleTimeLimit = params.getPoolIdleTimeLimit();
-			
+			options.concurrencyFactor = params.getConcurrencyFactor();
 			log.info("Updated values in database detected -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+", Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
 			
 			if(!options.pool.trim().equals(params.getPool().trim()))
@@ -331,8 +328,8 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 		}
 		return System.currentTimeMillis();
-	}
-
+	}	
+	
 
 	/**
 	 * Checks whether the worker should shutdown
@@ -399,20 +396,12 @@ public class MySQLTAEWorkerTaskProcessor {
 	 * @param ent	the pair to evaluate
 	 * @return <code>true</code> if a job was successfully finished to completion.
 	 */
-	private boolean processPair(final MySQLPersistenceWorker mysqlPersistence,
-			Map<AlgorithmExecutionConfig, TargetAlgorithmEvaluator> taeMap,
-			Pair<AlgorithmExecutionConfig, RunConfig> ent) {
-		AlgorithmExecutionConfig execConfig = ent.getFirst();
-		final RunConfig runConfig = ent.getSecond();
+	private boolean processPair(final MySQLPersistenceWorker mysqlPersistence, TargetAlgorithmEvaluator tae, AlgorithmRunConfiguration runConfig) {
+		
+		
 		
 		boolean jobEvaluated = false;
-		if(taeMap.get(execConfig) == null)
-		{
-			TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions, execConfig, false, taeOptions);
-			taeMap.put(execConfig, tae);
-		}
-			
-		TargetAlgorithmEvaluator tae = taeMap.get(execConfig);
+
 		
 		AutoStartStopWatch runWatch = new AutoStartStopWatch();
 			
@@ -421,7 +410,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			TargetAlgorithmEvaluatorRunObserver obs = new TargetAlgorithmEvaluatorRunObserver() {
 				private long lastDBUpdate = System.currentTimeMillis();
 				@Override
-				public void currentStatus( List<? extends KillableAlgorithmRun> runs) {
+				public void currentStatus( List<? extends AlgorithmRunResult> runs) {
 					
 					if((System.currentTimeMillis() - lastDBUpdate) < options.delayBetweenRequests * 1000)
 					{
@@ -448,16 +437,16 @@ public class MySQLTAEWorkerTaskProcessor {
 			};
 			
 			
-			if(runConfig.getCutoffTime() < getSecondsLeft())
+			if( (runConfig.getCutoffTime() < getSecondsLeft()) || !options.checkMinCutoff)
 			{
-				if(runConfig.getProblemInstanceSeedPair().getInstance().getInstanceID() > 0)
+				if(runConfig.getProblemInstanceSeedPair().getProblemInstance().getInstanceID() > 0)
 				{
-					log.info("Starting processing of job {} ", runConfig.getProblemInstanceSeedPair().getInstance().getInstanceID());
+					log.info("Starting processing of job {} ", runConfig.getProblemInstanceSeedPair().getProblemInstance().getInstanceID());
 				} else
 				{
 					log.info("Starting processing of job");
 				}
-				List<AlgorithmRun> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
+				List<AlgorithmRunResult> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
 				jobEvaluated = true;
 				mysqlPersistence.setRunResults(finishedRuns);
 				
@@ -465,7 +454,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 			} else
 			{
-				log.debug("Skipping runs for {} seconds, because only {} left", runConfig.getCutoffTime(), getSecondsLeft() );
+				log.info("Skipping runs that could require up to {} (s), because we only have {} (s) left", runConfig.getCutoffTime(), getSecondsLeft() );
 			}
 			
 										
@@ -486,7 +475,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			String addlRunData = sb.substring(0, Math.min(2000,sb.length()));
 			
-			mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRun)new ExistingAlgorithmRun(execConfig,runConfig,RunResult.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
+			mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRunResult)new ExistingAlgorithmRunResult(runConfig,RunStatus.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
 		}
 		return jobEvaluated;
 	}
@@ -497,13 +486,13 @@ public class MySQLTAEWorkerTaskProcessor {
 	public class PushBack implements Runnable
 	{
 		private final MySQLPersistenceWorker  mysqlPersistence;
-		private final LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue;
+		private final LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue;
 		private final ScheduledExecutorService executePushBack;
 		private final int delayBetweenRequests;
 		private final int pushbackThreshhold;
 		
 		
-		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<Pair<AlgorithmExecutionConfig, RunConfig>> runsQueue, int delayBetweenRequests, ScheduledExecutorService executePushBack, int pushbackThreshold)
+		public PushBack(MySQLPersistenceWorker mysqlPersistence, LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue, int delayBetweenRequests, ScheduledExecutorService executePushBack, int pushbackThreshold)
 		{
 			this.mysqlPersistence = mysqlPersistence;
 			this.runsQueue = runsQueue;
@@ -514,7 +503,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		@Override
 		public void run() {
-			List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
+			List< AlgorithmRunConfiguration> extraRuns = new ArrayList<AlgorithmRunConfiguration>();
 			
 			if(runsQueue.size() == 0)
 			{ //Nothing to push back

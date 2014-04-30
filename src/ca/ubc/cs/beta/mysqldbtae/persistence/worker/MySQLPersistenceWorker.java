@@ -9,50 +9,49 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException;
-
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.kill.KillableAlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration.StringFormat;
-import ca.ubc.cs.beta.aclib.exceptions.DeveloperMadeABooBooException;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.misc.associatedvalue.Pair;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.dzq.exec.DangerZoneQueue;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.exceptions.DeveloperMadeABooBooException;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration.ParameterStringFormat;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
-import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigIDBlacklistedException;
+import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigurationIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ec.util.MersenneTwister;
 
 public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	/**
 	 * Stores primary keys of execution configurations
 	 */
-	private final Map<Integer, AlgorithmExecutionConfig> execConfigMap = new ConcurrentHashMap<Integer, AlgorithmExecutionConfig>();
+	private final Map<Integer, AlgorithmExecutionConfiguration> execConfigMap = new ConcurrentHashMap<Integer, AlgorithmExecutionConfiguration>();
 	
 	
 	/**
 	 * Stores a mapping of RunConfigs to the actual runConfigIDs in the database.
 	 */
-	private final Map<RunConfig, String> runConfigIDMap = new ConcurrentHashMap<RunConfig, String>();
+	private final Map<AlgorithmRunConfiguration, String> runConfigIDMap = new ConcurrentHashMap<AlgorithmRunConfiguration, String>();
 	
 	/**
 	 * UUID of Worker
@@ -65,9 +64,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	
 	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables)
 	{
-		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables);
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables, 0);
 	}
 	
+	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables, int concurrencyFactor)
+	{
+		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables, concurrencyFactor);
+	}
+	
+	
+	
+		
 
 	/**
 	 * Job Indentifier, meaningless except for logging purposes
@@ -80,24 +87,32 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Date endDateTime;
 	private final Date startDateTime;
 	
+	private final AtomicInteger concurrencyFactor = new AtomicInteger(0);
+	
+	private final Random rand = new MersenneTwister();
+	
 	public MySQLPersistenceWorker(String host, int port,
-			String databaseName, String username, String password, String pool,String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables) {
+			String databaseName, String username, String password, String pool,String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, boolean createTables, int concurrencyFactor) {
 		super(host, port, databaseName, username, password, pool, createTables);
 
 		log.info("My Worker ID is " + workerUUID.toString());
 		this.jobID = jobID;
 		this.endDateTime = endDateTime;
 		this.startDateTime = startDateTime;
-		
+		this.concurrencyFactor.set(concurrencyFactor);
 		logWorker(runsToBatch, delayBetweenRequest, pool, poolIdleTimeLimit, version);
 	}
 
-	private final Map<Integer, AlgorithmExecutionConfigIDBlacklistedException> blacklistedKeys = new HashMap<Integer, AlgorithmExecutionConfigIDBlacklistedException>();
+
+
+
+
+	private final Map<Integer, AlgorithmExecutionConfigurationIDBlacklistedException> blacklistedKeys = new HashMap<Integer, AlgorithmExecutionConfigurationIDBlacklistedException>();
 	
-	private AlgorithmExecutionConfig getAlgorithmExecutionConfig(int execConfigID) throws SQLException, AlgorithmExecutionConfigIDBlacklistedException {
+	private AlgorithmExecutionConfiguration getAlgorithmExecutionConfiguration(int execConfigID) throws SQLException, AlgorithmExecutionConfigurationIDBlacklistedException {
 		
 	
-		AlgorithmExecutionConfigIDBlacklistedException e = blacklistedKeys.get(execConfigID);
+		AlgorithmExecutionConfigurationIDBlacklistedException e = blacklistedKeys.get(execConfigID);
 		
 		if(e != null)
 		{
@@ -128,20 +143,20 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				 String algorithmExecutable = rs.getString(1);
 				 String algorithmExecutionDirectory = rs.getString(2);
 				 
-				 ParamConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
+				 ParameterConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
 				 
 				 boolean executeOnCluster = rs.getBoolean(4);
 				 boolean deterministicAlgorithm = rs.getBoolean(5);
 				 double cutoffTime = rs.getDouble(6);
 				 
- 				 if(algorithmExecutable.startsWith(AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX))
+ 				 if(algorithmExecutable.startsWith(AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX))
 				 {
-					algorithmExecutable = algorithmExecutable.replace(AlgorithmExecutionConfig.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX,"");
+					algorithmExecutable = algorithmExecutable.replace(AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX,"");
 				 }
 				 
 				 
 				 
-				 AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
+				 AlgorithmExecutionConfiguration execConfig = new AlgorithmExecutionConfiguration(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
 				 
 				 
 				 execConfigMap.put(execConfigID, execConfig);
@@ -164,7 +179,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		{
 			log.error("Exception occured while trying to process execConfigID: " + execConfigID , rt);
 			
-			AlgorithmExecutionConfigIDBlacklistedException e2 = new AlgorithmExecutionConfigIDBlacklistedException(execConfigID, rt); 
+			AlgorithmExecutionConfigurationIDBlacklistedException e2 = new AlgorithmExecutionConfigurationIDBlacklistedException(execConfigID, rt); 
 			blacklistedKeys.put(execConfigID, e2);
 			throw e2;
 		}
@@ -178,7 +193,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param n number of runs to attempt to get
 	 * @return runs
 	 */
-	public List<Pair<AlgorithmExecutionConfig, RunConfig>> getRuns(int n)
+	public List<AlgorithmRunConfiguration> getRuns(int n)
 	{
 	
 		StringBuffer sb = new StringBuffer();
@@ -191,6 +206,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			//Pull workers off the queue in order of priority, do not take workers where we already tried
 			//This isn't a perfect heuristic. I'm hoping it's good enough.
 			
+
+			
+			int lock = -1;  
+			
+			if(concurrencyFactor.get() > 0)
+			{
+				lock = this.rand.nextInt(concurrencyFactor.get());
+				//We won't actually check the result and so it doesn't matter if it's once every 2 days
+				sb.append("SELECT GET_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\",172800);" );
+			}
 			
 			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (\n\t").append(
 					"SELECT runConfigID, priority FROM (");
@@ -205,41 +230,87 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					
 							
 					sb.append("\t) innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(
-					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1;");
+					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1");
 					
 					
 			//System.out.println(sb.toString());
 			
-					log.debug("SQL Query for Job Processing: {}", sb);
-			PreparedStatement stmt = null;
+				
+			Statement stmt = null;
 			try {
 				Connection conn = getConnection();
-				stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				stmt = conn.createStatement();
 				
-				executePS(stmt);
+				
+						
+						
+						//conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				
+				//stmt.addBatch(sb.toString());
+				
+				
+				//executePS(stmt);
 				
 				//if(true) return Collections.emptyMap();
 				//conn.commit();
 				
-				sb = new StringBuffer();
+			 
 				//
-				sb.append("SELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
-				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\"");
+				sb.append(";\nSELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
+				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\";");
 				
 		
-				stmt.close();
+				//stmt.close();
 				
-				stmt = conn.prepareStatement(sb.toString());
+				String releaseLockSQL = "\nSELECT RELEASE_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\");";
+				if(concurrencyFactor.get() > 0)
+				{
+						sb.append(releaseLockSQL);
+				}
+
+				
+				//stmt.addBatch(sb.toString());
+				//stmt = conn.prepareStatement(sb.toString());
+				log.debug("SQL Query for Job Processing:\n {}", sb);
+				try {
+					stmt.execute(sb.toString());
+				} catch(SQLException e)
+				{
+					
+					try 
+					{
+						stmt.execute(releaseLockSQL);
+					} catch(SQLException e2)
+					{
+						log.error("Couldn't release lock: ", e2);
+						conn.close();
+					}
+					
+					throw e;
+				}
+				
+				ResultSet rs = stmt.getResultSet();
+				
+				//System.out.println(Arrays.toString(res));
 				
 				
-				ResultSet rs = stmt.executeQuery();
-				
-				List<Pair<AlgorithmExecutionConfig, RunConfig>> configList = new ArrayList<Pair<AlgorithmExecutionConfig, RunConfig>>();
+				if(concurrencyFactor.get() > 0)
+				{
+					stmt.getMoreResults();
+				}
+								
+				if(stmt.getMoreResults())
+				{
+					
+					rs = stmt.getResultSet();
+				} 
+			
+				List<AlgorithmRunConfiguration> rcList = new ArrayList<AlgorithmRunConfiguration>();
 			
 				while(rs.next())
 				{
-					AlgorithmExecutionConfig execConfig = null;
-					RunConfig rc = null;
+					AlgorithmExecutionConfiguration execConfig = null;
+					AlgorithmRunConfiguration rc = null;
 					int execConfigID = -1;
 					String rcID = "?";
 					boolean killJob = false;
@@ -250,10 +321,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 							try {
 								
 								execConfigID =  rs.getInt(2);
-								execConfig = getAlgorithmExecutionConfig(execConfigID);
+								execConfig = getAlgorithmExecutionConfiguration(execConfigID);
 								
 								
-							} catch (AlgorithmExecutionConfigIDBlacklistedException e) {
+							} catch (AlgorithmExecutionConfigurationIDBlacklistedException e) {
 								log.debug("Execution ID has been blacklisted skipping run {} ", rcID);
 								continue;
 							}
@@ -281,9 +352,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 						
 						ProblemInstance pi = new ProblemInstance(problemInstance,instanceId, Collections.<String, Double> emptyMap(), instanceSpecificInformation );
 						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
-						ParamConfiguration config = execConfig.getParamFile().getConfigurationFromString(paramConfiguration, StringFormat.ARRAY_STRING_SYNTAX);
+						ParameterConfiguration config = execConfig.getParameterConfigurationSpace().getParameterConfigurationFromString(paramConfiguration, ParameterStringFormat.ARRAY_STRING_SYNTAX);
 						
-						rc = new RunConfig(pisp, cutoffTime, config, cutoffLessThanMax);
+						rc = new AlgorithmRunConfiguration(pisp, cutoffTime, config, execConfig);
 						if(killJob)
 						{
 							log.warn("Run {} was killed when we pulled it, this version of the workers will start processing this job then abort, if this keeps happening we may want to improve the logic on the worker. This log message just gives us an idea of how often this is happening" , rc);
@@ -294,21 +365,21 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					{
 						log.error("Exception occured while trying to process run " + rcID + " with execConfigID: "+ execConfigID , e);
 						
-						AlgorithmExecutionConfigIDBlacklistedException e2 = new AlgorithmExecutionConfigIDBlacklistedException(execConfigID, e); 
+						AlgorithmExecutionConfigurationIDBlacklistedException e2 = new AlgorithmExecutionConfigurationIDBlacklistedException(execConfigID, e); 
 						blacklistedKeys.put(execConfigID, e2);
 						
 						continue;
 					}
 					
-					configList.add(new Pair<AlgorithmExecutionConfig, RunConfig>(execConfig, rc));
-					
+
+					rcList.add( rc);					
 				}
 				rs.close();
 				conn.close();
 				
 					
 				
-				return configList;
+				return rcList;
 			} finally
 			{
 				if(stmt != null) stmt.close();
@@ -329,7 +400,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * add run results to the database
 	 * @param runResult a List of AlgorithmRuns to add to the database
 	 */
-	public void setRunResults(List<AlgorithmRun> runResult)
+	public void setRunResults(List<AlgorithmRunResult> runResult)
 	{
 	
 		
@@ -343,13 +414,13 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			conn = getConnection();
 			stmt = conn.prepareStatement(sb.toString());
 			
-				for(AlgorithmRun run : runResult)
+				for(AlgorithmRunResult run : runResult)
 				{	
-					String runConfigID = runConfigIDMap.get(run.getRunConfig());
+					String runConfigID = runConfigIDMap.get(run.getAlgorithmRunConfiguration());
 						
 					try {
 						
-						stmt.setString(1,run.getRunResult().name());
+						stmt.setString(1,run.getRunStatus().name());
 						stmt.setDouble(2, run.getRunLength());
 						stmt.setDouble(3, run.getQuality());
 						stmt.setLong(4,run.getResultSeed());
@@ -423,6 +494,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 */
 	public void resetUnfinishedRuns()
 	{
+		
 		log.debug("Resetting Unfinished Runs");
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"NEW\", priority=\""+JobPriority.LOW+ "\" WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\"");
 		
@@ -462,7 +534,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, int poolIdleTimeLimit, String version)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID, startTime, startWeekYear, originalEndTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE, poolIdleTimeLimit_UPDATEABLE, workerIdleTime_UPDATEABLE, upToDate, version)  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,1,?)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID, startTime, startWeekYear, originalEndTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE, poolIdleTimeLimit_UPDATEABLE, concurrencyFactor_UPDATEABLE, workerIdleTime_UPDATEABLE,  upToDate, version)  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,1,?)");
 		
 		
 		try {
@@ -501,8 +573,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			stmt.setInt(10, delayBetweenRequests);
 			stmt.setString(11, pool);
 			stmt.setLong(12, poolIdleTimeLimit);
-			stmt.setString(13,version);
-			executePS(stmt);
+			stmt.setInt(13, this.concurrencyFactor.get());
+			stmt.setString(14,version);
+			
+			try {
+				stmt.execute();
+			} catch(SQLException e)
+			{
+				log.error("Couldn't log worker, most likely because of missing columns. Maybe try executing: ALTER TABLE "+TABLE_WORKERS+" ADD COLUMN concurrencyFactor_UPDATEABLE int(11) NOT NULL DEFAULT 0;");
+				throw new IllegalStateException("=========================================\n\n\n\nCouldn't create entry for worker in database, maybe try the following query:\n ALTER TABLE "+TABLE_WORKERS+" ADD COLUMN concurrencyFactor_UPDATEABLE int(11) NOT NULL DEFAULT 0;\n\n\n=========================================\n\n", e);
+			}
 			stmt.close();
 			conn.close();
 			
@@ -544,7 +624,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @return UpdatedWorkerParameters
 	 */
 	public UpdatedWorkerParameters getUpdatedParameters() {
-		StringBuilder sb = new StringBuilder("SELECT endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+		StringBuilder sb = new StringBuilder("SELECT endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE,concurrencyFactor_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
@@ -571,7 +651,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				}
 				
 				long timeLimit = rs.getTimestamp(1).getTime()-startDateTime.getTime();
-				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getInt(5));
+				UpdatedWorkerParameters newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getInt(5),rs.getInt(6));
+				
+				this.concurrencyFactor.set(newParameters.getConcurrencyFactor());
 				stmt.close();
 				
 				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET upToDate=1 WHERE workerUUID=\""+workerUUID.toString()+"\" ");
@@ -722,17 +804,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	
 	/**
 	 * Takes a list of runs to reset to an unassigned state
-	 * @param extraRuns  List of AlgorithmExecutionConfig and RunConfig Pairs
+	 * @param extraRuns  List of AlgorithmExecutionConfiguration and RunConfig Pairs
 	 */
-	public void resetRunConfigs(List<Pair<AlgorithmExecutionConfig, RunConfig>> extraRuns) {
+	public void resetRunConfigs(List<AlgorithmRunConfiguration> extraRuns) {
 		if(extraRuns.isEmpty())
 			return;
 		
 		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  status='NEW', workerUUID=0 WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\" AND runConfigID IN (" );
 
-		for(Pair<AlgorithmExecutionConfig, RunConfig> ent : extraRuns)
+		for(AlgorithmRunConfiguration ent : extraRuns)
 		{
-			sb.append(this.runConfigIDMap.get(ent.getSecond())+",");
+			sb.append(this.runConfigIDMap.get(ent)+",");
 		}
 		sb.setCharAt(sb.length()-1, ')');
 
@@ -761,7 +843,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param killableAlgorithmRun
 	 * @return <code>true</code> if the job has been killed or otherwise is no longer updatedable by us
 	 */
-	public boolean updateRunStatusAndCheckKillBit(KillableAlgorithmRun run) {
+	public boolean updateRunStatusAndCheckKillBit(AlgorithmRunResult run) {
 		
 		//This query is designed to update the database IF and only IF
 		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
@@ -773,16 +855,16 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			Connection conn = getConnection();
 			Calendar worstCaseEndTime = Calendar.getInstance();
 			if(run.getRuntime()==0)
-				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getRunConfig().getCutoffTime()*1.5-run.getWallclockExecutionTime()+120));
+				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getAlgorithmRunConfiguration().getCutoffTime()*1.5-run.getWallclockExecutionTime()+120));
 			else
-				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getRunConfig().getCutoffTime()*1.5-run.getRuntime()+120));
+				worstCaseEndTime.add(Calendar.SECOND, (int)(run.getAlgorithmRunConfiguration().getCutoffTime()*1.5-run.getRuntime()+120));
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString());
 				stmt.setDouble(1, run.getRuntime());
 				stmt.setDouble(2, run.getRunLength());
 				stmt.setTimestamp(3, new java.sql.Timestamp(worstCaseEndTime.getTime().getTime()));
 				stmt.setDouble(4, run.getWallclockExecutionTime());
-				stmt.setString(5, this.runConfigIDMap.get(run.getRunConfig()));
+				stmt.setString(5, this.runConfigIDMap.get(run.getAlgorithmRunConfiguration()));
 				boolean shouldKill = (executePSUpdate(stmt) == 0);
 
 				stmt.close();

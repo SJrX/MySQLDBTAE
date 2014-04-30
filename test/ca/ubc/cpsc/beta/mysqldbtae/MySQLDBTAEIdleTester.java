@@ -23,32 +23,33 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.configspace.ParamFileHelper;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.AbstractOptions;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.WaitableTAECallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.debug.EqualTargetAlgorithmEvaluatorTester;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.decorators.resource.BoundedTargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.experimental.queuefacade.basic.BasicTargetAlgorithmEvaluatorQueue;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.experimental.queuefacade.basic.BasicTargetAlgorithmEvaluatorQueueResultContext;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.experimental.queuefacade.general.TargetAlgorithmEvaluatorQueueFacade;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.WaitableTAECallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.decorators.debug.EqualTargetAlgorithmEvaluatorTester;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.decorators.resource.BoundedTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.experimental.queuefacade.basic.BasicTargetAlgorithmEvaluatorQueue;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.experimental.queuefacade.basic.BasicTargetAlgorithmEvaluatorQueueResultContext;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.experimental.queuefacade.general.TargetAlgorithmEvaluatorQueueFacade;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorLoader;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerTaskProcessor;
@@ -61,9 +62,9 @@ public class MySQLDBTAEIdleTester {
 	
 	private static Process proc;
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -125,8 +126,8 @@ public class MySQLDBTAEIdleTester {
 			e.printStackTrace();
 		}
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFileWithKilled.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
-		execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
+		configSpace = new ParameterConfigurationSpace(paramFile);
+		execConfig = new AlgorithmExecutionConfiguration("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
 		rand = new MersenneTwister();
 
 		
@@ -152,18 +153,8 @@ public class MySQLDBTAEIdleTester {
 	public void testIdleShutdown()
 	{
 		
-		
-		MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION,true, priority);
-		try {
-		mysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-		} catch(RuntimeException e)
-		{
-			e.printStackTrace();
-			throw e;
-		}
-		mysqlPersistence.setAlgorithmExecutionConfig(execConfig);
-		
-		MySQLTargetAlgorithmEvaluator mysqlDBTae = new MySQLTargetAlgorithmEvaluator(execConfig, mysqlPersistence);
+	
+		MySQLTargetAlgorithmEvaluator mysqlDBTae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL,  25, true, MYSQL_RUN_PARTITION, true, priority);
 		
 		try {
 			Thread.sleep(5000);
@@ -171,10 +162,10 @@ public class MySQLDBTAEIdleTester {
 			Thread.currentThread().interrupt();
 		}
 		
-		List<RunConfig> runConfigs = new ArrayList<RunConfig>(1);
+		List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(1);
 		for(int i=0; i < 1; i++)
 		{
-			ParamConfiguration config = configSpace.getRandomConfiguration(rand);
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
 			{
 				//Only want good configurations
@@ -182,14 +173,14 @@ public class MySQLDBTAEIdleTester {
 				continue;
 			} else
 			{
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
 		
 		System.out.println("Performing " + runConfigs.size() + " runs");
 		TargetAlgorithmEvaluator tae =mysqlDBTae;
-		List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+		List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 		
 		for(int i = 0; i < 8; i++)
@@ -308,14 +299,6 @@ public class MySQLDBTAEIdleTester {
 			
 	
 			
-			MySQLPersistenceClient  normalMysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL+"badexec", 1500, true,1,true, JobPriority.NORMAL);
-			try {
-			normalMysqlPersistence.setCommand(System.getProperty("sun.java.command"));
-			} catch(RuntimeException e)
-			{
-				e.printStackTrace();
-				throw e;
-			}
 			
 			try {
 				File paramFile = File.createTempFile("junittests", "badexec");
@@ -325,14 +308,14 @@ public class MySQLDBTAEIdleTester {
 				
 				writer.flush();
 				writer.close();
-				ParamConfigurationSpace configSpace = ParamFileHelper.getParamFileParser(paramFile);
+				ParameterConfigurationSpace configSpace = ParamFileHelper.getParamFileParser(paramFile);
 				
 				
-				AlgorithmExecutionConfig execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
+				AlgorithmExecutionConfiguration execConfig = new AlgorithmExecutionConfiguration("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
 				
-			normalMysqlPersistence.setAlgorithmExecutionConfig(execConfig);
 			
-			MySQLTargetAlgorithmEvaluator normalMySQLTAE = new MySQLTargetAlgorithmEvaluator(execConfig, normalMysqlPersistence);
+			
+			MySQLTargetAlgorithmEvaluator normalMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL+"badexec",  25, true, 1, true, JobPriority.NORMAL);
 			
 			
 	
@@ -341,7 +324,7 @@ public class MySQLDBTAEIdleTester {
 			{
 	
 				@Override
-				public void onSuccess(List<AlgorithmRun> runs) {
+				public void onSuccess(List<AlgorithmRunResult> runs) {
 	
 					System.out.println("Done");
 				}
@@ -356,7 +339,7 @@ public class MySQLDBTAEIdleTester {
 			
 			
 			WaitableTAECallback wait = new WaitableTAECallback(tae);
-			normalMySQLTAE.evaluateRunsAsync(new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("foo"), 123), 0, configSpace.getDefaultConfiguration()), wait);
+			normalMySQLTAE.evaluateRunsAsync(new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("foo"), 123), 0, configSpace.getDefaultConfiguration(),execConfig), wait);
 			
 			paramFile.delete();
 			/*

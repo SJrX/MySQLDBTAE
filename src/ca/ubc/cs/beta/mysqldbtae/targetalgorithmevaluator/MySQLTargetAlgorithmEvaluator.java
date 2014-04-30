@@ -13,15 +13,14 @@ import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.algorithmrun.RunResult;
-import ca.ubc.cs.beta.aclib.concurrent.threadfactory.SequentiallyNamedThreadFactory;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.AbstractAsyncTargetAlgorithmEvaluator;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
+import ca.ubc.cs.beta.aeatk.concurrent.threadfactory.SequentiallyNamedThreadFactory;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.AbstractAsyncTargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 
@@ -29,7 +28,7 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmEvaluator {
 
 
-	private final MySQLPersistenceClient persistence;
+	final MySQLPersistenceClient persistence;
 	private final Logger log = LoggerFactory.getLogger(MySQLTargetAlgorithmEvaluator.class);
 	private final ScheduledExecutorService requestWatcher;
 	
@@ -38,15 +37,15 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	private final AtomicLong lastWarning; 
 	
 
-	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence) {
+	public MySQLTargetAlgorithmEvaluator( MySQLPersistenceClient persistence) {
 		//We set the number of thread pools to twice the number of available processors because we believe the tasks will be IO bound and not CPU bound
-		this(execConfig, persistence, false, Runtime.getRuntime().availableProcessors()*2, 2000);
+		this( persistence, false, Runtime.getRuntime().availableProcessors()*2, 2000);
 		
 	}
 
 	
-	public MySQLTargetAlgorithmEvaluator(AlgorithmExecutionConfig execConfig, MySQLPersistenceClient persistence, boolean wakeUpWorkers, int poolSize, long delayInMS) {
-		super(execConfig);
+	public MySQLTargetAlgorithmEvaluator( MySQLPersistenceClient persistence, boolean wakeUpWorkers, int poolSize, long delayInMS) {
+		
 		this.persistence = persistence;
 		this.wakeUpWorkers = wakeUpWorkers;
 		this.delayInMS = delayInMS;
@@ -84,7 +83,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	
 	@Override
 	@SuppressWarnings("unchecked")
-	public void evaluateRunsAsync(List<RunConfig> runConfigs,
+	public void evaluateRunsAsync(List<AlgorithmRunConfiguration> runConfigs,
 			TargetAlgorithmEvaluatorCallback handler, TargetAlgorithmEvaluatorRunObserver obs) {
 		
 		if(runConfigs.size() == 0)
@@ -129,7 +128,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		@Override
 		public synchronized void run() {
 			
-				List<AlgorithmRun> runs = null;
+				List<AlgorithmRunResult> runs = null;
 				try {
 					
 					if((runs = persistence.pollRunResults(token)) == null)
@@ -153,11 +152,11 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 						
 					}
 					
-					for(AlgorithmRun run : runs)
+					for(AlgorithmRunResult run : runs)
 					{
-						if(run.getRunResult().equals(RunResult.ABORT))
+						if(run.getRunStatus().equals(RunStatus.ABORT))
 						{
-							log.info("Um this was an abort {} : {} ", run.getRunConfig(), run);
+							log.info("Um this was an abort {} : {} ", run.getAlgorithmRunConfiguration(), run);
 							
 							handler.onFailure(new TargetAlgorithmAbortException(run));
 							return;
@@ -168,6 +167,17 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 				{
 					handler.onFailure(e);
 					return;
+				} catch(Throwable t)
+				{
+					handler.onFailure(new IllegalStateException("Unexpected Throwable occured", t));
+					
+					if(t instanceof Error)
+					{
+						throw t;
+					}
+					
+					
+					return;
 				}
 				try {
 					handler.onSuccess(runs);
@@ -175,6 +185,16 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 				{
 					log.error("RuntimeException occurred during invocation of onSuccess(), calling onFailure()", e);
 					handler.onFailure(e);
+				} catch(Throwable t)
+				{
+					handler.onFailure(new IllegalStateException("Unexpected Throwable occured", t));
+					
+					if(t instanceof Error)
+					{
+						
+						throw (Error) t;
+					}
+					return;
 				}
 				
 			
@@ -187,5 +207,5 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	public boolean areRunsObservable() {
 		return true;
 	}
-	
+
 }

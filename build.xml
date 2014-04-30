@@ -49,8 +49,9 @@ dirty: ${git.dirty}</echo>
 					<fileset dir="lib" id="lib">
 						<include name="*.jar"/>
 					</fileset>
-					<fileset dir="${software.dir}/aclib-${git.branch}/" id="aclib">
+					<fileset dir="${software.dir}/aeatk-${git.branch}/" id="aeatk">
 						<include name="*.jar"/>
+						<include name="example_scripts/**/*"/>
 					</fileset>
 		</path>	
 			
@@ -61,7 +62,7 @@ dirty: ${git.dirty}</echo>
 		<delete dir="dist"/>
 	</target>
 	<target name="compile" depends="init">
-		<javac srcdir="src" destdir="build/classes" debug="true" target="1.6">
+		<javac srcdir="src" destdir="build/classes" debug="true" target="1.7">
 		<classpath refid="compile.classpath"/>
 		</javac>
 		<copy todir="build/classes">
@@ -98,13 +99,13 @@ dirty: ${git.dirty}</echo>
 			</fileset>
 					<fileset refid="lib"/>
 
-					<fileset refid="aclib"/>
+					<fileset refid="aeatk"/>
 					<fileset dir="scripts">
 						<include name="*"/>
 					</fileset>	
 		</copy>
 		
-		<java classname="ca.ubc.cs.beta.aclib.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
 					<arg value="--class"/>
 					<arg value="ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker"/>
 					<arg value="--name"/>
@@ -113,7 +114,7 @@ dirty: ${git.dirty}</echo>
 					<arg value="dist/"/>	
 		</java>
 		
-		<java classname="ca.ubc.cs.beta.aclib.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
 					<arg value="--class"/>
 					<arg value="ca.ubc.cs.beta.dzq.exec.DangerZoneQueue"/>
 					<arg value="--name"/>

@@ -15,20 +15,20 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ca.ubc.cs.beta.TestHelper;
-import ca.ubc.cs.beta.aclib.algorithmrun.AlgorithmRun;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfiguration;
-import ca.ubc.cs.beta.aclib.configspace.ParamConfigurationSpace;
-import ca.ubc.cs.beta.aclib.execconfig.AlgorithmExecutionConfig;
-import ca.ubc.cs.beta.aclib.options.MySQLOptions;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstance;
-import ca.ubc.cs.beta.aclib.probleminstance.ProblemInstanceSeedPair;
-import ca.ubc.cs.beta.aclib.runconfig.RunConfig;
-import ca.ubc.cs.beta.aclib.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
-import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLDBTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
 import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker;
 
@@ -38,9 +38,9 @@ public class MySQLDBTAEWorkerWakingTester {
 	
 	private static Process proc;
 	
-	private static AlgorithmExecutionConfig execConfig;
+	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParamConfigurationSpace configSpace;
+	private static  ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	
@@ -83,8 +83,8 @@ public class MySQLDBTAEWorkerWakingTester {
 			e.printStackTrace();
 		}
 		File paramFile = TestHelper.getTestFile("paramFiles/paramEchoParamFile.txt");
-		configSpace = new ParamConfigurationSpace(paramFile);
-		execConfig = new AlgorithmExecutionConfig("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
+		configSpace = new ParameterConfigurationSpace(paramFile);
+		execConfig = new AlgorithmExecutionConfiguration("ignore", System.getProperty("user.dir"), configSpace, false, false, 500);
 		
 	}
 	
@@ -93,7 +93,7 @@ public class MySQLDBTAEWorkerWakingTester {
 	public void testWorkerWakeup()
 	{
 		
-			MySQLDBTargetAlgorithmEvaluatorFactory fact = new MySQLDBTargetAlgorithmEvaluatorFactory();
+			MySQLTargetAlgorithmEvaluatorFactory fact = new MySQLTargetAlgorithmEvaluatorFactory();
 			
 			MySQLTargetAlgorithmEvaluatorOptions opts = MySQLDBUnitTestConfig.getMySQLDBTAEOptions();
 			
@@ -102,26 +102,30 @@ public class MySQLDBTAEWorkerWakingTester {
 			opts.wakeUpWorkersOnSubmit = true;
 			opts.pool = MYSQL_POOL;
 			opts.deletePartitionDataOnShutdown = true;
-			
 			opts.shutdownWorkersOnCompletion = true;
 			
-			TargetAlgorithmEvaluator tae = fact.getTargetAlgorithmEvaluator(execConfig, opts);
+			
+
+			TargetAlgorithmEvaluator tae = fact.getTargetAlgorithmEvaluator( opts);
 			
 				
-			List<RunConfig> runConfigs = new ArrayList<RunConfig>(5);
+			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(5);
 			for(int i=0; i < 1; i++)
 			{
-				ParamConfiguration config = configSpace.getDefaultConfiguration();
+				ParameterConfiguration config = configSpace.getDefaultConfiguration();
 			
 				config.put("seed", String.valueOf(i));
-				config.put("runtime", String.valueOf(1));
-				RunConfig rc = new RunConfig(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config);
+
+				
+				config.put("runtime", String.valueOf(2*i+1));
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("RunPartition"), Long.valueOf(config.get("seed"))), 1001, config,execConfig);
+
 				runConfigs.add(rc);
 			}
 			
 			long startTime = System.currentTimeMillis();
 			
-			List<AlgorithmRun> runs = tae.evaluateRun(runConfigs);
+			List<AlgorithmRunResult> runs = tae.evaluateRun(runConfigs);
 			
 			long endTime = System.currentTimeMillis();
 			

@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `pool_UPDATEABLE` varchar(64) NOT NULL,
 `poolIdleTimeLimit_UPDATEABLE` int(11) NOT NULL,
 `workerIdleTime_UPDATEABLE` int(11) NOT NULL,
+`concurrencyFactor_UPDATEABLE` int(11) NOT NULL DEFAULT 0,
 `upToDate` tinyint(1) NOT NULL,
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`workerUUID`),
