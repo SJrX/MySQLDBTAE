@@ -102,7 +102,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			b.append(" --timeLimit " ).append(limit);
 			b.append(" --jobID ").append(jobID);
-			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 0 --updateFrequency 0 --shutdownBuffer 0 --idleLimit " ).append(idle);
+			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 0 --shutdownBuffer 0 --idleLimit " ).append(idle);
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
@@ -152,13 +152,25 @@ public class MySQLDBTAEEndTimeTester {
 	{
 			
 		try {
+			System.err.println("============== Start of end time test ==================");
+			System.err.println("============== Start of end time test ==================");
+			System.err.println("============== Start of end time test ==================");
+			System.err.println("============== Start of end time test ==================");
 			Process proc1 = setupWorker("2s","120s","CLI");
 
 			Thread.sleep(1000);
 			
 			assertTrue(isRunning(proc1));
 			
-			Thread.sleep(3000);
+			Thread.sleep(4000);
+			
+			System.err.println("============== End of end time test ==================");
+
+			System.err.println("============== End of end time test ==================");
+
+			System.err.println("============== End of end time test ==================");
+
+			System.err.println("============== End of end time test ==================");
 			
 			assertTrue(!isRunning(proc1));
 

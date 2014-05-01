@@ -26,11 +26,11 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 `runConfigID` int(11) NOT NULL AUTO_INCREMENT,
 `runConfigUUID` char(48) NOT NULL,
 `execConfigID` int(11) NOT NULL,
-`problemInstance` varchar(2048) NOT NULL,
-`instanceSpecificInformation` varchar(2048) NOT NULL DEFAULT '0',
+`problemInstance` varchar(8172) NOT NULL,
+`instanceSpecificInformation` varchar(8172) NOT NULL DEFAULT '0',
 `seed` bigint(20) NOT NULL,
 `cutoffTime` double NOT NULL,
-`paramConfiguration` varchar(2048) NOT NULL,
+`paramConfiguration` TEXT NOT NULL,
 `cutoffLessThanMax` tinyint(1) NOT NULL,
 `status` enum('NEW','ASSIGNED','COMPLETE','PAUSED') NOT NULL DEFAULT 'NEW',
 `priority` enum('LOW','NORMAL','HIGH','UBER') NOT NULL DEFAULT 'NORMAL',
@@ -45,8 +45,9 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 `resultSeed` bigint(20) NOT NULL DEFAULT 1,
 `runtime` double NOT NULL DEFAULT '0',
 `walltime` double NOT NULL DEFAULT '0',
-`additionalRunData` varchar(2048) NOT NULL DEFAULT '',
+`additionalRunData` TEXT NOT NULL,
 `worstCaseEndtime`  datetime NOT NULL DEFAULT '1900-01-01 00:00:00',
+`worstCaseNextUpdateWhenAssigned` datetime NOT NULL DEFAULT '1900-01-01 00:00:00',
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
  PRIMARY KEY (`runConfigID`),
  UNIQUE KEY `runConfigUUID` (`runConfigUUID`),
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 ) ENGINE=InnoDB;
 
 
+ 
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `workerUUID` char(40) NOT NULL,
 `hostname` varchar(256) NOT NULL,
@@ -76,6 +78,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `workerIdleTime_UPDATEABLE` int(11) NOT NULL,
 `concurrencyFactor_UPDATEABLE` int(11) NOT NULL DEFAULT 0,
 `upToDate` tinyint(1) NOT NULL,
+`worstCaseNextUpdateWhenRunning` datetime NOT NULL DEFAULT '2028-10-10 12:34:56', #This date should be in the future
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`workerUUID`),
 KEY `sumIdleTime` (`startWeekYear`,`workerIdleTime_UPDATEABLE`)

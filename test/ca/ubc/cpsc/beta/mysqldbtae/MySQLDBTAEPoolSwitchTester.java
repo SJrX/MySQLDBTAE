@@ -72,7 +72,7 @@ public class MySQLDBTAEPoolSwitchTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL + 1);
 			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
-			b.append(" --timeLimit 1d --updateFrequency 2");
+			b.append(" --timeLimit 1d");
 			b.append(" --tae PARAMECHO --runsToBatch 200 --delayBetweenRequests 1 --idleLimit 30s" );
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			

@@ -127,7 +127,7 @@ public class MySQLDBTAECutoffIdleTester {
 			b.append(" --jobID CLI");
 			b.append(" --minCutoffDeathTime ").append(minCutoffDeathTime);
 			b.append(" --checkMinCutoff ").append(checkMinCutoff);
-			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --shutdownBuffer 0 --idleLimit 20s");
+			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit 20s");
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());

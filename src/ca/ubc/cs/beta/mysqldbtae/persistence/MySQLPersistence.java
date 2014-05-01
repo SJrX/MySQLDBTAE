@@ -74,7 +74,7 @@ public class MySQLPersistence implements AutoCloseable{
 	
 	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, Boolean createTables)
 	{
-		
+
 		pool = pool.trim();
 		if(pool == null) throw new ParameterException("Must specify a pool name ");
 		if(pool.length() > 32) throw new ParameterException("Pool name must be at most 32 characters");
@@ -150,20 +150,23 @@ public class MySQLPersistence implements AutoCloseable{
 			
 			Connection conn = cpds.getConnection();
 	
+			
 			try {
 				try {
 					conn.createStatement().execute("SELECT 1 FROM " + TABLE_VERSION + " LIMIT 1");
 					databaseExists = true;
+				
 				} catch(SQLException e)
 				{
 					log.info("Autodetecting of tables for pool {} failed suggesting it doesn't exist, will create tables", pool);
-					
+			
 				}
 			} finally
 			{
 				conn.close();
 			}
 						
+	
 			createTables = (createTables == null) ? !databaseExists : createTables;
 
 			if(!createTables && !databaseExists)

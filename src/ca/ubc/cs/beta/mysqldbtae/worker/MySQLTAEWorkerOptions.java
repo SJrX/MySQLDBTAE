@@ -39,7 +39,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 	@UsageTextField(level=OptionLevel.INTERMEDIATE)
 	@Parameter(names={"--runsToBatch"}, description="Number of runs to batch at a single time", validateWith=PositiveInteger.class)
-	public int runsToBatch = 3;
+	public volatile int runsToBatch = 3;
 
 	@UsageTextField(level=OptionLevel.ADVANCED)
 	@Parameter(names={"--numUncaughtExceptions"}, description="Will retry the entire process until this many uncaught exceptions occur", validateWith=PositiveInteger.class)
@@ -56,11 +56,11 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@UsageTextField(level=OptionLevel.INTERMEDIATE)
 	@Parameter(names="--poolIdleTimeLimit", description="Amount of idle time allowed to accumulate in the pool before shutdown", converter=DurationConverter.class)
-	public int poolIdleTimeLimit = 14400000;
+	public volatile int poolIdleTimeLimit = 14400000;
 	
 	@UsageTextField(level=OptionLevel.BASIC, defaultValues="no time limit")
 	@Parameter(names="--timeLimit", description="Amount of time to work for, you should set this to the time limit of the job, otherwise the database may have jobs that are stuck.", converter=DurationConverter.class)
-	public int timeLimit = Integer.MAX_VALUE;
+	public volatile int timeLimit = Integer.MAX_VALUE;
 	
 	@UsageTextField(level=OptionLevel.DEVELOPER)
 	@Parameter(names="--shutdownBuffer", description="Amount of time to budget for shutdown tasks", converter=DurationConverter.class)
@@ -70,9 +70,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--jobID", description="Job Identifier for worker (logged to database), you should generally set this to some environment variable (i.e. --jobID $CLUSTER_JOB_ID)")
 	public String jobID = "CLI";
 
-	@UsageTextField(level=OptionLevel.INTERMEDIATE)
-	@Parameter(names="--updateFrequency", description="How often to check DB for new parameters", converter=DurationConverter.class)
-	public long updateFrequency = 30;
+	//@UsageTextField(level=OptionLevel.INTERMEDIATE)
+	//@Parameter(names="--updateFrequency", description="How often to check DB for new parameters", converter=DurationConverter.class)
+	//public volatile long updateFrequency = 30;
 	
 	@UsageTextField(level=OptionLevel.BASIC)
 	@Parameter(names="--logOutputDir", description="Log Output Directory", converter=WritableDirectoryConverter.class)
@@ -80,7 +80,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 
 	@UsageTextField(level=OptionLevel.ADVANCED)
 	@Parameter(names="--createPoolTables", description="Create the tables for the pool in the database")
-	public boolean createTables = false;
+	public Boolean createTables = null;
 	
 	@Parameter(names="--checkMinCutoff", description="Check if the minimum cutoff time of remaining jobs is greater than the remaining time.")
 	public boolean checkMinCutoff = true;

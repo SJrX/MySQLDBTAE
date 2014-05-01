@@ -122,7 +122,7 @@ public class MySQLDBTAEMarkDoneTester {
 			
 			b.append(" --timeLimit " ).append(limit);
 			b.append(" --jobID ").append(jobID);
-			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --updateFrequency 1 --shutdownBuffer 0 --idleLimit " ).append(idle);
+			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit " ).append(idle);
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());

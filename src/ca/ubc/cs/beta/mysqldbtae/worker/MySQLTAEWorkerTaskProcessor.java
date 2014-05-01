@@ -152,7 +152,7 @@ public class MySQLTAEWorkerTaskProcessor {
 						while(true)
 						{
 							StopWatch runFetchTime = new AutoStartStopWatch();
-							List<AlgorithmRunConfiguration> runs = mysqlPersistence.getRuns(options.runsToBatch);
+							List<AlgorithmRunConfiguration> runs = mysqlPersistence.getRuns(options.runsToBatch, options.delayBetweenRequests);
 							totalRunFetchTimeInMS += runFetchTime.stop();
 							
 							LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue = new LinkedBlockingQueue<AlgorithmRunConfiguration>();
@@ -211,12 +211,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							long loopStop = loopStart.stop();
 							
 							
-							
-							if(System.currentTimeMillis() - lastUpdateTime > (options.updateFrequency * 1000))
-							{
-								lastUpdateTime = checkForUpdatedParameters(mysqlPersistence);	
-							}
-							
+						
 							double waitTime = (options.delayBetweenRequests) - loopStop/1000.0;
 							
 							if(checkShutdownConditions(minCutoffDeathTimestampInMillis,lastJobFinished, mysqlPersistence, minCutoffInDB,waitTime))
@@ -245,6 +240,12 @@ public class MySQLTAEWorkerTaskProcessor {
 								}
 							}
 							 
+							
+							if(System.currentTimeMillis() - lastUpdateTime > (options.delayBetweenRequests * 1000))
+							{
+								lastUpdateTime = checkForUpdatedParameters(mysqlPersistence);	
+							}
+							
 							
 								
 							if(Thread.interrupted())
@@ -306,7 +307,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			throws PoolChangedException {
 		
 		log.debug("Checking for new parameters");
-		UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters();
+		UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters(options.delayBetweenRequests);
 		mysqlPersistence.updateIdleTime((int) Math.floor(workerIdleTime));
 		
 		if(params != null)
@@ -418,6 +419,7 @@ public class MySQLTAEWorkerTaskProcessor {
 						return;
 					} else
 					{
+						
 						boolean shouldKill = mysqlPersistence.updateRunStatusAndCheckKillBit(runs.get(0));
 						
 						if(shouldKill)
@@ -428,7 +430,8 @@ public class MySQLTAEWorkerTaskProcessor {
 						{
 							log.debug("Database updated continue run");
 						}
-						
+
+						mysqlPersistence.updateOutstandingRunsLastUpdateTime(options.delayBetweenRequests);
 						lastDBUpdate = System.currentTimeMillis();
 					}
 					
