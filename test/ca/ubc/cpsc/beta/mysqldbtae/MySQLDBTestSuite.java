@@ -13,6 +13,7 @@ import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 	MySQLClientKillSingleRunTester.class,
 	MySQLClientKillTester.class,
 	MySQLDBObserverTester.class,
+	MySQLDBTAEAutoAdjustBatchSizeTester.class,
 	MySQLDBTAEAbortRetryTester.class,
 	MySQLDBTAEConcurrencyFactorTester.class,
 	MySQLDBTAECutoffIdleTester.class,

@@ -472,6 +472,18 @@ public class MySQLPersistence implements AutoCloseable{
 		
 	}
 
+	public ResultSet executeStatement(final Statement stmt, final String string) {
+		return execute(new Callable<ResultSet>() {
+
+			@Override
+			public ResultSet call() throws SQLException {
+				 return stmt.executeQuery(string);
+			}
+			
+		});
+	}
+
+	
 	private <K> K execute(Callable<K> f)
 	{
 		
@@ -484,6 +496,9 @@ public class MySQLPersistence implements AutoCloseable{
 			} catch(MySQLQueryInterruptedException e)
 			{
 				log.warn("Unexpected query interruption, probably a race condition with worker wakeup. (You can disregard this warning, it's for developers)",e);
+			} catch( com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException e) 
+			{
+				log.debug("Dead lock, we will try it again");
 			} catch(com.mysql.jdbc.exceptions.jdbc4.MySQLTransientException e)
 			{
 				log.debug("Transient Exception Detection disregarding",e);
@@ -703,6 +718,7 @@ public class MySQLPersistence implements AutoCloseable{
 		
 	}
 
+	
 	
 	
 }

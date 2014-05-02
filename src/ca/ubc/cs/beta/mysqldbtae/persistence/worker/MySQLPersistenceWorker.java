@@ -303,6 +303,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				//stmt = conn.prepareStatement(sb.toString());
 				log.debug("SQL Query for Job Processing:\n {}", sb);
 				try {
+					super.executeStatement(stmt, sb.toString());
 					stmt.execute(sb.toString());
 				} catch(SQLException e)
 				{

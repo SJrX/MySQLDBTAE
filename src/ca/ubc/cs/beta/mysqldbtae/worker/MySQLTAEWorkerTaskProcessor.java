@@ -188,8 +188,15 @@ public class MySQLTAEWorkerTaskProcessor {
 							int jobsEvaluated = 0;
 							
 							AlgorithmRunConfiguration ent;
-							while((ent = runsQueue.poll())!=null)
+							while(true)
 							{
+								synchronized(lock)
+								{
+									if((ent = runsQueue.poll())==null)
+									{
+										break;
+									}
+								}
 								boolean jobSuccess = processPair(mysqlPersistence, tae, ent);
 								
 								if(jobSuccess)
@@ -544,7 +551,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		@Override
 		public void run() {
-			List< AlgorithmRunConfiguration> extraRuns = new ArrayList<AlgorithmRunConfiguration>();
+			
 			
 			if(runsQueue.size() == 0)
 			{ //Nothing to push back
@@ -555,11 +562,32 @@ public class MySQLTAEWorkerTaskProcessor {
 			int newJobsInDB = this.mysqlPersistence.getNumberOfNewRuns();
 			if(newJobsInDB < pushbackThreshhold)
 			{
-				synchronized(lock){
-					runsQueue.drainTo(extraRuns);
+				List<AlgorithmRunConfiguration> extraRuns = new ArrayList<AlgorithmRunConfiguration>();
+				synchronized(lock)
+				{
+					
+					if(runsQueue.size() == 0)
+					{
+						return;
+					}
+					
+					int runsQueueSize = runsQueue.size();
+					int numberOfRunsToReturn = (runsQueue.size()+1) / 2;
+					
+					for(int i=0; i < numberOfRunsToReturn; i++)
+					{
+						extraRuns.add(runsQueue.poll());
+						
+						if(runsQueue.size()+i+1 != runsQueueSize)
+						{
+							log.error("Incorrect Synchronization Detected, runsQueue has changed size while pushing stuff back.");
+						}
+					}
+					
+					//runsQueue.drainTo(extraRuns);
 					mysqlPersistence.resetRunConfigs(extraRuns);
 				}
-				log.info("Current batch of jobs is taking to long, {} queued runs have been pushed back to the database", extraRuns.size());
+				log.info("Current batch of jobs is taking to long, {} queued runs have been pushed back to the database, we have kept {} runs", extraRuns.size(),runsQueue.size());
 			} else
 			{
 					log.debug("There are still {} jobs in DB, not pushing back at the moment", newJobsInDB);

@@ -88,10 +88,10 @@ public class MySQLDBTAEJobPushBackTester {
 		rand = new MersenneTwister();
 		
 		runConfigs= new ArrayList<AlgorithmRunConfiguration>(1);
-		for(int i=0; i < 5; i++)
+		for(int i=0; i < 10; i++)
 		{
 			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
-			config.put("runtime", "5");
+			config.put("runtime", "6");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
 				//Only want good configurations
@@ -120,8 +120,8 @@ public class MySQLDBTAEJobPushBackTester {
 			b.append(MySQLTAEWorker.class.getCanonicalName());
 			b.append(" --pool ").append(MYSQL_POOL);
 			
-			b.append(" --timeLimit 60");
-			b.append(" --tae CLI --runsToBatch 5 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit 10");
+			b.append(" --timeLimit 300");
+			b.append(" --tae CLI --runsToBatch 50 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit 120 ");
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
@@ -152,19 +152,34 @@ public class MySQLDBTAEJobPushBackTester {
 		try {		
 			MySQLTargetAlgorithmEvaluator mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority)	;		
 			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE),mySQLTAE);
+			
+			
 			Process proc1 = setupWorker();
 			Process proc2 = setupWorker();
 			Process proc3 = setupWorker();
 			Process proc4 = setupWorker();
 			Process proc5 = setupWorker();
+		
 			
-			long startTime = System.currentTimeMillis();
-			
-			
-			List<AlgorithmRunResult> runs = mySQLTAE.evaluateRun(runConfigs,null);
-			
-			long endTime = System.currentTimeMillis();
-			assertTrue((endTime-startTime)<22000);
+			try 
+			{	
+				long startTime = System.currentTimeMillis();
+				
+				
+				List<AlgorithmRunResult> runs = mySQLTAE.evaluateRun(runConfigs,null);
+				
+				long endTime = System.currentTimeMillis();
+				assertTrue((endTime-startTime)<22000);
+			} finally
+			{
+				proc1.destroy();
+				proc2.destroy();
+				proc3.destroy();
+				proc4.destroy();
+				proc5.destroy();
+				
+			}
 		
 		} catch(RuntimeException e)
 		{
