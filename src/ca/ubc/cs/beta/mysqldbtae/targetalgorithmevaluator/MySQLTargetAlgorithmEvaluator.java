@@ -2,6 +2,7 @@ package ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +37,10 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	private final long delayInMS;
 	private final AtomicLong lastWarning; 
 	
+	/**
+	 * This latch 
+	 */
+	private final CountDownLatch workersCleanedUp = new CountDownLatch(1);
 
 	public MySQLTargetAlgorithmEvaluator( MySQLPersistenceClient persistence) {
 		//We set the number of thread pools to twice the number of available processors because we believe the tasks will be IO bound and not CPU bound
@@ -45,20 +50,63 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 
 	
 	public MySQLTargetAlgorithmEvaluator( MySQLPersistenceClient persistence, boolean wakeUpWorkers, int poolSize, long delayInMS) {
-		
+		this(persistence, wakeUpWorkers, poolSize, delayInMS, 120);
+
+	}
+
+
+	public MySQLTargetAlgorithmEvaluator(MySQLPersistenceClient persistence,boolean wakeUpWorkers, int poolSize,long delayInMS,final int deadJobCheckFrequency) {
 		this.persistence = persistence;
 		this.wakeUpWorkers = wakeUpWorkers;
 		this.delayInMS = delayInMS;
 		requestWatcher = Executors.newScheduledThreadPool(poolSize, (new SequentiallyNamedThreadFactory("MySQL Request Watching Thread")));
 		lastWarning = new AtomicLong(delayInMS);
+	
+		Runnable deadJobChecker = new Runnable()
+		{
+
+			@Override
+			public void run() {
+				
+				try {
+					try 
+					{
+						MySQLTargetAlgorithmEvaluator.this.persistence.fixJobState();
+					} catch(Throwable t)
+					{
+						log.error("Encountered unknown throwable when fixing job state", t);
+						throw t;
+					}
+				} finally
+				{
+					workersCleanedUp.countDown();
+				}
+				
+				
+			}
+			
+		};
+		requestWatcher.scheduleAtFixedRate(deadJobChecker, 0, deadJobCheckFrequency, TimeUnit.SECONDS);
+		
 	}
 
 
 	private AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 	@Override
 	public void notifyShutdown() {
-		
 		log.info("MySQL TAE Shutdown in Progress");
+		
+		if(workersCleanedUp.getCount() > 0)
+		{
+			log.debug("Worker check has not completed, waiting");
+			try {
+				workersCleanedUp.await();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+					
+		}
+		
 		
 		shutdownRequested.set(true);
 		requestWatcher.shutdown();

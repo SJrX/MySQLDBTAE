@@ -19,6 +19,7 @@ import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 	MySQLDBTAEEndTimeTester.class,
 	MySQLDBTAEIdleTester.class,
 	MySQLDBTAEJobPushBackTester.class,
+	MySQLDBTAEJobReclaimTester.class,
 	MySQLDBTAEKillRetryTester.class,
 	//MySQLDBTAELoadTest.class
 	MySQLDBTAEMarkDoneTester.class,

@@ -11,6 +11,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.SQLException;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -19,6 +21,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.version.MySQLDBTAEVersionInfo;
 
 import com.beust.jcommander.ParameterException;
@@ -520,6 +523,184 @@ public class MySQLPersistence implements AutoCloseable{
 		
 		throw new IllegalStateException("Database queries have failed too many times in a row, giving up");
 	
+	}
+	
+	/**
+	 * Repairs the state of the table, this method is meant to not put load on the database,
+	 * that is why we do a bunch of selects and conditional updates, and without a transaction. 
+	 */
+	public void fixJobState() {
+		try ( Connection conn = getConnection())
+		{
+			try
+			{
+				conn.createStatement().execute("SELECT GET_LOCK(\"" + this.DATABASE + ".workerFixLock\",172800);" );
+			
+				TreeSet<String> deadWorkers = new TreeSet<String>();
+					
+				//Don't want to grab too many workers at any one time
+				StringBuilder sb = new StringBuilder("SELECT workerUUID FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND worstCaseNextUpdateWhenRunning < NOW() LIMIT 100");
+			
+				try (Statement stmt = conn.createStatement())
+				{
+				
+					ResultSet rs =  stmt.executeQuery(sb.toString());
+					
+				
+					
+					
+					while(rs.next())
+					{
+						deadWorkers.add(rs.getString(1));
+					}
+				}
+				
+				
+				
+				
+				
+				
+			
+				boolean cleanupRunsTable = false;
+				if(deadWorkers.size() > 0)
+				{
+					try (Statement stmt = conn.createStatement())
+					{
+						sb = new StringBuilder();
+						sb.append("UPDATE ").append(TABLE_WORKERS).append( " SET status='DONE', crashInfo='Missed worstcase end time checkin' WHERE workerUUID IN (");
+						
+						for(String workerUUID : deadWorkers)
+						{
+							sb.append("\""+workerUUID+"\" ").append(",");
+						}
+						sb.setCharAt(sb.length() - 1, ')');
+						sb.append(" AND status='RUNNING' AND worstCaseNextUpdateWhenRunning < NOW()");
+						
+						//System.out.println(sb);
+						int updateCount = stmt.executeUpdate(sb.toString());
+						
+						if(deadWorkers.size() > 0 )
+						{
+							log.warn("Detected {} workers that did not respond in time, successfully repaired {} of them (these numbers may not be equal, it just means something changed in the interim.)", deadWorkers.size(), updateCount);
+							log.debug("Worker UUIDs:{}", deadWorkers);
+						}
+						if(updateCount > 0)
+						{
+							cleanupRunsTable = true;
+						}
+						
+					}
+				
+				}
+				
+				sb = new StringBuilder();
+	
+				//Don't grab too many jobs at any one time.
+				sb.append("SELECT runConfigID FROM ").append(TABLE_RUNCONFIG).append( " WHERE status=\"ASSIGNED\" AND worstCaseNextUpdateWhenAssigned < NOW() LIMIT 5000");
+				
+				Set<Integer> keys = new TreeSet<>();
+	
+				try (Statement stmt = conn.createStatement())
+				{
+					//System.out.println(sb.toString());
+					
+					ResultSet rs = stmt.executeQuery(sb.toString());
+					
+				
+					while(rs.next())
+					{
+						keys.add(rs.getInt(1));
+					}
+					
+					
+				
+				}
+				
+				
+				
+				if(keys.size() > 0)
+				{
+					log.warn("Detected {} runs that have not seem an update in time, setting back to NEW", keys.size());
+					
+					try(Statement stmt = conn.createStatement())
+					{
+						sb = new StringBuilder();
+	
+						sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " SET status='NEW', retryAttempts=retryAttempts+1 WHERE status=\"ASSIGNED\"  AND runConfigID IN (");
+							
+	
+						for(Integer key : keys)
+						{
+							sb.append("\""+key+"\"").append(",");
+						}
+						sb.setCharAt(sb.length() - 1, ')');
+						sb.append(" AND worstCaseNextUpdateWhenAssigned < NOW()");
+						
+						//
+						
+						//System.out.println(sb.toString());
+						int updatedRuns = stmt.executeUpdate(sb.toString());
+							
+						log.debug("Moved {} runs back to NEW by ID", updatedRuns);
+						
+						
+					}
+				}
+				
+				
+				
+				
+				
+				
+				if(cleanupRunsTable)
+				{
+					sb = new StringBuilder();
+	
+					sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " SET status='NEW', retryAttempts=retryAttempts+1 WHERE status=\"ASSIGNED\"  AND workerUUID IN (");
+						
+	
+					for(String workerUUID : deadWorkers)
+					{
+						sb.append("\""+workerUUID+"\"").append(",");
+					}
+					sb.setCharAt(sb.length() - 1, ')');
+					sb.append(" AND worstCaseNextUpdateWhenAssigned < NOW()");
+					
+					//
+					try (Statement stmt = conn.createStatement())
+					{
+					
+						int updatedRuns = stmt.executeUpdate(sb.toString());
+						
+						log.debug("Moved {} runs back to NEW by worker", updatedRuns);
+					}
+					
+					
+				}
+				
+			} finally
+			{
+				try {
+					conn.createStatement().execute("SELECT RELEASE_LOCK(\"" + this.DATABASE + ".workerFixLock\");");
+				} catch(SQLException e)
+				{
+					log.error("Couldn't release lock, this is very bad. Deadlock possible ", e);
+				}
+					
+
+				
+			}
+			
+			//Now check for runs that may have been orphaned
+			
+			
+		} catch (SQLException e) {
+			log.error("Couldn't fix job state, exception:",e);
+
+		}
+		
+		
+		
 	}
 
 	

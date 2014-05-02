@@ -111,7 +111,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		
 		
-		try (final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables, options.concurrencyFactor))
+		try (final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables, options.concurrencyFactor, options.minWorstCaseTime, options.worstCaseMultiplier))
 		{
 			
 		
@@ -197,10 +197,14 @@ public class MySQLTAEWorkerTaskProcessor {
 							{
 								log.info("No jobs were evaluated");
 		
+								mysqlPersistence.fixJobState();
+								
 								if(minCutoffInDB>getSecondsLeft() && minCutoffDeathTimestampInMillis==Long.MAX_VALUE)
 								{
 									minCutoffDeathTimestampInMillis = System.currentTimeMillis()+options.minCutoffDeathTime*1000;
 								}
+								
+								
 							} else
 							{
 								lastJobFinished = System.currentTimeMillis();
@@ -243,6 +247,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							
 							if(System.currentTimeMillis() - lastUpdateTime > (options.delayBetweenRequests * 1000))
 							{
+								
 								lastUpdateTime = checkForUpdatedParameters(mysqlPersistence);	
 							}
 							

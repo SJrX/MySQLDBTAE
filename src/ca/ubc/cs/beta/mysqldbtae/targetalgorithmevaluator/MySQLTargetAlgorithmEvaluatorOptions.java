@@ -78,16 +78,22 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 
 	@UsageTextField(level=OptionLevel.ADVANCED)
 	@Parameter(names={"--mysqldbtae-wake-up-on-submit"}, description="Wake the workers up when new jobs are submitted")
-	public boolean wakeUpWorkersOnSubmit;
+	public boolean wakeUpWorkersOnSubmit = true;
 
 	@UsageTextField(defaultValues="Twice the number of available processors", level=OptionLevel.DEVELOPER)
-	@Parameter(names={"--mysqldbtae-poll-threads"}, description="How many threads will be used to manage the outstanding requests")
+	@Parameter(names={"--mysqldbtae-poll-threads"}, description="How many threads will be used to manage the outstanding requests", validateWith=FixedPositiveInteger.class)
 	public int pollPoolSize = Runtime.getRuntime().availableProcessors() * 2;
 
 
 	@UsageTextField(level=OptionLevel.DEVELOPER)
-	@Parameter(names="--mysqldbtae-poll-delay", description="How often (in milliseconds) to poll the database for new results")
+	@Parameter(names="--mysqldbtae-poll-delay", description="How often (in milliseconds) to poll the database for new results", validateWith=FixedPositiveInteger.class)
 	public long delayBetweenPolls = 2000;
+
+	@UsageTextField(level=OptionLevel.ADVANCED)
+	@Parameter(names="--dead-job-check-frequency", description="How often (in seconds) to check for stale or dead jobs", validateWith=FixedPositiveInteger.class)
+	public int deadJobCheckFrequency = 120;
+	
+	
 
 	
 	public Connection getConnection()

@@ -112,7 +112,7 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 		}
 		
 
-		return new MySQLTargetAlgorithmEvaluator( mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls);
+		return new MySQLTargetAlgorithmEvaluator( mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls, opts.deadJobCheckFrequency);
 		
 	}
 	
@@ -211,8 +211,12 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 	}
 
 */
-	
 	public static MySQLTargetAlgorithmEvaluator getMySQLTargetAlgorithmEvaluator(MySQLOptions mysqlConfig, String pool, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
+	{
+		return getMySQLTargetAlgorithmEvaluator(mysqlConfig, pool, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, 60);
+				
+	}
+	public static MySQLTargetAlgorithmEvaluator getMySQLTargetAlgorithmEvaluator(MySQLOptions mysqlConfig, String pool, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority, int deadJobFrequency)
 	{
 		MySQLTargetAlgorithmEvaluatorFactory fact = new MySQLTargetAlgorithmEvaluatorFactory();
 		
@@ -233,6 +237,7 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 		opts.deletePartitionDataOnShutdown = deletePartitionDataOnShutdown;
 		opts.priority = priority;
 		
+		opts.deadJobCheckFrequency = deadJobFrequency;
 		
 		return fact.getTargetAlgorithmEvaluator(opts);
 		

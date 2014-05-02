@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
  KEY `status2` (`status`,`priority`),
  KEY `status` (`status`,`workerUUID`,`priority`,`retryAttempts`,`runConfigID`),
  KEY `statusCutoff` (`status`,`cutoffTime`),
- KEY `statusEndtime` (`status`,`worstCaseEndtime`)
+ KEY `statusEndtime` (`status`,`worstCaseEndtime`),
+ KEY `statusWorstCaseUpdate` (`status`,`worstCaseNextUpdateWhenAssigned`)
 ) ENGINE=InnoDB;
 
 

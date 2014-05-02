@@ -99,6 +99,16 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--concurrency-factor", description="How many workers should be allowed to grab jobs concurrently from the database, set to zero to disable.")
 	public int concurrencyFactor = 4;
 	
+	@UsageTextField(level=OptionLevel.DEVELOPER)
+	@Parameter(names="--min-worst-case-time", description="What is the minimum timeframe for the next worse case update", validateWith=PositiveInteger.class)
+	public int minWorstCaseTime = 120;
+	
+	@UsageTextField(level=OptionLevel.DEVELOPER)
+	@Parameter(names="--worst-case-multiplier", description="What is the minimum timeframe for the next worse case update",  validateWith=PositiveInteger.class)
+	public int worstCaseMultiplier = 5;
+	
+	
+	
 	@ParametersDelegate
 	public HelpOptions help = new HelpOptions();
 

@@ -102,7 +102,7 @@ public class MySQLDBTAEEndTimeTester {
 			
 			b.append(" --timeLimit " ).append(limit);
 			b.append(" --jobID ").append(jobID);
-			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 0 --shutdownBuffer 0 --idleLimit " ).append(idle);
+			b.append(" --tae CLI --runsToBatch 1 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit " ).append(idle);
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
@@ -228,6 +228,7 @@ public class MySQLDBTAEEndTimeTester {
 		
 		MySQLTargetAlgorithmEvaluator tae = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_RUN_PARTITION, false, priority);
 		
+		MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getRunConfigTable(tae),tae);
 		try {
 			long startTime = System.currentTimeMillis();
 			Process proc1 = setupWorker("120s","120s","proc1");
@@ -242,11 +243,19 @@ public class MySQLDBTAEEndTimeTester {
 			String sqlTime = sdf.format(calendar.getTime());
 			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc1%\"", tae);
 				
+			System.out.println("UPDATE " + mysqlConfig.databaseName+"." + MYSQL_POOL+ "_workers SET endTime_UPDATEABLE=\"" + sqlTime +"\", upToDate=0 WHERE jobID LIKE \"proc1%\"");
 			assertTrue(isRunning(proc1));
 
 			Thread.sleep(4000);
 			
+			try {
+				
+			
 			assertTrue(!isRunning(proc1));
+			}finally
+			{
+				proc1.destroy();
+			}
 
 		} catch (InterruptedException e) {
 			e.printStackTrace();
