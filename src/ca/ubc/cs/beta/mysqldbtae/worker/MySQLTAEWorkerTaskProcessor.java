@@ -111,7 +111,7 @@ public class MySQLTAEWorkerTaskProcessor {
 		
 		
 		
-		try (final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options.mysqlOptions,options.pool, options.jobID,startCalendar.getTime(), endCalendar.getTime(), options.runsToBatch, options.delayBetweenRequests, options.poolIdleTimeLimit, version,options.createTables, options.concurrencyFactor, options.minWorstCaseTime, options.worstCaseMultiplier))
+		try (final MySQLPersistenceWorker mysqlPersistence = new MySQLPersistenceWorker(options,startCalendar.getTime(), endCalendar.getTime(), version))
 		{
 			
 		
@@ -153,6 +153,16 @@ public class MySQLTAEWorkerTaskProcessor {
 						{
 							StopWatch runFetchTime = new AutoStartStopWatch();
 							List<AlgorithmRunConfiguration> runs = mysqlPersistence.getRuns(options.runsToBatch, options.delayBetweenRequests);
+							
+							
+							if(options.autoAdjustRuns)
+							{
+								if(runs.size() < options.runsToBatch)
+								{
+									options.runsToBatch = Math.max(1,Math.max(options.minRunsToBatch, (int) (options.runsToBatch / 2)));
+								}
+							}
+							
 							totalRunFetchTimeInMS += runFetchTime.stop();
 							
 							LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue = new LinkedBlockingQueue<AlgorithmRunConfiguration>();
@@ -225,6 +235,26 @@ public class MySQLTAEWorkerTaskProcessor {
 							{
 								if(waitTime > 0.0)
 								{
+									
+									
+									if(jobsEvaluated==options.runsToBatch && options.autoAdjustRuns)
+									{
+										//Grab more jobs since we are waiting and we did all our runs
+										
+										double improvementFraction = Math.max(1, Math.min(1.2, options.delayBetweenRequests/(options.delayBetweenRequests - waitTime)));
+										
+										
+										int newRunsToBatch = (int) Math.max(1,Math.min(options.maxRunsToBatch, options.runsToBatch+Math.max(1.0, improvementFraction * options.runsToBatch)));  
+														
+										if(options.runsToBatch < options.maxRunsToBatch)
+										{
+											log.debug("Increasing runs to batch size to {} from {} ",newRunsToBatch,  options.runsToBatch);
+										} 
+										
+										
+										options.runsToBatch = newRunsToBatch;
+									}
+									
 									log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
 									boolean fullSleep = mysqlPersistence.sleep(waitTime);
 									
@@ -312,17 +342,20 @@ public class MySQLTAEWorkerTaskProcessor {
 			throws PoolChangedException {
 		
 		log.debug("Checking for new parameters");
-		UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters(options.delayBetweenRequests);
+		UpdatedWorkerParameters params = mysqlPersistence.getUpdatedParameters(options.delayBetweenRequests, options.runsToBatch);
 		mysqlPersistence.updateIdleTime((int) Math.floor(workerIdleTime));
 		
 		if(params != null)
 		{
 			options.delayBetweenRequests = params.getDelayBetweenRequests();
+			options.autoAdjustRuns = params.getAutoTuneBatchSize();
+			options.minRunsToBatch = params.getMinRunsToBatch();
+			options.maxRunsToBatch = params.getMaxRunsToBatch();
 			options.runsToBatch = params.getBatchSize();
 			options.timeLimit = params.getTimeLimit();
 			options.poolIdleTimeLimit = params.getPoolIdleTimeLimit();
 			options.concurrencyFactor = params.getConcurrencyFactor();
-			log.info("Updated values in database detected -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+", Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
+			log.info("Updated values in database detected -  Delay: "+options.delayBetweenRequests+", Batch Size: "+options.runsToBatch+" Batch size range:["+options.minRunsToBatch + ","+options.maxRunsToBatch+"] (auto:"+options.autoAdjustRuns + ") , Time Limit: "+options.timeLimit+", Pool Idle Time: "+options.poolIdleTimeLimit);
 			
 			if(!options.pool.trim().equals(params.getPool().trim()))
 			{

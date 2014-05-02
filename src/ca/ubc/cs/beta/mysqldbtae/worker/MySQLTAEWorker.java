@@ -58,6 +58,19 @@ public class MySQLTAEWorker {
 		MySQLTAEWorkerOptions options = new MySQLTAEWorkerOptions();
 		Map<String,AbstractOptions> taeOptions = TargetAlgorithmEvaluatorLoader.getAvailableTargetAlgorithmEvaluators();
 		
+		
+		options.maxRunsToBatch = Math.max(options.maxRunsToBatch, options.runsToBatch);
+		options.minRunsToBatch = Math.min(options.minRunsToBatch, options.runsToBatch);
+		if(options.autoAdjustRuns == null)
+		{
+			if(options.runsToBatch == 1)
+			{
+				options.autoAdjustRuns = false;
+			} else
+			{
+				options.autoAdjustRuns = true;
+			}
+		}
 		JCommander com = null;
 		int exceptionCount = 0;
 		try {

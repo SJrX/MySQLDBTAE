@@ -39,6 +39,7 @@ import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigurationIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
+import ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorkerOptions;
 import ec.util.MersenneTwister;
 
 public class MySQLPersistenceWorker extends MySQLPersistence {
@@ -65,15 +66,17 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 	
 	
+	/*
 	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, Boolean createTables)
 	{
 		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables, 0, 120, 5);
-	}
+	}*/
 	
+	/*
 	public MySQLPersistenceWorker(MySQLOptions mysqlOptions, String pool, String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, Boolean createTables, int concurrencyFactor, int minWorstCaseTime, int worstCaseMultiplier)
 	{
 		this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, jobID, startDateTime, endDateTime, runsToBatch, delayBetweenRequest, poolIdleTimeLimit, version, createTables, concurrencyFactor, minWorstCaseTime, worstCaseMultiplier);
-	}
+	}*/
 	
 	
 	
@@ -100,6 +103,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	private final int minWorstCaseTime;
 	
+	/*
 	public MySQLPersistenceWorker(String host, int port,
 			String databaseName, String username, String password, String pool,String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, Boolean createTables, int concurrencyFactor, int minWorstCaseTime, int worstCaseMultiplier) {
 		super(host, port, databaseName, username, password, pool, createTables);
@@ -109,11 +113,26 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		this.endDateTime = endDateTime;
 		this.startDateTime = startDateTime;
 		this.concurrencyFactor.set(concurrencyFactor);
-		logWorker(runsToBatch, delayBetweenRequest, pool, poolIdleTimeLimit, version);
+		logWorker(runsToBatch, delayBetweenRequest, pool, poolIdleTimeLimit, version, );
 		this.minWorstCaseTime = minWorstCaseTime;
 		this.worstCaseMultiplier = worstCaseMultiplier;
 	}
+	*/
+	
+	public MySQLPersistenceWorker(MySQLTAEWorkerOptions opts, Date startDateTime, Date endDateTime, String version)
+	{
+		 
+		super(opts.mysqlOptions.host, opts.mysqlOptions.port,opts.mysqlOptions.databaseName,opts.mysqlOptions.username,opts.mysqlOptions.password, opts.pool, opts.createTables);
 
+		log.info("My Worker ID is " + workerUUID.toString());
+		this.jobID = opts.jobID;
+		this.endDateTime = endDateTime;
+		this.startDateTime = startDateTime;
+		this.concurrencyFactor.set(opts.concurrencyFactor);
+		logWorker(opts.runsToBatch, opts.delayBetweenRequests, opts.pool, opts.poolIdleTimeLimit, version, opts.minRunsToBatch, opts.maxRunsToBatch, opts.autoAdjustRuns );
+		this.minWorstCaseTime = opts.minWorstCaseTime=
+		this.worstCaseMultiplier = opts.worstCaseMultiplier;
+	}
 
 
 
@@ -542,10 +561,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * @param poolIdleTimeLimit
 	 * @param version
 	 */
-	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, int poolIdleTimeLimit, String version)
+	private void logWorker(int runsToBatch, int delayBetweenRequests, String pool, int poolIdleTimeLimit, String version, int minRunsToBatch, int maxRunsToBatch, boolean autoAdjustBatchSize)
 	{
 		
-		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID, startTime, startWeekYear, originalEndTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE, poolIdleTimeLimit_UPDATEABLE, concurrencyFactor_UPDATEABLE, workerIdleTime_UPDATEABLE,  upToDate, version, worstCaseNextUpdateWhenRunning)  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,1,?,?)");
+		StringBuilder sb = new StringBuilder("INSERT ").append(TABLE_WORKERS).append(" (workerUUID, hostname, username, jobID, startTime, startWeekYear, originalEndTime, endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE, pool_UPDATEABLE, poolIdleTimeLimit_UPDATEABLE, concurrencyFactor_UPDATEABLE, workerIdleTime_UPDATEABLE,  upToDate, version, worstCaseNextUpdateWhenRunning, minRunsToBatch_UPDATEABLE,maxRunsToBatch_UPDATEABLE,autoAdjustBatchSize_UPDATEABLE)  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,1,?,?,?,?,?)");
 		
 		
 				
@@ -588,6 +607,10 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			stmt.setInt(13, this.concurrencyFactor.get());
 			stmt.setString(14,version);
 			stmt.setDate(15, new java.sql.Date(System.currentTimeMillis() + Math.max(600, 5*delayBetweenRequests)*1000));
+			
+			stmt.setInt(16, minRunsToBatch);
+			stmt.setInt(17, maxRunsToBatch);
+			stmt.setBoolean(18, autoAdjustBatchSize);
 			
 			try {
 				stmt.execute();
@@ -636,8 +659,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * If the worker parameters have been changed in the database since our last update, retrieve these new parameters
 	 * @return UpdatedWorkerParameters if updated (null otherwise)
 	 */
-	public UpdatedWorkerParameters getUpdatedParameters(int delayBetweenRequests) {
-		StringBuilder sb = new StringBuilder("SELECT endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE,concurrencyFactor_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
+	public UpdatedWorkerParameters getUpdatedParameters(int delayBetweenRequests, int runsToBatch) {
+		StringBuilder sb = new StringBuilder("SELECT endTime_UPDATEABLE, runsToBatch_UPDATEABLE, delayBetweenRequests_UPDATEABLE,pool_UPDATEABLE,poolIdleTimeLimit_UPDATEABLE,concurrencyFactor_UPDATEABLE,minRunsToBatch_UPDATEABLE, maxRunsToBatch_UPDATEABLE,autoAdjustBatchSize_UPDATEABLE FROM ").append(TABLE_WORKERS).append(" WHERE upToDate=0 AND workerUUID=\""+workerUUID.toString()+"\" ");
 		
 		
 		try {
@@ -674,7 +697,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					}
 					
 					long timeLimit = rs.getTimestamp(1).getTime()-startDateTime.getTime();
-					newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getInt(5),rs.getInt(6));
+					
+					runsToBatch = rs.getInt(2);
+					newParameters = new UpdatedWorkerParameters(timeLimit, rs.getInt(2), rs.getInt(3), rs.getString(4), rs.getInt(5),rs.getInt(6),rs.getInt(7), rs.getInt(8), rs.getBoolean(9));
 					
 					this.concurrencyFactor.set(newParameters.getConcurrencyFactor());
 					
@@ -684,7 +709,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				{
 					newParameters = null;
 				}
-				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='RUNNING',crashInfo='', upToDate=1, worstCaseNextUpdateWhenRunning=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultiplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND) WHERE workerUUID=\""+workerUUID.toString()+"\" ");
+				
+				
+				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='RUNNING',crashInfo='', runsToBatch_UPDATEABLE="+runsToBatch+", upToDate=1, worstCaseNextUpdateWhenRunning=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultiplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND) WHERE workerUUID=\""+workerUUID.toString()+"\" ");
 				
 				stmt = conn.prepareStatement(sb.toString());
 				executePS(stmt);
