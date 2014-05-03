@@ -35,6 +35,7 @@ import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunningAlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.kill.KillHandler;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.kill.StatusVariableKillHandler;
+import ca.ubc.cs.beta.aeatk.json.JSONHelper;
 import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
@@ -581,9 +582,16 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							Integer execConfigID = this.getAlgorithmExecutionConfigurationID(rc.getAlgorithmExecutionConfiguration());
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName()));
-							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation().length() > 4000)
+							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation().length() > 8172)
 							{
-								throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 4K or less in this version, I'm sorry");
+								log.warn("If you get an exception when inserting this row, it's probably because the instance specific information is too long, the maximum length in this version by default is 8172.  You can try changing the column to a TEXT field but be warned that if you do any further queries referencing this column the performance will be very poor.");
+								//throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 4K or less in this version, I'm sorry");
+							}
+							
+							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName().length() > 8172)
+							{
+								log.warn("If you get an exception when inserting this row, it's probably because the instance name is too long, the maximum length in this version by default is 8172. You can try changing the column to a TEXT field but be warned that if you do any further queries referencing this column the performance will be very poor.");
+								//throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 4K or less in this version, I'm sorry");
 							}
 							
 							stmt.setString(k++, rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation());
@@ -594,10 +602,11 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							
 							
 							
+							/*
 							if(configString.length() > 2000)
 							{
 								log.warn("If you get an exception when inserting this row, it is probably because the configuration space string is too long for the table");
-							}
+							}*/
 							stmt.setString(k++, configString);
 							
 							stmt.setBoolean(k++, rc.hasCutoffLessThanMax());
@@ -705,7 +714,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				}
 			}
 			StringBuilder sb = new StringBuilder();
-			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE algorithmExecutionConfigID=LAST_INSERT_ID(algorithmExecutionConfigID), lastModified = NOW()");
+			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode, algorithmExecutionConfigurationJSON) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE algorithmExecutionConfigID=LAST_INSERT_ID(algorithmExecutionConfigID), lastModified = NOW()");
 			
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
@@ -717,6 +726,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				stmt.setBoolean(5, execConfig.isDeterministicAlgorithm());
 				stmt.setDouble(6,execConfig.getAlgorithmMaximumCutoffTime());
 				stmt.setString(7, hasher.getHash(execConfig,pathStrip));
+				
+				stmt.setString(8, JSONHelper.getJSON(execConfig));
 				/*
 				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutable()));
 				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()));
@@ -732,6 +743,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				rs.next();
 				id = rs.getInt(1);
 				
+				execConfigToIDMap.put(execConfig,id );
 				rs.close();
 				stmt.close();
 				return id;

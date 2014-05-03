@@ -69,11 +69,6 @@ public class DangerZoneQueue {
 			dzOpts.taeOptions.abortOnFirstRunCrash = false;
 			dzOpts.taeOptions.verifySAT = false;
 			
-			for(String name : taeOpts.keySet())
-			{
-				log.info("Target Algorithm Evaluator Available {} ", name);
-			}
-			
 	
 			ParameterConfigurationSpace configSpace = ParameterConfigurationSpace.getSingletonConfigurationSpace();
 			
@@ -333,8 +328,8 @@ public class DangerZoneQueue {
 				log.debug("Built In Wrapper parsed to location {} ", root);
 			
 				
-				return AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX + "java -Xmx"+wrapperMemLimit+"m -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
-			
+				//return AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX + "java -Xmx"+wrapperMemLimit+"m -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
+				return "java -Xmx"+wrapperMemLimit+"m -cp " + root + " " + DangerZoneWrapper.class.getCanonicalName();
 			//System.out.println(DangerZoneWrapper.class.getClassLoader().getResource(ProviderFor.class.getCanonicalName().replace(".", File.separator)  + ".class").getFile());
 			
 			//return wrapper;

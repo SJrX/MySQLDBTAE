@@ -29,6 +29,7 @@ import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionCo
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.exceptions.DeveloperMadeABooBooException;
+import ca.ubc.cs.beta.aeatk.json.JSONHelper;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
@@ -152,7 +153,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			if(!execConfigMap.containsKey(execConfigID)) 
 			{
 			 StringBuilder sb = new StringBuilder();
-			 sb.append("SELECT algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
+			 sb.append("SELECT algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigurationJSON  FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
 			 Connection conn = null;
 			 try {
 				 conn = getConnection();
@@ -170,23 +171,41 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					 throw new IllegalStateException("Database table " + TABLE_EXECCONFIG + " does not have an entry for " + execConfigID + " tables must be corrupted or something");
 				 }
 				 
-				 String algorithmExecutable = rs.getString(1);
-				 String algorithmExecutionDirectory = rs.getString(2);
+				 AlgorithmExecutionConfiguration execConfig;
 				 
-				 ParameterConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
-				 
-				 boolean executeOnCluster = rs.getBoolean(4);
-				 boolean deterministicAlgorithm = rs.getBoolean(5);
-				 double cutoffTime = rs.getDouble(6);
-				 
- 				 if(algorithmExecutable.startsWith(AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX))
+				 try 
 				 {
-					algorithmExecutable = algorithmExecutable.replace(AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX,"");
+					 if ((rs.getString(7).trim().length()) == 0)
+					 {
+						 throw new IllegalArgumentException("No JSON found in database, maybe this is an old version");
+					 }
+						
+					execConfig = JSONHelper.getAlgorithmExecutionConfiguration(rs.getString(7));
+					 
+				 } catch(RuntimeException e2)
+				 {
+					 log.warn("Algorithm Execution Configuration ID: {} has no JSON stored, falling back to column representation but note that this may have lost information, such as context", execConfigID);
+					 log.debug("Exception when parsing JSON was ", e2);
+					 String algorithmExecutable = rs.getString(1);
+					 String algorithmExecutionDirectory = rs.getString(2);
+					 
+					 ParameterConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
+					 
+					 boolean executeOnCluster = rs.getBoolean(4);
+					 boolean deterministicAlgorithm = rs.getBoolean(5);
+					 double cutoffTime = rs.getDouble(6);
+					 
+	 				// if(algorithmExecutable.startsWith(AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX))
+					 //{
+						//algorithmExecutable = algorithmExecutable.replace(AlgorithmExecutionConfiguration.MAGIC_VALUE_ALGORITHM_EXECUTABLE_PREFIX,"");
+					 //}
+					 
+					 
+					 
+					execConfig = new AlgorithmExecutionConfiguration(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
+					 
+					 
 				 }
-				 
-				 
-				 
-				 AlgorithmExecutionConfiguration execConfig = new AlgorithmExecutionConfiguration(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
 				 
 				 
 				 execConfigMap.put(execConfigID, execConfig);

@@ -28,9 +28,11 @@ import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 	MySQLDBTAEPoolIdleTester.class,
 	MySQLDBTAEPoolSwitchTester.class,
 	MySQLDBTAEPriorityOrderTester.class,
+	MySQLDBTAERunConfigurationEqualityTester.class,
 	MySQLDBTAETester.class,
 	MySQLDBTAEWorkerWakingTester.class,
-	MySQLDBTAEWorkerWakingTester.class
+	MySQLDBTAEWorkerWakingTester.class,
+	MySQLDZQTester.class,
 
 	
 	

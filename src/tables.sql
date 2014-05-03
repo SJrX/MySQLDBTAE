@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_execConfig` (
   `executeOnCluster` tinyint(1) NOT NULL,
   `deterministicAlgorithm` tinyint(1) NOT NULL,
   `cutoffTime` double NOT NULL,
+  `algorithmExecutionConfigurationJSON` TEXT NOT NULL, #Full JSON representation (this is a much better approach and this will likely supplant the other fields, in the interim this will be read first, otherwise the others will)
   `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`algorithmExecutionConfigID`),
   UNIQUE KEY `algorithmExecutionConfigHashCode` (`algorithmExecutionConfigHashCode`)

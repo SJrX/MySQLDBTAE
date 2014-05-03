@@ -621,17 +621,12 @@ public class MySQLPersistence implements AutoCloseable{
 					
 					ResultSet rs = stmt.executeQuery(sb.toString());
 					
-				
 					while(rs.next())
 					{
 						keys.add(rs.getInt(1));
 					}
 					
-					
-				
 				}
-				
-				
 				
 				if(keys.size() > 0)
 				{
@@ -643,22 +638,16 @@ public class MySQLPersistence implements AutoCloseable{
 	
 						sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " SET status='NEW', retryAttempts=retryAttempts+1 WHERE status=\"ASSIGNED\"  AND runConfigID IN (");
 							
-	
 						for(Integer key : keys)
 						{
 							sb.append("\""+key+"\"").append(",");
 						}
 						sb.setCharAt(sb.length() - 1, ')');
 						sb.append(" AND worstCaseNextUpdateWhenAssigned < NOW()");
-						
 						//
-						
 						//System.out.println(sb.toString());
 						int updatedRuns = stmt.executeUpdate(sb.toString());
-							
 						log.debug("Moved {} runs back to NEW by ID", updatedRuns);
-						
-						
 					}
 				}
 				
@@ -687,7 +676,10 @@ public class MySQLPersistence implements AutoCloseable{
 					
 						int updatedRuns = stmt.executeUpdate(sb.toString());
 						
-						log.debug("Moved {} runs back to NEW by worker", updatedRuns);
+						if(updatedRuns > 0)
+						{ 
+							log.debug("Moved {} runs back to NEW by worker", updatedRuns);
+						}
 					}
 					
 					
