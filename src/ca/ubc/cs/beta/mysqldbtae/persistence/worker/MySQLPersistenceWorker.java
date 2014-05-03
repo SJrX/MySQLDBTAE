@@ -285,10 +285,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			//System.out.println(sb.toString());
 			
 				
-			Statement stmt = null;
-			try {
-				Connection conn = getConnection();
-				stmt = conn.createStatement();
+			
+			try (Connection conn = getConnection())
+			{
+			
+				Statement stmt = conn.createStatement();
 				
 				
 						
@@ -435,15 +436,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					
 				
 				return rcList;
-			} finally
-			{
-				if(stmt != null) stmt.close();
 			}
-			
-			
-			
-			
-			
 			
 		} catch (SQLException e) {
 			throw new IllegalStateException("SQL Error", e);

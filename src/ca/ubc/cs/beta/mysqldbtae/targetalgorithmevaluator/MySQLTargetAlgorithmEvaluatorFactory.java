@@ -1,8 +1,10 @@
 package ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -12,15 +14,17 @@ import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.ParameterException;
 
+import ca.ubc.cs.beta.aeatk.misc.string.SplitQuotedString;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.AbstractTargetAlgorithmEvaluatorFactory;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 
 @ProviderFor(TargetAlgorithmEvaluatorFactory.class)
-public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorithmEvaluatorFactory  {
+public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorithmEvaluatorFactory {
 
 	@Override
 	public String getName() {
@@ -30,9 +34,10 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 	//DO NOT SET A LOGGER HERE OR IT WILL BREAK LOGGING
 	private Logger log;
 	
+	private final AtomicReference<MySQLPersistenceClient> p = new AtomicReference<MySQLPersistenceClient>();
 	
 	@Override
-	public MySQLTargetAlgorithmEvaluator getTargetAlgorithmEvaluator(AbstractOptions options) {
+	public MySQLTargetAlgorithmEvaluator getTargetAlgorithmEvaluator( AbstractOptions options) {
 		
 		log = LoggerFactory.getLogger(this.getClass());
 		
@@ -42,7 +47,22 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 		 */
 		
 		checkOldEnvironmentVariables();
-				
+		
+		
+		String pool = opts.pool;
+		if(pool == null)
+		{
+			throw new ParameterException("MySQL Pool cannot be null");
+		}
+		pool = pool.trim();
+		
+		if( (pool.length() < 1) || (pool.length() > 30))
+		{
+			throw new ParameterException("MySQL Pool name must be between 1 and 30 characters");
+		}
+		
+		int runPartition = opts.runPartition;
+		
 		//String hostname = getEnvVariable("MYSQL_HOSTNAME", opts.mysqlOptions.host);
 		//String port = getEnvVariable("MYSQL_PORT","3306");
 		//String databaseName = getEnvVariable("MYSQL_DATABASE_NAME", "mysql_db_tae");
@@ -86,7 +106,7 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 		
 		*/
 		
-		if(deletePartitionDataOnShutdown && opts.runPartition < 0)
+		if(deletePartitionDataOnShutdown && runPartition < 0)
 		{
 			throw new ParameterException("Sorry you cannot automatically delete partitions with negative ids, this is a protection mechanism so you don't delete a bunch of data you aren't expecting");
 		}
@@ -95,8 +115,29 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 		//String illegalPathPrefixToken = "\\=2421@%!%@!!@4"; //Can't use null because that means it's required
 		
 		
+		String pathStrip = opts.pathStrip;
 		
+		if(pathStrip != null)
+		{
+			pathStrip = pathStrip.trim();
+		}
+		
+
+		if(pathStrip != null && pathStrip.trim().endsWith("/"))
+		{
+			log.warn("Path strip variable has a / at the end this may behave unexpectedly" );
+			try {
+				Thread.sleep(2048);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		
+
 		MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(opts);
+
+		//MySQLPersistenceClient mysqlPersistence = new MySQLPersistenceClient(hostname, Integer.valueOf(port), databaseName, username, password,pool,pathStrip, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, opts.priority, opts.additionalRunData, opts.shutdownWorkersOnCompletion);
+
 		String command = System.getProperty("sun.java.command");
 		if((command == null) || (command.trim().length() < 1))
 		{
@@ -112,8 +153,95 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 		}
 		
 
-		return new MySQLTargetAlgorithmEvaluator( mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls, opts.deadJobCheckFrequency);
+		p.set(mysqlPersistence);
 		
+		if(opts.execProfile != null)
+		{
+			if(!opts.execProfiles.containsKey(opts.execProfile.trim()))
+			{
+				throw new ParameterException("No Execution profile found that matches name :" + opts.execProfile.trim() + " available profiles are: " + opts.execProfiles);
+			}
+		}
+		
+		MySQLTargetAlgorithmEvaluator mysqlTAE =   new MySQLTargetAlgorithmEvaluator( mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls);
+		
+		if(opts.execProfile != null)
+		{
+			
+			
+			
+			StringBuilder cmd = new StringBuilder(opts.execProfiles.get(opts.execProfile.trim()));
+			
+			StringBuilder passwordSafeCMD = new StringBuilder(cmd.toString());
+			
+			
+			cmd.append(" \"").append(opts.username).append("\" ");
+			cmd.append(" \"").append(opts.password).append("\" ");
+			cmd.append(" \"").append(opts.host).append("\" ");
+			cmd.append(" \"").append(opts.port).append("\" ");
+			cmd.append(" \"").append(opts.databaseName).append("\" ");
+			cmd.append(" \"").append(opts.pool).append("\" ");
+			
+			
+			
+			
+			
+			
+			passwordSafeCMD.append(" \"").append(opts.username).append("\" ");
+			passwordSafeCMD.append(" \"").append("<<password hidden>>").append("\" ");
+			passwordSafeCMD.append(" \"").append(opts.host).append("\" ");
+			passwordSafeCMD.append(" \"").append(opts.port).append("\" ");
+			passwordSafeCMD.append(" \"").append(opts.databaseName).append("\" ");
+			passwordSafeCMD.append(" \"").append(opts.pool).append("\" ");
+			
+			
+			ProcessBuilder pb = new ProcessBuilder();
+			
+			
+			
+			
+				
+					
+			String[] args = SplitQuotedString.splitQuotedString(cmd.toString());
+			
+			
+			pb.redirectErrorStream(true);
+			
+			pb.command(args);
+			
+			log.info("Starting execution profile: " + opts.execProfile + " command: {} ", passwordSafeCMD);
+			
+			log.info("Execution will continue once command is done executing");
+			Process p;
+			try {
+				p = pb.start();
+				
+				int errorCode = p.waitFor();
+				
+				p.destroy();
+				if(opts.execAbortOnErrorCode)
+				{
+					if(errorCode > 0)
+					{
+						throw new ParameterException("Execution profile signalled that an error has occurred, aborting");
+					}
+				}
+				
+			} catch (IOException e) {
+				throw new IllegalStateException("Error occurred while invoking execution profile " , e);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			
+			
+			
+			log.info("Execution done");
+			
+			
+			
+		}
+		
+		return mysqlTAE;
 	}
 	
 	private void checkOldEnvironmentVariables() {
@@ -211,6 +339,18 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 	}
 
 */
+
+	
+	
+	
+	
+	
+	public MySQLPersistenceClient getLastPersistentClientForDebugPurposes()
+	{
+		return p.get();
+	}
+
+	
 	public static MySQLTargetAlgorithmEvaluator getMySQLTargetAlgorithmEvaluator(MySQLOptions mysqlConfig, String pool, int batchInsertSize, Boolean createTables, int runPartition, boolean deletePartitionDataOnShutdown, JobPriority priority)
 	{
 		return getMySQLTargetAlgorithmEvaluator(mysqlConfig, pool, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, 60);

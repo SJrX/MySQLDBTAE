@@ -3,6 +3,8 @@ package ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Map;
+import java.util.TreeMap;
 
 import ca.ubc.cs.beta.aeatk.misc.file.HomeFileUtils;
 import ca.ubc.cs.beta.aeatk.misc.jcommander.validator.FixedPositiveInteger;
@@ -11,6 +13,7 @@ import ca.ubc.cs.beta.aeatk.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterFile;
 
@@ -43,10 +46,21 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@Parameter(names="--mysqldbtae-path-strip", description="If a trimmed path to be written to the database starts with the trimmed version of this string, we will remove this string from the start. This is useful if you mount the root of some remote file system that the workers will execute on in some directory. You should not put a / at the end of this string")
 	public String pathStrip;
 	
-
+	@UsageTextField(level=OptionLevel.ADVANCED)
+	@DynamicParameter(names="-M", description="Name and path script to execute. The script will be invoked with arguments as follows <username> <password> <host> <port> <databasename> <pool>. Supplying this script will not cause it to be executed, use the --mysqldbtae-exec option passing the key in. For example -MMYCLUSTER=/path/to/workersubmit.sh ---mysqldbtae-exec MYCLUSTER. Note that we block until this job returns successfully.")
+	public Map<String, String> execProfiles = new TreeMap<String, String>();
+	
+	@UsageTextField(level=OptionLevel.ADVANCED, defaultValues="No profile will be executed")
+	@Parameter(names="--mysqldbtae-exec", description="Profile to execute")
+	public String execProfile = null;
+	
+	@UsageTextField(level=OptionLevel.ADVANCED)
+	@Parameter(names="--mysqldbtae-exec-abort-on-error", description="If true, if the process invoked throws an error we will throw an exception")
+	public boolean execAbortOnErrorCode = true;
+	
+	
 	@Parameter(names="--mysqldbtae-hostname", description="Hostname of database server" )
 	public String host;
-	
 	
 	@Parameter(names="--mysqldbtae-password", description="Password of database server" )
 	public String password;
@@ -92,6 +106,8 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@UsageTextField(level=OptionLevel.ADVANCED)
 	@Parameter(names="--dead-job-check-frequency", description="How often (in seconds) to check for stale or dead jobs", validateWith=FixedPositiveInteger.class)
 	public int deadJobCheckFrequency = 120;
+
+	
 	
 	
 
