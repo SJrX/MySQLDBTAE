@@ -158,8 +158,8 @@ public class MySQLDBTAEJobPushBackTester {
 			Process proc1 = setupWorker();
 			Process proc2 = setupWorker();
 			Process proc3 = setupWorker();
-			Process proc4 = setupWorker();
-			Process proc5 = setupWorker();
+			//Process proc4 = setupWorker();
+			//Process proc5 = setupWorker();
 		
 			
 			try 
@@ -176,8 +176,8 @@ public class MySQLDBTAEJobPushBackTester {
 				proc1.destroy();
 				proc2.destroy();
 				proc3.destroy();
-				proc4.destroy();
-				proc5.destroy();
+				//proc4.destroy();
+				//proc5.destroy();
 				
 			}
 		

@@ -715,7 +715,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='RUNNING',crashInfo='', runsToBatch_UPDATEABLE="+runsToBatch+", upToDate=1, worstCaseNextUpdateWhenRunning=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultiplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND) WHERE workerUUID=\""+workerUUID.toString()+"\" ");
 				
 				stmt = conn.prepareStatement(sb.toString());
-				executePS(stmt);
+				int linesModified = executePSUpdate(stmt);
+				
+				if(linesModified == 0)
+				{
+					throw new IllegalStateException("No row updated in table, this suggests that the entry was deleted and that this worker should shutdown");
+				}
 				stmt.close();
 				//conn.commit();
 				return newParameters;
@@ -733,6 +738,24 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 		
 		
+	}
+	
+	public void changeWorkerIdleStatus(int delayBetweenRequests, boolean idle)
+	{
+		try(Connection conn = getConnection())
+		{
+			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='RUNNING',crashInfo='', currentlyIdle="+ String.valueOf(idle).toUpperCase()+", worstCaseNextUpdateWhenRunning=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultiplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND) WHERE workerUUID=\""+workerUUID.toString()+"\" ");
+			
+			try(PreparedStatement stmt = conn.prepareStatement(sb.toString()))
+			{
+				super.executePS(stmt);
+				stmt.close();
+			}
+			
+		} catch (SQLException e) {
+			log.error("Couldn't update worker idle status", e);
+			throw new IllegalStateException(e);
+		}
 	}
 	
 	/**
@@ -1085,10 +1108,51 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 	}
 
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public boolean workersWaiting()
+	{
+	
+		StringBuilder sb = new StringBuilder("SELECT workerUUID FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND `currentlyIdle`=TRUE AND worstCaseNextUpdateWhenRunning >= NOW() LIMIT 1");
+		
+		try (Connection conn = getConnection())
+		{
+			
+			try(Statement stmt = conn.createStatement())
+			{
+				
+				ResultSet rs = super.executeStatement(stmt, sb.toString());
+				
+				if(rs.next())
+				{
+					return true;
+				} else
+				{
+					return false;
+				}
+				
+			
+			}
+			
+		} catch (SQLException e) {
+			log.error("Couldn't check if workers were waiting: ", e);
+			e.printStackTrace();
+		}
+				
+		
+		return false;
+	}
 	/**
 	 * Return the number of new rows in the database
+	 * @deprecated This is an expensive query against the runconfig table, if you just want to know if workers are waiting, use the workersWaiting() method.
+	 * 
 	 * @return number of new rows in the database.
+	 * 
 	 */
+	@Deprecated
 	public int getNumberOfNewRuns() 
 	{
 		

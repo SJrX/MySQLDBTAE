@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `startTime` datetime NOT NULL,
 `startWeekYear` int(11) NOT NULL,
 `originalEndTime` datetime NOT NULL,
+`currentlyIdle` BOOLEAN DEFAULT FALSE,
 `endTime_UPDATEABLE` datetime NOT NULL,
 `runsToBatch_UPDATEABLE` int(11) NOT NULL,
 `minRunsToBatch_UPDATEABLE` int(11) NOT NULL,
@@ -85,7 +86,8 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `worstCaseNextUpdateWhenRunning` datetime NOT NULL DEFAULT '2028-10-10 12:34:56', #This date should be in the future
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`workerUUID`),
-KEY `sumIdleTime` (`startWeekYear`,`workerIdleTime_UPDATEABLE`)
+KEY `sumIdleTime` (`startWeekYear`,`workerIdleTime_UPDATEABLE`),
+KEY `currentlyIdleTime` (`currentlyIdle`,`worstCaseNextUpdateWhenRunning`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_version` (

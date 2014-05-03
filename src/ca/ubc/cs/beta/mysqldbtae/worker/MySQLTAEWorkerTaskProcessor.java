@@ -148,21 +148,35 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 		
 						log.info("Starting Job Processing");
-		
+						
+						boolean previouslyReportedIdle = false;
 						while(true)
 						{
 							StopWatch runFetchTime = new AutoStartStopWatch();
 							List<AlgorithmRunConfiguration> runs = mysqlPersistence.getRuns(options.runsToBatch, options.delayBetweenRequests);
-							
-							
+
 							if(options.autoAdjustRuns)
 							{
 								if(runs.size() < options.runsToBatch)
 								{
-									options.runsToBatch = Math.max(1,Math.max(options.minRunsToBatch, (int) (options.runsToBatch / 2)));
+									options.runsToBatch = Math.max(1,Math.max(options.minRunsToBatch, Math.min(runs.size(), (int) (options.runsToBatch / 2))));
 								}
 							}
 							
+							if(runs.size() == 0 && !previouslyReportedIdle)
+							{
+								//We are idle for the first time.
+								//Immediately notify DB before we sleep that this is the case.
+								mysqlPersistence.changeWorkerIdleStatus(options.delayBetweenRequests, true);
+								previouslyReportedIdle = true;
+							} else if (runs.size() > 0 && previouslyReportedIdle)
+							{
+								//We are no longer idle
+								mysqlPersistence.changeWorkerIdleStatus(options.delayBetweenRequests, false);
+								
+								previouslyReportedIdle = false;
+							}
+
 							totalRunFetchTimeInMS += runFetchTime.stop();
 							
 							LinkedBlockingQueue<AlgorithmRunConfiguration> runsQueue = new LinkedBlockingQueue<AlgorithmRunConfiguration>();
@@ -178,7 +192,7 @@ public class MySQLTAEWorkerTaskProcessor {
 							}
 							
 							executePushBack.schedule(new PushBack(mysqlPersistence, runsQueue,options.delayBetweenRequests, executePushBack, options.pushbackThreshold), options.delayBetweenRequests, TimeUnit.SECONDS);
-							log.debug("Job push back scheduled for {} seconds", options.delayBetweenRequests);
+							log.trace("Job push back scheduled for {} seconds", options.delayBetweenRequests);
 		
 							totalRunFetchRequests++;
 							
@@ -555,12 +569,12 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			if(runsQueue.size() == 0)
 			{ //Nothing to push back
-				log.debug("Nothing to push back");
+				log.trace("Nothing to push back");
 				return;
 			}
 			
-			int newJobsInDB = this.mysqlPersistence.getNumberOfNewRuns();
-			if(newJobsInDB < pushbackThreshhold)
+			//int newJobsInDB = this.mysqlPersistence.getNumberOfNewRuns();
+			if(this.mysqlPersistence.workersWaiting())
 			{
 				List<AlgorithmRunConfiguration> extraRuns = new ArrayList<AlgorithmRunConfiguration>();
 				synchronized(lock)
@@ -587,10 +601,14 @@ public class MySQLTAEWorkerTaskProcessor {
 					//runsQueue.drainTo(extraRuns);
 					mysqlPersistence.resetRunConfigs(extraRuns);
 				}
-				log.info("Current batch of jobs is taking to long, {} queued runs have been pushed back to the database, we have kept {} runs", extraRuns.size(),runsQueue.size());
+				System.err.println("IDLE WORKERS");
+				log.info("Detected idle workers. {} queued runs have been pushed back to the database, we have kept {} runs", extraRuns.size(),runsQueue.size());
 			} else
 			{
-					log.debug("There are still {} jobs in DB, not pushing back at the moment", newJobsInDB);
+				System.err.println("NO IDLE WORKERS");
+				
+				log.debug("No workers are waiting, not pushing back at the moment");
+				
 					executePushBack.schedule(this, delayBetweenRequests, TimeUnit.SECONDS);
 			}
 		}
