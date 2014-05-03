@@ -27,6 +27,7 @@ import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
+import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
@@ -85,7 +86,7 @@ public class MySQLDBTAEPriorityOrderTester {
 			b.append(" --pool ").append(MYSQL_POOL);
 			b.append(" --mysqlDatabase ").append(mysqlConfig.databaseName);
 			b.append(" --timeLimit 1d");
-			b.append(" --tae PARAMECHO --runsToBatch 1 --delayBetweenRequests 3 --idleLimit 30s" );
+			b.append(" --tae PARAMECHO --runsToBatch 1 --delayBetweenRequests 2 --idleLimit 30s" );
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			proc = Runtime.getRuntime().exec(b.toString());
 			
@@ -101,12 +102,18 @@ public class MySQLDBTAEPriorityOrderTester {
 	public void testPriorityOrder()
 	{
 
-			
+		
 			MySQLTargetAlgorithmEvaluator normalMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, true, JobPriority.NORMAL);
 			
 			
 			
 			MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, true, MYSQL_RUN_PARTITION, true, JobPriority.HIGH);
+			
+			MySQLTargetAlgorithmEvaluator mySQLTAE = normalMySQLTAE;
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE),mySQLTAE);
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getWorkerTable(mySQLTAE),mySQLTAE);
+			
 			
 			
 			
@@ -148,7 +155,7 @@ public class MySQLDBTAEPriorityOrderTester {
 
 						@Override
 						public void onFailure(RuntimeException t) {
-							
+							t.printStackTrace();
 						}
 						
 					});
@@ -181,20 +188,22 @@ public class MySQLDBTAEPriorityOrderTester {
 
 				@Override
 				public void onFailure(RuntimeException t) {
-					
+					t.printStackTrace();
 				}
 				
 			});
 
 			
+			this.setupWorker();
+			
+			/*
 			System.err.println("Sleeping for 10 seconds");
 			try {
-				Thread.sleep(10000);
+				Thread.sleep(400);
 			} catch (InterruptedException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
-			}
-			this.setupWorker();
+			}*/
 			
 			try {
 				complete.acquire();

@@ -601,16 +601,15 @@ public class MySQLTAEWorkerTaskProcessor {
 					//runsQueue.drainTo(extraRuns);
 					mysqlPersistence.resetRunConfigs(extraRuns);
 				}
-				System.err.println("IDLE WORKERS");
+
 				log.info("Detected idle workers. {} queued runs have been pushed back to the database, we have kept {} runs", extraRuns.size(),runsQueue.size());
 			} else
 			{
-				System.err.println("NO IDLE WORKERS");
 				
 				log.debug("No workers are waiting, not pushing back at the moment");
-				
-					executePushBack.schedule(this, delayBetweenRequests, TimeUnit.SECONDS);
 			}
+			
+			executePushBack.schedule(this, delayBetweenRequests, TimeUnit.SECONDS);
 		}
 	}
 	

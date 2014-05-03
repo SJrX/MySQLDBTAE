@@ -244,7 +244,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			{
 				lock = this.rand.nextInt(concurrencyFactor.get());
 				//We won't actually check the result and so it doesn't matter if it's once every 2 days
-				sb.append("SELECT GET_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\",172800);" );
+				sb.append("SELECT GET_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\",172800);\n" );
 			}
 			
 			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (\n\t").append(
@@ -287,7 +287,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			 
 				//
 				sb.append(";\nSELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob FROM ").append(TABLE_RUNCONFIG);
-				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\";");
+				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\" ORDER BY priority DESC;");
 				
 		
 				//stmt.close();
@@ -304,8 +304,8 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				log.debug("SQL Query for Job Processing:\n {}", sb);
 				try {
 					super.executeStatement(stmt, sb.toString());
-					stmt.execute(sb.toString());
-				} catch(SQLException e)
+					//stmt.execute(sb.toString());
+				} catch(RuntimeException e)
 				{
 					
 					try 
@@ -408,6 +408,11 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				rs.close();
 				conn.close();
 				
+				/*
+				if(rcList.size() > runs)
+				{
+					log.warn("We somehow got more runs than we asked for");
+				}*/
 					
 				
 				return rcList;

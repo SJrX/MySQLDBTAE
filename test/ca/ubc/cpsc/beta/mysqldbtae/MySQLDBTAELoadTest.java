@@ -115,10 +115,10 @@ public class MySQLDBTAELoadTest {
 	public void testInsertionLoad()
 	{
 
-			MySQLTargetAlgorithmEvaluator normalMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.NORMAL);
+			MySQLTargetAlgorithmEvaluator normalMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1000, true, MYSQL_RUN_PARTITION, true, JobPriority.NORMAL);
 			
 			
-			MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1500, true, MYSQL_RUN_PARTITION, true, JobPriority.HIGH)	;
+			MySQLTargetAlgorithmEvaluator highMySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 1000, true, MYSQL_RUN_PARTITION, true, JobPriority.HIGH)	;
 			
 			
 			
@@ -188,33 +188,7 @@ public class MySQLDBTAELoadTest {
 			System.setOut(stream);
 			assertTrue("Average runtime should be greater than 1000 rows / second", total/(totalDelta/1000.0) > 1000.0);
 			
-			
 
-			/*
-			System.err.println("Sleeping for 10 seconds");
-			try {
-				Thread.sleep(10000);
-			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			this.setupWorker();
-			
-			try {
-				complete.acquire();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-			
-			
-			assertFalse("Expected high priority job to finish first " , failure.get());
-			
-			
-			
-			
-			
-			proc.destroy();
-			*/
 			highMySQLTAE.notifyShutdown();
 			normalMySQLTAE.notifyShutdown();
 			
@@ -279,7 +253,7 @@ public class MySQLDBTAELoadTest {
 				long total =0;
 				double totalDelta = 0.0;
 				
-				for(int j=0; j < 100; j++)
+				for(int j=0; j < 10; j++)
 				{
 					List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(TARGET_RUNS_IN_LOOPS);
 					

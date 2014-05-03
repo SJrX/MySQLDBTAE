@@ -55,5 +55,9 @@ public class MySQLPersistenceUtil {
 		return MySQLTargetAlgorithmEvaluatorPersistenceRetriever.getPersistence(tae).TABLE_RUNCONFIG; 
 	}
 	
+	public static String getWorkerTable(MySQLTargetAlgorithmEvaluator tae) {
+		return MySQLTargetAlgorithmEvaluatorPersistenceRetriever.getPersistence(tae).TABLE_WORKERS; 
+	}
+	
 
 }

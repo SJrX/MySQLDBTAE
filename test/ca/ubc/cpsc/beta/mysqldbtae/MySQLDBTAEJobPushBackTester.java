@@ -88,10 +88,10 @@ public class MySQLDBTAEJobPushBackTester {
 		rand = new MersenneTwister();
 		
 		runConfigs= new ArrayList<AlgorithmRunConfiguration>(1);
-		for(int i=0; i < 10; i++)
+		for(int i=0; i < 40; i++)
 		{
 			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
-			config.put("runtime", "6");
+			config.put("runtime", "1");
 			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
 			{
 				//Only want good configurations
@@ -121,7 +121,7 @@ public class MySQLDBTAEJobPushBackTester {
 			b.append(" --pool ").append(MYSQL_POOL);
 			
 			b.append(" --timeLimit 300");
-			b.append(" --tae CLI --runsToBatch 50 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit 120 ");
+			b.append(" --tae CLI --runsToBatch 20 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit 120 ");
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());
@@ -154,13 +154,15 @@ public class MySQLDBTAEJobPushBackTester {
 			
 			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE),mySQLTAE);
 			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getWorkerTable(mySQLTAE),mySQLTAE);
 			
-			Process proc1 = setupWorker();
-			Process proc2 = setupWorker();
-			Process proc3 = setupWorker();
-			//Process proc4 = setupWorker();
-			//Process proc5 = setupWorker();
-		
+			
+			List<Process> processList = new ArrayList<>();
+			for(int i=0; i < 5; i++)
+			{
+				processList.add(setupWorker());
+			}
+						
 			
 			try 
 			{	
@@ -173,11 +175,10 @@ public class MySQLDBTAEJobPushBackTester {
 				assertTrue((endTime-startTime)<22000);
 			} finally
 			{
-				proc1.destroy();
-				proc2.destroy();
-				proc3.destroy();
-				//proc4.destroy();
-				//proc5.destroy();
+				for(Process p : processList)
+				{
+					p.destroy();
+				}
 				
 			}
 		
