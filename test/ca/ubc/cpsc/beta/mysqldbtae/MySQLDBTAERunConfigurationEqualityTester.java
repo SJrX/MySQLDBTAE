@@ -28,6 +28,7 @@ import ca.ubc.cs.beta.TestHelper;
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
+import ca.ubc.cs.beta.aeatk.algorithmrunresult.ExistingAlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
@@ -56,18 +57,20 @@ import ec.util.MersenneTwister;
 public class MySQLDBTAERunConfigurationEqualityTester {
 
 	private static AlgorithmExecutionConfiguration execConfig;
-
+	private static AlgorithmExecutionConfiguration execConfig2;
+	
 	private static  ParameterConfigurationSpace configSpace;
 	
 	private static List<AlgorithmRunConfiguration> runConfigs;
+	private static List<AlgorithmRunConfiguration> runConfigs2;
 	
 	private static MySQLOptions mysqlConfig;
 	
 	private static final String MYSQL_POOL = "junit_equalityTester";
 	
 
-	private static final int TARGET_RUNS_IN_LOOPS = 5000;
-	private static final int BATCH_INSERT_SIZE = TARGET_RUNS_IN_LOOPS/10;
+	private static final int  TARGET_RUNS_IN_LOOPS = 1;
+	private static final int BATCH_INSERT_SIZE = 500;
 	
 	private static final int MYSQL_RUN_PARTITION = 0;
 	
@@ -99,7 +102,7 @@ public class MySQLDBTAERunConfigurationEqualityTester {
 		rand = new MersenneTwister();
 		
 		runConfigs= new ArrayList<AlgorithmRunConfiguration>(1);
-		for(int i=0; i < 5; i++)
+		for(int i=0; i <  TARGET_RUNS_IN_LOOPS; i++)
 		{
 			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 			config.put("runtime", "1");
@@ -114,6 +117,37 @@ public class MySQLDBTAERunConfigurationEqualityTester {
 				runConfigs.add(rc);
 			}
 		}
+		
+		
+
+		b = new StringBuilder();
+		b.append("java -cp ");
+		b.append(System.getProperty("java.class.path"));
+		b.append(" ");
+		b.append(TrueSleepyParamEchoExecutor.class.getCanonicalName());
+		
+		
+		execConfig2 = new AlgorithmExecutionConfiguration(b.toString(), System.getProperty("user.dir"), configSpace, false, false, 500);
+		
+		
+		
+		runConfigs2= new ArrayList<AlgorithmRunConfiguration>(1);
+		for(int i=0; i <  TARGET_RUNS_IN_LOOPS; i++)
+		{
+			ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
+			config.put("runtime", "1");
+			if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED") || config.get("solved").equals("TIMEOUT"))
+			{
+				//Only want good configurations
+				i--;
+				continue;
+			} else
+			{
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config,execConfig2);
+				runConfigs2.add(rc);
+			}
+		}
+		
 
 		
 	}
@@ -229,16 +263,57 @@ public class MySQLDBTAERunConfigurationEqualityTester {
 			MySQLPersistenceWorker mpw = new MySQLPersistenceWorker(tops, new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 100000), version);
 			
 			
-			List<AlgorithmRunConfiguration> rcs = mpw.getRuns(5, 120);
-			assertEquals("Expected to get a run back from the persistence worker", 5, rcs.size());
-			for(int i=0; i < 5; i++)
+			List<AlgorithmRunConfiguration> rcs = mpw.getRuns( TARGET_RUNS_IN_LOOPS, 120);
+			assertEquals("Expected to get a run back from the persistence worker",  TARGET_RUNS_IN_LOOPS, rcs.size());
+			for(int i=0; i <  TARGET_RUNS_IN_LOOPS; i++)
 			{
 				assertEquals("Expected to object to be equal", rcs.get(i), runConfigs.get(i));
 				assertEquals("Expected that hash code of two run configs should be equal",rcs.get(i).hashCode(), runConfigs.get(i).hashCode());
+				mpw.setRunResults(Collections.<AlgorithmRunResult>singletonList(new ExistingAlgorithmRunResult(rcs.get(i), RunStatus.SAT, 3, 3, 3, 3)));
 			}
 			
 			
-		
+			
+			mySQLTAE.evaluateRunsAsync(runConfigs2,new TargetAlgorithmEvaluatorCallback()
+			{
+
+				@Override
+				public void onSuccess(List<AlgorithmRunResult> runs) {
+					
+					System.out.println("OK");
+				}
+
+				@Override
+				public void onFailure(RuntimeException e) {
+					// TODO Auto-generated method stub
+					e.printStackTrace();
+					
+			
+					
+					
+					
+				}
+			
+			});
+			
+			MySQLPersistenceWorker mpw2 = new MySQLPersistenceWorker(tops, new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 100000), version);
+			 rcs = mpw2.getRuns( TARGET_RUNS_IN_LOOPS, 120);
+			assertEquals("Expected to get a run back from the persistence worker",  TARGET_RUNS_IN_LOOPS, rcs.size());
+			for(int i=0; i <  TARGET_RUNS_IN_LOOPS; i++)
+			{
+				assertEquals("Expected to object to be equal", rcs.get(i).getParameterConfiguration(), runConfigs2.get(i).getParameterConfiguration());
+				assertEquals("Expected to object to be equal", rcs.get(i).getProblemInstanceSeedPair(), runConfigs2.get(i).getProblemInstanceSeedPair());
+				assertEquals("Expected to object to be equal", rcs.get(i).getAlgorithmExecutionConfiguration(), runConfigs2.get(i).getAlgorithmExecutionConfiguration());
+				
+				
+				
+				assertEquals("Expected to object to be equal", rcs.get(i), runConfigs2.get(i));
+				
+				
+				assertEquals("Expected that hash code of two run configs should be equal",rcs.get(i).hashCode(), runConfigs2.get(i).hashCode());
+			}
+			
+			
 			
 		
 		} catch(RuntimeException e)

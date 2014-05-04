@@ -440,7 +440,9 @@ public class MySQLPersistence implements AutoCloseable{
 
 			@Override
 			public Void call() throws SQLException {
+				
 				s.execute();
+				
 				return null;
 			}
 			
@@ -493,6 +495,12 @@ public class MySQLPersistence implements AutoCloseable{
 		{
 			try {
 				return f.call();
+			} catch(com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException e)
+			{
+				log.error("Exception while processing query:", e);
+				
+				
+				throw new IllegalStateException("Syntax Error in SQL statement, retrying will not fix this", e);
 			} catch(MySQLQueryInterruptedException e)
 			{
 				log.warn("Unexpected query interruption, probably a race condition with worker wakeup. (You can disregard this warning, it's for developers)",e);

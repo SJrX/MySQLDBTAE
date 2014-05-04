@@ -202,6 +202,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 		this.pathStrip = new PathStripper(pathStrip);
 		
+		if(opts.batchInsertSize == 0)
+		{
+			throw new IllegalArgumentException("Batch insert size must be greater than zero");
+		}
 		
 
 		//this(mysqlOptions.host, mysqlOptions.port,mysqlOptions.databaseName,mysqlOptions.username,mysqlOptions.password,pool, null, batchInsertSize, createTables, runPartition, deletePartitionDataOnShutdown, priority, false, false);
@@ -580,6 +584,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							String uuid = getHash(rc, opts.runPartition);
 							uuids.add(uuid);
 							Integer execConfigID = this.getAlgorithmExecutionConfigurationID(rc.getAlgorithmExecutionConfiguration());
+							
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName()));
 							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation().length() > 8172)

@@ -32,7 +32,13 @@ public class ACLibHasher {
 		
 		
 		try {
-			byte[] result = digest.digest( (pathStrip.stripPath(execConfig.getAlgorithmExecutable()) + pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()) + execConfig.getAlgorithmMaximumCutoffTime() + execConfig.isDeterministicAlgorithm() + false + pathStrip.stripPath(execConfig.getParameterConfigurationSpace().getParamFileName())).getBytes("UTF-8"));
+			byte[] result = digest.digest( (pathStrip.stripPath(execConfig.getAlgorithmExecutable()) +
+											pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()) + 
+											execConfig.getAlgorithmMaximumCutoffTime() + 
+											execConfig.isDeterministicAlgorithm() + 
+											false +
+											pathStrip.stripPath(execConfig.getParameterConfigurationSpace().getParamFileName()) +
+											((execConfig.getTargetAlgorithmExecutionContext().size() > 0) ? execConfig.getTargetAlgorithmExecutionContext().toString() : "")).getBytes("UTF-8")); //Want to keep hashes backwards compatible with old versions
 			return new String(Hex.encodeHex(result));
 
 		} catch (UnsupportedEncodingException e) {

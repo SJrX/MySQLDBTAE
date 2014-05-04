@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,7 +65,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	protected final UUID workerUUID = UUID.randomUUID();
 	
 	
-	private final Logger log = LoggerFactory.getLogger(this.getClass());
+	private static final Logger log = LoggerFactory.getLogger(MySQLPersistenceWorker.class);
 	
 	
 	/*
@@ -104,6 +105,36 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 
 	private final int minWorstCaseTime;
 	
+	
+	private static final Set<String> shutdownStatements = Collections.newSetFromMap(new ConcurrentHashMap<String,Boolean>());
+	static
+	{
+		
+		Runnable r = new Runnable()
+		{
+
+			@Override
+			public void run() {
+				
+				
+				
+				StringBuilder sb = new StringBuilder();
+				
+				for(String s : shutdownStatements)
+				{
+					sb.append(s).append("\n");
+				}
+				
+				log.info("Worker process is being shutdown. The following queries will reset the the jobs that this worker did while running to NEW:\n=======================\n{}=======================", sb.toString());
+				
+				
+			}
+			
+		};
+		
+		Thread t = new Thread(r);
+		Runtime.getRuntime().addShutdownHook(t);
+	}
 	/*
 	public MySQLPersistenceWorker(String host, int port,
 			String databaseName, String username, String password, String pool,String jobID, Date startDateTime, Date endDateTime, int runsToBatch, int delayBetweenRequest, int poolIdleTimeLimit, String version, Boolean createTables, int concurrencyFactor, int minWorstCaseTime, int worstCaseMultiplier) {
@@ -133,6 +164,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		logWorker(opts.runsToBatch, opts.delayBetweenRequests, opts.pool, opts.poolIdleTimeLimit, version, opts.minRunsToBatch, opts.maxRunsToBatch, opts.autoAdjustRuns );
 		this.minWorstCaseTime = opts.minWorstCaseTime=
 		this.worstCaseMultiplier = opts.worstCaseMultiplier;
+		shutdownStatements.add("UPDATE " + opts.mysqlOptions.databaseName + "." + TABLE_RUNCONFIG + " SET status=\"NEW\" WHERE workerUUID=\""+workerUUID.toString() +"\";" );
 	}
 
 
