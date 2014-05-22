@@ -2,6 +2,8 @@ package ca.ubc.cs.beta.mysqldbtae.worker;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -27,6 +29,7 @@ import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.exceptions.TargetAlgorithmAbortException;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluatorBuilder;
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
@@ -496,8 +499,7 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 				}
 				
-			};
-			
+			};			
 			
 			if( (runConfig.getCutoffTime() < getSecondsLeft()) || !options.checkMinCutoff)
 			{
@@ -529,13 +531,23 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			int i=0;
 			//2048 is the length of the field in the DB, 2000 is buffer
-			while(sb.length() < 2000 && i < e.getStackTrace().length)
-			{
-				sb.append(e.getStackTrace()[i]).append(":");
-				i++;
-			}
 			
-			String addlRunData = sb.substring(0, Math.min(2000,sb.length()));
+			
+			ByteArrayOutputStream bout = new ByteArrayOutputStream();
+			
+			try (PrintWriter pWriter = new PrintWriter(bout))
+			{
+				e.printStackTrace(pWriter);
+			}
+						
+			
+			String addlRunData;
+			try {
+				addlRunData = bout.toString("UTF-8").replaceAll("[\\n]", " ; ").replaceAll("[\\t]", " ");
+			} catch (UnsupportedEncodingException e1) {
+				addlRunData = "Unsupported Encoding Exception Occurred while writing Exception in " + this.getClass().getCanonicalName() + " nested exception was:" + e.getClass().getSimpleName();
+				e1.printStackTrace();
+			}
 			
 			mysqlPersistence.setRunResults(Collections.singletonList((AlgorithmRunResult)new ExistingAlgorithmRunResult(runConfig,RunStatus.ABORT, 0.0 ,0 ,0, runConfig.getProblemInstanceSeedPair().getSeed(), addlRunData , runWatch.stop())));
 		}
