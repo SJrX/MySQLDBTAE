@@ -29,6 +29,8 @@ import ca.ubc.cs.beta.mysqldbtae.persistence.client.RunToken;
 public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmEvaluator {
 
 
+	
+	public static final String ADDITIONAL_RUN_DATA_ENCODED_EXCEPTION_PREFIX = "ENCODED EXCEPTION: ";
 	final MySQLPersistenceClient persistence;
 	private final Logger log = LoggerFactory.getLogger(MySQLTargetAlgorithmEvaluator.class);
 	private final ScheduledExecutorService requestWatcher;
@@ -204,7 +206,12 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 					{
 						if(run.getRunStatus().equals(RunStatus.ABORT))
 						{
-							log.info("Um this was an abort {} : {} ", run.getAlgorithmRunConfiguration(), run);
+							log.info("Detected an aborted run {} : {} ", run.getAlgorithmRunConfiguration(), run);
+							String addlRunData = run.getAdditionalRunData().trim();
+							if(addlRunData.startsWith(MySQLTargetAlgorithmEvaluator.ADDITIONAL_RUN_DATA_ENCODED_EXCEPTION_PREFIX))
+							{
+								log.error("Worker encountered error, exception details: {}",  addlRunData.replaceAll(";", "\n"));
+							}
 							
 							handler.onFailure(new TargetAlgorithmAbortException(run));
 							return;

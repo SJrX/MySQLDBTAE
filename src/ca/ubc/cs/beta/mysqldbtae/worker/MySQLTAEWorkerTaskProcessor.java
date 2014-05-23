@@ -34,6 +34,7 @@ import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.init.TargetAlgorithmEvaluat
 import ca.ubc.cs.beta.mysqldbtae.exceptions.PoolChangedException;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.MySQLPersistenceWorker;
 import ca.ubc.cs.beta.mysqldbtae.persistence.worker.UpdatedWorkerParameters;
+import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.version.MySQLDBTAEVersionInfo;
 
 public class MySQLTAEWorkerTaskProcessor {
@@ -501,6 +502,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 			};			
 			
+			
 			if( (runConfig.getCutoffTime() < getSecondsLeft()) || !options.checkMinCutoff)
 			{
 				if(runConfig.getProblemInstanceSeedPair().getProblemInstance().getInstanceID() > 0)
@@ -543,7 +545,7 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			String addlRunData;
 			try {
-				addlRunData = bout.toString("UTF-8").replaceAll("[\\n]", " ; ").replaceAll("[\\t]", " ");
+				addlRunData = MySQLTargetAlgorithmEvaluator.ADDITIONAL_RUN_DATA_ENCODED_EXCEPTION_PREFIX + bout.toString("UTF-8").replaceAll("[\\n]", " ; ");
 			} catch (UnsupportedEncodingException e1) {
 				addlRunData = "Unsupported Encoding Exception Occurred while writing Exception in " + this.getClass().getCanonicalName() + " nested exception was:" + e.getClass().getSimpleName();
 				e1.printStackTrace();

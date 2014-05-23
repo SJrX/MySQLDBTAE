@@ -662,7 +662,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			this.runTokenToStringIDMap.put(runToken, runConfigToIDMap);
 			
 			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
-			log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);
+			log.debug("Total time to insert {} rows was {} seconds, {} rows / second", args3);
 			synchronized(runToken)
 			{
 				return runToken;
@@ -924,7 +924,7 @@ outerloop:
 			} finally
 			{
 				if(conn != null) conn.close();
-				log.info("Workers woken up {} ",workersWokenUp);
+				log.debug("Workers woken up {} ",workersWokenUp);
 			}
 		} catch(SQLException e)
 		{
