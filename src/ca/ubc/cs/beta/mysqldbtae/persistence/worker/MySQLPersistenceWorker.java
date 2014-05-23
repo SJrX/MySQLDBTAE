@@ -1020,8 +1020,12 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			//This query is designed to update the database IF and only IF
 			//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
 			//This saves us another trip to the database
+			
+			
 			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(this.worstCaseMultiplier*delayBetweenRequests,this.minWorstCaseTime)).append(" SECOND) WHERE runConfigID IN (");
 			
+			if(this.runConfigIDMap.size() > 0)
+			{
 				for(String runConfigID : new TreeSet<String>(this.runConfigIDMap.values()))
 				{
 					sb.append(runConfigID).append(",");
@@ -1033,18 +1037,20 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			
 			
 				
-			try (Connection conn = getConnection())
-			{
-				//System.out.println(sb.toString());
-				PreparedStatement stmt = conn.prepareStatement(sb.toString());
-				executePS(stmt);
-
-			}catch(SQLException e)
-			{
-				log.error("Failed writing run status to database, something very bad is happening");
-				
-				throw new IllegalStateException(e);
+				try (Connection conn = getConnection())
+				{
+					//System.out.println(sb.toString());
+					PreparedStatement stmt = conn.prepareStatement(sb.toString());
+					executePS(stmt);
+	
+				}catch(SQLException e)
+				{
+					log.error("Failed writing run status to database, something very bad is happening, the query was: " + sb.toString());
+					
+					throw new IllegalStateException(e);
+				}
 			}
+			
 	}
 	
 	/**
