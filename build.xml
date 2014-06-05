@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project name="mysqldbtae" default="compile">
+<project name="mysqldbtae" default="deploy">
 	<property name="private.buildfile" value="build-resources/private/user-antbuild.properties"/>
 		<property file="${private.buildfile}"/>
 		<property file="build-resources/antbuild.properties"/>
@@ -150,6 +150,10 @@
 		<mkdir dir="dist/${ant.project.name}-plugin"/>
 		<copy todir="dist/${ant.project.name}-plugin">
 			<fileset refid="lib"/>
+			<fileset dir="dist/lib/">
+				<include name="${ant.project.name}*"/>
+			</fileset>
+			
 		</copy>
 		
 		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
