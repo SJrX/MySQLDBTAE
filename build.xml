@@ -119,9 +119,12 @@
 		<echo file="build/classes/${version.file}">${version.string} (${git.shortcommit})</echo>
 			
 		<property name="outputfilename" value="${ant.project.name}-${version.string}"/>
-		<jar destfile="dist/${ant.project.name}.jar" basedir="build/classes"/>
+		
+		<mkdir dir="dist/lib/"/>
+		
+		<jar destfile="dist/lib/${ant.project.name}.jar" basedir="build/classes"/>
 				
-		<jar destfile="dist/${ant.project.name}-src.jar">
+		<jar destfile="dist/lib/${ant.project.name}-src.jar">
 			<fileset dir="src/">
 				 <include name="**/*.java"/>
 			</fileset>
@@ -130,12 +133,23 @@
 			<fileset dir="">
 						<include name="conf/**"/>
 			</fileset>
+			<!--<fileset refid="lib"/>
+
+			<fileset refid="aeatk"/>-->
+			<fileset dir="scripts">
+				<include name="*"/>
+			</fileset>	
+		</copy>
+		
+		<copy todir="dist/lib/" force="true">
 					<fileset refid="lib"/>
 
 					<fileset refid="aeatk"/>
-					<fileset dir="scripts">
-						<include name="*"/>
-					</fileset>	
+		</copy>
+				
+		<mkdir dir="dist/${ant.project.name}-plugin"/>
+		<copy todir="dist/${ant.project.name}-plugin">
+			<fileset refid="lib"/>
 		</copy>
 		
 		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
@@ -157,6 +171,47 @@
 		</java>
 				
 		
+		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+							<arg value="--class"/>
+							<arg value="ca.ubc.cs.beta.mysqldbtae.worker.MySQLTAEWorker"/>
+							<arg value="--name"/>
+							<arg value="mysql-worker"/>
+							<arg value="--file-to-write"/>
+							<arg value="dist/${ant.project.name}-plugin/"/>	
+		</java>
+				
+		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+					<arg value="--class"/>
+					<arg value="ca.ubc.cs.beta.dzq.exec.DangerZoneQueue"/>
+					<arg value="--name"/>
+					<arg value="dzq"/>
+					<arg value="--file-to-write"/>
+					<arg value="dist/${ant.project.name}-plugin/"/>	
+		</java>
+		
+		<echo file="dist/${ant.project.name}-plugin/README">**********************************
+MySQL Target Algorithm Evaluator Plugin Readme
+**********************************
+To use the MySQLDB TAE in another AEATK project you should copy it's contents (not the folder) 
+into the ROOT or lib folder of the other project.  This is recommended because this folder
+does not contain all the necessary jars and so the ./mysql-worker and ./dzq scripts won't work 
+without them. 
+
+Finally note that you should not mix and match AEATK versions between master and slave,
+and between this plugin and your AEATK project.
+</echo>
+<echo file="dist/README">**********************************
+MySQL Target Algorithm Evaluator Plugin Readme
+**********************************
+To use the MySQLDB TAE in another AEATK project you should copy the mysqldbtae-plugin folder contents (not the folder) 
+into the ROOT or lib folder of the other project.  This is recommended because this folder
+does not contain all the necessary jars and so the ./mysql-worker and ./dzq scripts won't work 
+without them. 
+
+Finally note that you should not mix and match AEATK versions between master and slave,
+and between this plugin and your AEATK project.
+</echo>
+			
 	</target>			
 	<target name="zip" depends="archive" description="Makes tarball for this release">
 			<fail message="Cannot deploy a build for the git master branch if it is dirty, please commit all changes">
