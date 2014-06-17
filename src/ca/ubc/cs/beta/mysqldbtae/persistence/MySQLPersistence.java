@@ -522,7 +522,7 @@ public class MySQLPersistence implements AutoCloseable{
 				log.warn("Unexpected Non Transient Exception ", e);
 			} catch(SQLException e)
 			{
-				log.warn("Unexpected exception while executing query, but logging {}", e);
+				log.warn("Unexpected exception while executing query, but logging ", e);
 			} catch(Exception e)
 			{
 				log.error("This was unexpected, an exception that wasn't a SQL exception", e);
