@@ -162,7 +162,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		this.startDateTime = startDateTime;
 		this.concurrencyFactor.set(opts.concurrencyFactor);
 		logWorker(opts.runsToBatch, opts.delayBetweenRequests, opts.pool, opts.poolIdleTimeLimit, version, opts.minRunsToBatch, opts.maxRunsToBatch, opts.autoAdjustRuns );
-		this.minWorstCaseTime = opts.minWorstCaseTime=
+		this.minWorstCaseTime = opts.minWorstCaseTime;
 		this.worstCaseMultiplier = opts.worstCaseMultiplier;
 		shutdownStatements.add("UPDATE " + opts.mysqlOptions.databaseName + "." + TABLE_RUNCONFIG + " SET status=\"NEW\" WHERE workerUUID=\""+workerUUID.toString() +"\";" );
 	}
