@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_commandTable` (
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_execConfig` (
   `algorithmExecutionConfigID` int(11) NOT NULL AUTO_INCREMENT,
   `algorithmExecutionConfigHashCode` char(40) NOT NULL,
-  `algorithmExecutable` varchar(4096) NOT NULL,
-  `algorithmExecutableDirectory` varchar(4096) NOT NULL,
-  `parameterFile` varchar(4096) NOT NULL,
+  `algorithmExecutable` TEXT NOT NULL,
+  `algorithmExecutableDirectory` TEXT NOT NULL,
+  `parameterFile` TEXT NOT NULL,
   `executeOnCluster` tinyint(1) NOT NULL,
   `deterministicAlgorithm` tinyint(1) NOT NULL,
   `cutoffTime` double NOT NULL,
