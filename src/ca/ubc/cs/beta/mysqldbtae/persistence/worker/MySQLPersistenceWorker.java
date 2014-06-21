@@ -656,7 +656,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			stmt.setLong(12, poolIdleTimeLimit);
 			stmt.setInt(13, this.concurrencyFactor.get());
 			stmt.setString(14,version);
-			stmt.setDate(15, new java.sql.Date(System.currentTimeMillis() + Math.max(600, 5*delayBetweenRequests)*1000));
+			stmt.setTimestamp(15, new java.sql.Timestamp(System.currentTimeMillis() + Math.max(600, 5*delayBetweenRequests)*1000));
 			
 			stmt.setInt(16, minRunsToBatch);
 			stmt.setInt(17, maxRunsToBatch);
@@ -761,16 +761,9 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 				}
 				
 				
-				sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='RUNNING',crashInfo='', runsToBatch_UPDATEABLE="+runsToBatch+", upToDate=1, worstCaseNextUpdateWhenRunning=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultiplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND) WHERE workerUUID=\""+workerUUID.toString()+"\" ");
+				int  nextUpdateTime = worstCaseMultiplier*delayBetweenRequests;
 				
-				stmt = conn.prepareStatement(sb.toString());
-				int linesModified = executePSUpdate(stmt);
-				
-				if(linesModified == 0)
-				{
-					throw new IllegalStateException("No row updated in table, this suggests that the entry was deleted and that this worker should shutdown");
-				}
-				stmt.close();
+				updateWorstCaseEndTime(runsToBatch, nextUpdateTime);
 				//conn.commit();
 				return newParameters;
 			} finally
@@ -787,6 +780,32 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 		
 		
+	}
+
+
+	/**
+	 * @param runsToBatch
+	 * @param conn
+	 * @param nextUpdateTime
+	 * @throws SQLException
+	 */
+	public void updateWorstCaseEndTime(int runsToBatch, int nextUpdateTime) throws SQLException {
+		
+		try (Connection conn = getConnection())
+		{
+			StringBuilder sb;
+			PreparedStatement stmt;
+			sb = new StringBuilder("UPDATE ").append(TABLE_WORKERS).append(" SET status='RUNNING',crashInfo='', runsToBatch_UPDATEABLE="+runsToBatch+", upToDate=1, worstCaseNextUpdateWhenRunning=DATE_ADD(NOW(),INTERVAL ").append(Math.max(nextUpdateTime,minWorstCaseTime)).append(" SECOND) WHERE workerUUID=\""+workerUUID.toString()+"\" ");
+			
+			stmt = conn.prepareStatement(sb.toString());
+			int linesModified = executePSUpdate(stmt);
+			
+			if(linesModified == 0)
+			{
+				throw new IllegalStateException("No row updated in table, this suggests that the entry was deleted and that this worker should shutdown");
+			}
+			stmt.close();
+		}
 	}
 	
 	public void changeWorkerIdleStatus(int delayBetweenRequests, boolean idle)

@@ -11,6 +11,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
@@ -560,10 +563,11 @@ public class MySQLPersistence implements AutoCloseable{
 				conn.createStatement().execute("SELECT GET_LOCK(\"" + this.DATABASE + ".workerFixLock\",172800);" );
 			
 				TreeSet<String> deadWorkers = new TreeSet<String>();
-					
+				String[] workers = new String[5];
 				//Don't want to grab too many workers at any one time
-				StringBuilder sb = new StringBuilder("SELECT workerUUID FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND worstCaseNextUpdateWhenRunning < NOW() LIMIT 100");
+				StringBuilder sb = new StringBuilder("SELECT workerUUID, jobID FROM ").append(TABLE_WORKERS).append(" WHERE status='RUNNING' AND worstCaseNextUpdateWhenRunning < NOW() LIMIT 100");
 			
+				int i=0;
 				try (Statement stmt = conn.createStatement())
 				{
 				
@@ -571,19 +575,25 @@ public class MySQLPersistence implements AutoCloseable{
 					
 				
 					
-					
+					i++;
 					while(rs.next())
 					{
+						
 						deadWorkers.add(rs.getString(1));
+						workers[i%workers.length] = " " + rs.getString(2) + " (" + rs.getString(1) + ")";
+					}
+				}
+
+				TreeSet<String> workersToLog = new TreeSet<>();
+				
+				for(String s : workers)
+				{
+					if (s != null)
+					{
+						workersToLog.add(s);
 					}
 				}
 				
-				
-				
-				
-				
-				
-			
 				boolean cleanupRunsTable = false;
 				if(deadWorkers.size() > 0)
 				{
@@ -604,7 +614,7 @@ public class MySQLPersistence implements AutoCloseable{
 						
 						if(deadWorkers.size() > 0 )
 						{
-							log.warn("Detected {} workers that did not respond in time, successfully repaired {} of them (these numbers may not be equal, it just means something changed in the interim.)", deadWorkers.size(), updateCount);
+							log.warn("Detected {} workers that did not respond in time, successfully repaired {} of them (these numbers may not be equal, it just means something changed in the interim.). Some of the workers that did not seem updated were: {} ", deadWorkers.size(), updateCount, workersToLog);
 							log.debug("Worker UUIDs:{}", deadWorkers);
 						}
 						if(updateCount > 0)
@@ -638,7 +648,7 @@ public class MySQLPersistence implements AutoCloseable{
 				
 				if(keys.size() > 0)
 				{
-					log.warn("Detected {} runs that have not seem an update in time, setting back to NEW", keys.size());
+					log.warn("Detected {} runs that have seemingly not updated in time, setting back to NEW", keys.size());
 					
 					try(Statement stmt = conn.createStatement())
 					{

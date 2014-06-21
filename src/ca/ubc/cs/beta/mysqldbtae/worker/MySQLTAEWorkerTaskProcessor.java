@@ -512,6 +512,11 @@ public class MySQLTAEWorkerTaskProcessor {
 				{
 					log.info("Starting processing of job");
 				}
+				
+				
+				mysqlPersistence.updateOutstandingRunsLastUpdateTime(options.runsToBatch * (int) Math.max(3600,runConfig.getAlgorithmExecutionConfiguration().getAlgorithmMaximumCutoffTime()));
+				
+				mysqlPersistence.updateWorstCaseEndTime(options.runsToBatch, (int) (runConfig.getCutoffTime()+1) * 2);
 				List<AlgorithmRunResult> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
 				jobEvaluated = true;
 				mysqlPersistence.setRunResults(finishedRuns);

@@ -165,7 +165,7 @@ public class MySQLTargetAlgorithmEvaluatorFactory extends AbstractTargetAlgorith
 			}
 		}
 		
-		MySQLTargetAlgorithmEvaluator mysqlTAE =   new MySQLTargetAlgorithmEvaluator( mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls);
+		MySQLTargetAlgorithmEvaluator mysqlTAE =   new MySQLTargetAlgorithmEvaluator( mysqlPersistence, opts.wakeUpWorkersOnSubmit, opts.pollPoolSize, opts.delayBetweenPolls, opts.deadJobCheckFrequency);
 		
 		if(opts.execProfile != null)
 		{

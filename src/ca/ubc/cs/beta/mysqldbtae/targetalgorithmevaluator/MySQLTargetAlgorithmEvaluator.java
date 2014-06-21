@@ -73,6 +73,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 				try {
 					try 
 					{
+						
 						MySQLTargetAlgorithmEvaluator.this.persistence.fixJobState();
 					} catch(Throwable t)
 					{
@@ -88,6 +89,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 			}
 			
 		};
+		log.debug("Scheduling dead job checker with frequency {} s", deadJobCheckFrequency);
 		requestWatcher.scheduleAtFixedRate(deadJobChecker, 0, deadJobCheckFrequency, TimeUnit.SECONDS);
 		
 	}

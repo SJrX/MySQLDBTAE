@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.codec.binary.Hex;
@@ -163,6 +164,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	private final String processName = (ManagementFactory.getRuntimeMXBean().getName().trim().length() > 0) ? ManagementFactory.getRuntimeMXBean().getName().trim() : "Unknown_JVM";
 
 	private final boolean shutdownWorkersOnCompletion;
+	
+	private final AtomicBoolean logWarningOnInstanceBeingTooLong = new AtomicBoolean(false);
 	public MySQLPersistenceClient(MySQLTargetAlgorithmEvaluatorOptions opts)
 	{
 
@@ -283,7 +286,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							sb.setCharAt(sb.length()-1, ' ');
 							
 							sb.append(") AND (status=\"COMPLETE\" OR status=\"ASSIGNED\")");
-							log.debug("Query was {} ", sb);
+							log.trace("Query was {} ", sb);
 							PreparedStatement stmt = null;
 							int returnedResults = 0;
 							try 
@@ -348,12 +351,18 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								if(stmt != null) stmt.close();
 							}
 							
-							Object args[] =  { token, userRuns.size(), runs };
-							log.debug("RunToken {} has {} out of {} runs complete ",args);
-							
 					
 							//Thread.sleep(1000);
 							log.trace("Queried for {} got {} results back", querySize, returnedResults);
+							Object args[] =  { token, userRuns.size(), runs };
+							
+							
+							if(returnedResults > 0)
+							{
+								log.debug("RunToken {} has {} out of {} runs complete ",args);
+							}
+							
+							
 							
 							
 							List<String> runsToKill = new ArrayList<String>();
@@ -587,15 +596,20 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							
 							stmt.setInt(k++, execConfigID);
 							stmt.setString(k++, pathStrip.stripPath(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName()));
+							
+							/* Changed to TEXT
 							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceSpecificInformation().length() > 8172)
 							{
 								log.warn("If you get an exception when inserting this row, it's probably because the instance specific information is too long, the maximum length in this version by default is 8172.  You can try changing the column to a TEXT field but be warned that if you do any further queries referencing this column the performance will be very poor.");
 								//throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 4K or less in this version, I'm sorry");
 							}
-							
+							*/
 							if(rc.getProblemInstanceSeedPair().getProblemInstance().getInstanceName().length() > 8172)
 							{
-								log.warn("If you get an exception when inserting this row, it's probably because the instance name is too long, the maximum length in this version by default is 8172. You can try changing the column to a TEXT field but be warned that if you do any further queries referencing this column the performance will be very poor.");
+								if(this.logWarningOnInstanceBeingTooLong.compareAndSet(false, true))
+								{
+									log.warn("If you get an exception when inserting this row, it's probably because the instance name is too long, the maximum length in this version by default is 8172. You can try changing the column to a TEXT field but be warned that if you do any further queries referencing this column the performance will be very poor.");
+								}
 								//throw new UnsupportedOperationException("MySQL DB Only supports Instance Specific Information of 4K or less in this version, I'm sorry");
 							}
 							

@@ -24,6 +24,7 @@ import ca.ubc.cs.beta.aeatk.options.MySQLOptions;
 	MySQLDBTAEKillRetryTester.class,
 	//MySQLDBTAELoadTest.class
 	MySQLDBTAEMarkDoneTester.class,
+	MySQLDBTAENoObserverTester.class,
 	MySQLDBTAEPoolAutoDetectTester.class,
 	MySQLDBTAEPoolIdleTester.class,
 	MySQLDBTAEPoolSwitchTester.class,
