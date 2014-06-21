@@ -638,7 +638,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							runConfigToString.put(rc,uuid);
 						}
 					
-						log.debug("Inserting Rows");
+						log.trace("Inserting Rows");
 						stopWatch.start();
 		
 						executePS(stmt);
@@ -651,7 +651,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 					double timePerRow = ((listUpperBound - listLowerBound) / (stopWatch.stop() / 1000.0));
 					
 					Object[] args = { listUpperBound - listLowerBound, stopWatch.time()/1000.0, timePerRow};
-					log.debug("Insertion of {} rows took {} seconds {} row / second", args);
+					log.trace("Insertion of {} rows took {} seconds {} row / second", args);
 					
 				
 				} catch(PacketTooBigException e)
@@ -938,7 +938,13 @@ outerloop:
 			} finally
 			{
 				if(conn != null) conn.close();
-				log.debug("Workers woken up {} ",workersWokenUp);
+				if(workersWokenUp == 0)
+				{
+					log.trace("Workers woken up {} ",workersWokenUp);
+				} else
+				{
+					log.debug("Workers woken up {} ",workersWokenUp);
+				}
 			}
 		} catch(SQLException e)
 		{
