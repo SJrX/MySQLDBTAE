@@ -9,6 +9,7 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLRecoverableException;
 import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -523,6 +524,12 @@ public class MySQLPersistence implements AutoCloseable{
 			} catch(com.mysql.jdbc.exceptions.jdbc4.MySQLNonTransientException e)
 			{
 				log.warn("Unexpected Non Transient Exception ", e);
+			} catch(com.mysql.jdbc.exceptions.jdbc4.CommunicationsException e)
+			{
+				throw new IllegalStateException("Unfortunately this query died, and restarting it will never get it to work (maybe the connection closed), can only shutdown.");
+			}catch(SQLRecoverableException e)
+			{
+				throw new IllegalStateException("Unfortunately this query died, and restarting it will never get it to work (maybe the connection closed), can only shutdown.");
 			} catch(SQLException e)
 			{
 				log.warn("Unexpected exception while executing query, but logging ", e);
