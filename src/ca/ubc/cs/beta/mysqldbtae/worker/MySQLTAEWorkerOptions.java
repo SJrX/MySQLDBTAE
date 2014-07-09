@@ -120,10 +120,14 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names="--worst-case-multiplier", description="What is the minimum timeframe for the next worse case update",  validateWith=PositiveInteger.class)
 	public int worstCaseMultiplier = 5;
 	
-	
+	@UsageTextField(level=OptionLevel.DEVELOPER)
+    @Parameter(names="--min-last-update-time", description="Minimum number of seconds to wait before a run should be updated",  validateWith=PositiveInteger.class)
+    public int minLastUpdateTime = 120;
 	
 	@ParametersDelegate
 	public HelpOptions help = new HelpOptions();
+
+
 
 
 
