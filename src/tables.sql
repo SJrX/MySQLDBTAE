@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 `runConfigUUID` char(48) NOT NULL,
 `execConfigID` int(11) NOT NULL,
 `problemInstance` varchar(8172) NOT NULL,
-`instanceSpecificInformation` TEXT NOT NULL,
+`instanceSpecificInformation` LONGTEXT NOT NULL,
 `seed` bigint(20) NOT NULL,
 `cutoffTime` double NOT NULL,
 `paramConfiguration` TEXT NOT NULL,
