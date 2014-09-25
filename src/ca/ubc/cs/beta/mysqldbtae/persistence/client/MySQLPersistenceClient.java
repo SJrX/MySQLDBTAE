@@ -725,13 +725,6 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			
 			File f = new File(execConfig.getParameterConfigurationSpace().getParamFileName());
 
-			if(!execConfig.getParameterConfigurationSpace().equals(ParameterConfigurationSpace.getSingletonConfigurationSpace()))
-			{
-				if(!f.isAbsolute() || !f.exists())
-				{
-					throw new IllegalStateException("Param File must be created with an absolute file name not the following: " + execConfig.getParameterConfigurationSpace().getParamFileName());
-				}
-			}
 			StringBuilder sb = new StringBuilder();
 			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode, algorithmExecutionConfigurationJSON) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE algorithmExecutionConfigID=LAST_INSERT_ID(algorithmExecutionConfigID), lastModified = NOW()");
 			

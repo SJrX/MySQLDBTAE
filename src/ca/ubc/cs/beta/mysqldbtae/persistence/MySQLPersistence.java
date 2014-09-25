@@ -142,18 +142,20 @@ public class MySQLPersistence implements AutoCloseable{
 			
 			String versionHash = getHash(sql);
 			
-			 TABLE_COMMAND = pool + "_commandTable";
-			 TABLE_EXECCONFIG = pool + "_execConfig";
-			 TABLE_RUNCONFIG = pool + "_runConfigs";
-			 TABLE_WORKERS = pool + "_workers";
-			 TABLE_VERSION = pool + "_version";
-			 POOL = pool;
-			 this.SLEEP_COMMENT_TEXT = SLEEP_STRING + POOL;
-			 this.DATABASE = databaseName;
+			TABLE_COMMAND = pool + "_commandTable";
+			TABLE_EXECCONFIG = pool + "_execConfig";
+			TABLE_RUNCONFIG = pool + "_runConfigs";
+			TABLE_WORKERS = pool + "_workers";
+			TABLE_VERSION = pool + "_version";
+			POOL = pool;	
+			this.SLEEP_COMMENT_TEXT = SLEEP_STRING + POOL;
+			this.DATABASE = databaseName;
 			 
 			
 			 
 			boolean databaseExists = false;
+			
+			
 			
 			Connection conn = cpds.getConnection();
 	

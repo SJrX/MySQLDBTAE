@@ -215,7 +215,7 @@ public class MySQLDBTAEJobReclaimTester {
 			});
 			
 			try {
-				Thread.sleep(2000);
+				Thread.sleep(5000);
 		
 			
 				int pid = CommandLineAlgorithmRun.getPID(proc1);
