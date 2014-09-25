@@ -18,6 +18,7 @@ import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.AlgorithmRunResult;
 import ca.ubc.cs.beta.aeatk.algorithmrunresult.RunStatus;
 import ca.ubc.cs.beta.aeatk.concurrent.threadfactory.SequentiallyNamedThreadFactory;
+import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.AbstractAsyncTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
@@ -132,13 +133,17 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		
 	}
 
-	
 	@Override
 	@SuppressWarnings("unchecked")
 	public void evaluateRunsAsync(List<AlgorithmRunConfiguration> runConfigs,
 			TargetAlgorithmEvaluatorCallback handler, TargetAlgorithmEvaluatorRunObserver obs) {
-		
-		if(runConfigs.size() == 0)
+	    
+	    //Start a stop watch.
+	    //Submission time should not take longer than 5 s plus one additional second for every additional 1000 runs.
+	    long maxSubmitTime = (5 + runConfigs.size()/1000)*1000;
+	    AutoStartStopWatch stopwatch = new AutoStartStopWatch();
+	    
+	    if(runConfigs.size() == 0)
 		{
 			handler.onSuccess(Collections.EMPTY_LIST);
 		}
@@ -150,7 +155,14 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		MySQLRequestWatcher mysqlWatcher = new MySQLRequestWatcher(token, handler);
 		
 		requestWatcher.execute(mysqlWatcher);
-	
+		
+		//Stop stopwatch, if >  max limit log a warning.
+		long submitTime = stopwatch.stop();
+		if(submitTime > maxSubmitTime)
+		{
+		    log.warn("Took more than expected maximum time of {} ms to submit {} runs.",maxSubmitTime,runConfigs.size());
+		}
+		
 	}
 
 	@Override
