@@ -25,6 +25,10 @@ public class ACLibHasher {
 		}
 	}
 	
+	public String getHash(AlgorithmExecutionConfiguration execConfig)
+	{
+		return this.getHash(execConfig, new PathStripper());
+	}
 	public String getHash(AlgorithmExecutionConfiguration execConfig, PathStripper pathStrip)
 	{
 		try {

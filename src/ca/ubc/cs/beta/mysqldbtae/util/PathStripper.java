@@ -4,6 +4,10 @@ public class PathStripper {
 
 	public final String pathStrip;
 	
+	public PathStripper()
+	{
+		this("");
+	}
 	public PathStripper(String s)
 	{
 		this.pathStrip = s;

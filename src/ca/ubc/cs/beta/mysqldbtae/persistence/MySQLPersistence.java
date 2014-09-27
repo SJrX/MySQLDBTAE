@@ -1,5 +1,6 @@
 package ca.ubc.cs.beta.mysqldbtae.persistence;
 
+import java.beans.PropertyVetoException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
@@ -14,18 +15,33 @@ import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
+import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.json.JSONHelper;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfigurationSpace;
+import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration.ParameterStringFormat;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
+import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
+import ca.ubc.cs.beta.mysqldbtae.exceptions.AlgorithmExecutionConfigurationIDBlacklistedException;
 import ca.ubc.cs.beta.mysqldbtae.version.MySQLDBTAEVersionInfo;
 
 import com.beust.jcommander.ParameterException;
@@ -73,7 +89,7 @@ public class MySQLPersistence implements AutoCloseable{
 		}
 	}
 	
-	ComboPooledDataSource cpds = new ComboPooledDataSource();
+	ComboPooledDataSource cpds; 
 
 	protected final String SLEEP_COMMENT_TEXT;
 	
@@ -102,28 +118,13 @@ public class MySQLPersistence implements AutoCloseable{
 		}
 		
 		
-		String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?allowMultiQueries=true";
+		
 		
 		try {
 			
+			String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?allowMultiQueries=true";
 			
-			
-			cpds.setDriverClass( "com.mysql.jdbc.Driver" ); //loads the jdbc driver            
-			cpds.setJdbcUrl( url );
-			cpds.setUser(username);                                  
-			cpds.setPassword(password);                                  
-				
-		
-	
-			// the settings below are optional -- c3p0 can work with defaults
-			cpds.setMinPoolSize(1);                                     
-			cpds.setAcquireIncrement(1);
-			cpds.setMaxPoolSize(200);
-			cpds.setInitialPoolSize(1);
-			cpds.setAutoCommitOnClose(true);
-			cpds.setMaxIdleTimeExcessConnections(120);
-			cpds.setIdleConnectionTestPeriod(15);
-			cpds.setPreferredTestQuery("SELECT 1");
+			cpds = getComboPooledDataSource(username, password, url);
 			
 			BufferedReader br = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("tables.sql")));
 			
@@ -237,6 +238,35 @@ public class MySQLPersistence implements AutoCloseable{
 		
 		
 	}
+
+	/**
+	 * @param username
+	 * @param password
+	 * @param url
+	 * @throws PropertyVetoException
+	 */
+	public static ComboPooledDataSource getComboPooledDataSource(String username, String password,
+			String url) throws PropertyVetoException {
+		ComboPooledDataSource cpds = new ComboPooledDataSource();;
+		cpds.setDriverClass( "com.mysql.jdbc.Driver" ); //loads the jdbc driver            
+		cpds.setJdbcUrl( url );
+		cpds.setUser(username);                                  
+		cpds.setPassword(password);                                  
+			
+
+
+		// the settings below are optional -- c3p0 can work with defaults
+		cpds.setMinPoolSize(1);                                     
+		cpds.setAcquireIncrement(1);
+		cpds.setMaxPoolSize(200);
+		cpds.setInitialPoolSize(1);
+		cpds.setAutoCommitOnClose(true);
+		cpds.setMaxIdleTimeExcessConnections(120);
+		cpds.setIdleConnectionTestPeriod(15);
+		cpds.setPreferredTestQuery("SELECT 1");
+		
+		return cpds;
+	}
 	
 		/*
 	public void startTransaction()
@@ -338,6 +368,111 @@ public class MySQLPersistence implements AutoCloseable{
 	}
 	
 	private final AtomicBoolean closed = new AtomicBoolean(false);
+
+	/**
+	 * Stores a mapping of blacklisted keys.
+	 */
+	protected final Map<Integer, AlgorithmExecutionConfigurationIDBlacklistedException> blacklistedKeys = new HashMap<Integer, AlgorithmExecutionConfigurationIDBlacklistedException>();
+
+
+	/**
+	 * Stores primary keys of execution configurations
+	 */
+	protected final Map<Integer, AlgorithmExecutionConfiguration> execConfigMap = new ConcurrentHashMap<Integer, AlgorithmExecutionConfiguration>();
+	
+
+	protected AlgorithmExecutionConfiguration getAlgorithmExecutionConfiguration(int execConfigID) throws SQLException, AlgorithmExecutionConfigurationIDBlacklistedException {
+		
+	
+		AlgorithmExecutionConfigurationIDBlacklistedException e = blacklistedKeys.get(execConfigID);
+		
+		if(e != null)
+		{
+			throw e;
+		}
+		try {
+			if(!execConfigMap.containsKey(execConfigID)) 
+			{
+			 StringBuilder sb = new StringBuilder();
+			 sb.append("SELECT algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigurationJSON  FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
+			 Connection conn = null;
+			 try {
+				 conn = getConnection();
+			 
+				 PreparedStatement stmt = conn.prepareStatement(sb.toString());
+				 ResultSet rs = stmt.executeQuery();
+				 
+				 
+				 
+				 
+				 boolean hasNextResult = rs.next();
+				 
+				 if(!hasNextResult)
+				 {
+					 throw new IllegalStateException("Database table " + TABLE_EXECCONFIG + " does not have an entry for " + execConfigID + " tables must be corrupted or something");
+				 }
+				 
+				 AlgorithmExecutionConfiguration execConfig;
+				 
+				 try 
+				 {
+					 if ((rs.getString(7).trim().length()) == 0)
+					 {
+						 throw new IllegalArgumentException("No JSON found in database, maybe this is an old version");
+					 }
+						
+					execConfig = JSONHelper.getAlgorithmExecutionConfiguration(rs.getString(7));
+					 
+				 } catch(RuntimeException e2)
+				 {
+					 log.warn("Algorithm Execution Configuration ID: {} has no JSON stored, falling back to column representation but note that this may have lost information, such as context", execConfigID);
+					 log.debug("Exception when parsing JSON was ", e2);
+					 String algorithmExecutable = rs.getString(1);
+					 String algorithmExecutionDirectory = rs.getString(2);
+					 
+					 ParameterConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
+					 
+					 boolean executeOnCluster = rs.getBoolean(4);
+					 boolean deterministicAlgorithm = rs.getBoolean(5);
+					 double cutoffTime = rs.getDouble(6);
+					 
+					 
+					execConfig = new AlgorithmExecutionConfiguration(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
+					 
+					 
+				 }
+				 
+				 
+				 execConfigMap.put(execConfigID, execConfig);
+					
+				 conn.close();
+				 rs.close();
+				 stmt.close();
+			 } finally
+			 {
+				 if(conn != null) 
+				 {
+					 conn.close();
+				 }
+			 }
+			}
+			
+			
+			return execConfigMap.get(execConfigID);
+		} catch(RuntimeException rt)
+		{
+			log.error("Exception occured while trying to process execConfigID: " + execConfigID , rt);
+			
+			AlgorithmExecutionConfigurationIDBlacklistedException e2 = new AlgorithmExecutionConfigurationIDBlacklistedException(execConfigID, rt); 
+			blacklistedKeys.put(execConfigID, e2);
+			throw e2;
+		}
+		
+		
+	}
+	
+	
+	
 	public boolean isClosed()
 	{
 		return closed.get();
@@ -738,6 +873,204 @@ public class MySQLPersistence implements AutoCloseable{
 	}
 
 	
-	
+	protected List<AlgorithmRunConfiguration> getRuns(int n, int delayBetweenRequests, Map<AlgorithmRunConfiguration, String> runConfigIDMap, int lockToGet, String workerUUID, int worstCaseMultplier,  int minWorstCaseTime, String statusToRequest, Map<AlgorithmRunConfiguration, Integer> runConfigurationToRunParitionMap)
+	{
+
+		StringBuffer sb = new StringBuffer();
+		
+		
+		try {
+		
+		
+			//Pull workers off the queue in order of priority, do not take workers where we already tried
+			//This isn't a perfect heuristic. I'm hoping it's good enough.
+			
+			int lock = -1;  
+			
+			if(lockToGet > 0)
+			{
+				lock = lockToGet;
+				//We won't actually check the result and so it doesn't matter if it's once every 2 days
+				sb.append("SELECT GET_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\",172800);\n" );
+			}
+			
+			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (\n\t").append(
+					"SELECT runConfigID, priority FROM (");
+					int i=0;
+					for(JobPriority job : JobPriority.values())
+					{
+						sb.append("\n\t\t(SELECT runConfigID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"").append(statusToRequest).append("\" AND priority=\"").append(job).append("\" ORDER BY runConfigID LIMIT " + n +  ")\n\t\t").append("UNION ALL");
+						i++;
+					}
+			
+					sb.replace(sb.length()-"UNION ALL".length(), sb.length(), "\n");
+					
+							
+					sb.append("\t) innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(
+					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1,worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND)");
+					
+					
+			//System.out.println(sb.toString());
+			
+				
+			
+			try (Connection conn = getConnection())
+			{
+			
+				Statement stmt = conn.createStatement();
+				
+				
+						
+						
+						//conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
+				
+				//stmt.addBatch(sb.toString());
+				
+				
+				//executePS(stmt);
+				
+				//if(true) return Collections.emptyMap();
+				//conn.commit();
+				
+			 
+				//
+				sb.append(";\nSELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob,runPartition FROM ").append(TABLE_RUNCONFIG);
+				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\" ORDER BY priority DESC;");
+				
+		
+				//stmt.close();
+				
+				String releaseLockSQL = "\nSELECT RELEASE_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\");";
+				if(lockToGet > 0)
+				{
+						sb.append(releaseLockSQL);
+				}
+
+				
+				//stmt.addBatch(sb.toString());
+				//stmt = conn.prepareStatement(sb.toString());
+				log.debug("SQL Query for Job Processing:\n {}", sb);
+				try {
+					//this.executeUpdate(stmt,sb.toString());
+					this.executeStatement(stmt, sb.toString());
+					//stmt.execute(sb.toString());
+				} catch(RuntimeException e)
+				{
+					
+					try 
+					{
+						stmt.execute(releaseLockSQL);
+					} catch(SQLException e2)
+					{
+						log.error("Couldn't release lock: ", e2);
+						conn.close();
+					}
+					
+					throw e;
+				}
+				
+				ResultSet rs = stmt.getResultSet();
+				
+				//System.out.println(Arrays.toString(res));
+				
+				
+				if(lockToGet > 0)
+				{
+					stmt.getMoreResults();
+				}
+								
+				if(stmt.getMoreResults())
+				{
+					
+					rs = stmt.getResultSet();
+				} 
+			
+				List<AlgorithmRunConfiguration> rcList = new ArrayList<AlgorithmRunConfiguration>();
+			
+				while(rs.next())
+				{
+					AlgorithmExecutionConfiguration execConfig = null;
+					AlgorithmRunConfiguration rc = null;
+					int execConfigID = -1;
+					String rcID = "?";
+					boolean killJob = false;
+					try {
+					
+						rcID = rs.getString(1);
+						
+							try {
+								
+								execConfigID =  rs.getInt(2);
+								execConfig = getAlgorithmExecutionConfiguration(execConfigID);
+								
+								
+							} catch (AlgorithmExecutionConfigurationIDBlacklistedException e) {
+								log.debug("Execution ID has been blacklisted skipping run {} ", rcID);
+								continue;
+							}
+							
+						log.debug("Assigned Run {} ", rcID);
+						
+						String problemInstance = rs.getString(3);
+						String instanceSpecificInformation = rs.getString(4);
+						long seed = rs.getLong(5);
+						double cutoffTime = rs.getDouble(6);
+						String paramConfiguration = rs.getString(7);
+						boolean cutoffLessThanMax = rs.getBoolean(8);
+						killJob = rs.getBoolean(9);
+						
+						
+						int instanceId =0;
+						try
+						{
+							 instanceId = Integer.valueOf(rcID);
+						} catch(NumberFormatException e)
+						{
+							log.debug("Should have been able to cast to integer", e);
+						}
+						
+						
+						ProblemInstance pi = new ProblemInstance(problemInstance,instanceId, Collections.<String, Double> emptyMap(), instanceSpecificInformation );
+						ProblemInstanceSeedPair pisp = new ProblemInstanceSeedPair(pi,seed);
+						ParameterConfiguration config = execConfig.getParameterConfigurationSpace().getParameterConfigurationFromString(paramConfiguration, ParameterStringFormat.ARRAY_STRING_SYNTAX);
+						
+						rc = new AlgorithmRunConfiguration(pisp, cutoffTime, config, execConfig);
+						if(killJob)
+						{
+							log.warn("Run {} was killed when we pulled it, this version of the workers will start processing this job then abort, if this keeps happening we may want to improve the logic on the worker. This log message just gives us an idea of how often this is happening" , rc);
+						}
+						
+						runConfigIDMap.put(rc, rcID);
+						runConfigurationToRunParitionMap.put(rc,rs.getInt(10));
+					} catch(RuntimeException e)
+					{
+						log.error("Exception occured while trying to process run " + rcID + " with execConfigID: "+ execConfigID , e);
+						
+						AlgorithmExecutionConfigurationIDBlacklistedException e2 = new AlgorithmExecutionConfigurationIDBlacklistedException(execConfigID, e); 
+						blacklistedKeys.put(execConfigID, e2);
+						
+						continue;
+					}
+					
+
+					rcList.add( rc);					
+				}
+				rs.close();
+				conn.close();
+				
+				/*
+				if(rcList.size() > runs)
+				{
+					log.warn("We somehow got more runs than we asked for");
+				}*/
+					
+				
+				return rcList;
+			}
+			
+		} catch (SQLException e) {
+			throw new IllegalStateException("SQL Error", e);
+		}
+	}
 	
 }

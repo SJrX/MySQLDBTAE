@@ -832,7 +832,12 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 	}
 	
-	public String getHash(AlgorithmRunConfiguration rc, int runPartition )
+	private String getHash(AlgorithmRunConfiguration rc, int runPartition)
+	{
+		return MySQLPersistenceClient.getHash(rc, runPartition, pathStrip);
+	}
+	
+	public static String getHash(AlgorithmRunConfiguration rc, int runPartition, PathStripper pathStrip )
 	{
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
