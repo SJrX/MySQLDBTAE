@@ -2,7 +2,11 @@ package ca.ubc.cs.beta.mysqldbtae.migration;
 
 
 
+import java.beans.PropertyVetoException;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -16,16 +20,18 @@ import ca.ubc.cs.beta.aeatk.misc.returnvalues.AEATKReturnValues;
 import ca.ubc.cs.beta.aeatk.misc.version.VersionTracker;
 import ca.ubc.cs.beta.aeatk.misc.watch.AutoStartStopWatch;
 import ca.ubc.cs.beta.aeatk.misc.watch.StopWatch;
+import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.migration.MySQLPersistenceMigration;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 
 public class MigrationUtilityExecutor {
 
 	private static Logger log;
 	
-	public static void main(String[] args) throws InterruptedException
+	public static void main(String[] args) throws InterruptedException, PropertyVetoException, SQLException
 	{
 		
 		final MigrationUtilityOptions muo = new MigrationUtilityOptions();
@@ -67,47 +73,92 @@ public class MigrationUtilityExecutor {
 			
 			log.info("Starting MySQL DB Target Algorithm Evaluator Database Migration Utility");
 			
-			StopWatch watch = new AutoStartStopWatch();
-			
-			MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password, muo.pool);
 			
 			
+			List<String> pools = new ArrayList<String>();
 			
-			ExecutorService execService = Executors.newCachedThreadPool(new SequentiallyNamedThreadFactory("Migration Runners", true));
 			
-			try {
-				mysqlPM.preMigrate();
+			if(muo.allPools)
+			{
 				
+				String url="jdbc:mysql://" + muo.mysqlOptions.host + ":" + muo.mysqlOptions.port + "/" + muo.mysqlOptions.databaseName + "?allowMultiQueries=true";
 				
-				Runnable run = new Runnable()
+				ComboPooledDataSource cpds = MySQLPersistence.getComboPooledDataSource(muo.mysqlOptions.username, muo.mysqlOptions.password, url);
+				
+				ResultSet rs = cpds.getConnection().createStatement().executeQuery("SHOW TABLES");
+				
+				while(rs.next())
 				{
-
-					@Override
-					public void run() {
-						MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password, muo.pool);
-						try {
-							mysqlPM.fixAlgorithmRunsTable(250);
-						} catch (SQLException e) {
-							log.error("Unfortunately an error occurred and we couldn't continue, see the details below:", e);
-						}
-						
-					}
+					String tableName = rs.getString(1);
 					
-				};
-				
-				for(int i=0; i < Math.min(Runtime.getRuntime().availableProcessors(),4); i++)
-				{
-					execService.execute(run);
+					if(tableName.endsWith("_version"))
+					{
+						pools.add(tableName.substring(0,tableName.length() - "_version".length())); 
+					}
 				}
-				execService.shutdown();
-				execService.awaitTermination(24, TimeUnit.DAYS);
 				
 				
-			} catch (SQLException e) {
-				log.error("Unfortunately an error occurred and we couldn't continue, see the details below:", e);
+				
+				cpds.close();
+			} else
+			{
+				pools.add(muo.pool);
 			}
 			
+			//System.out.println(pools);
+			//System.exit(1);
+			StopWatch watch = new AutoStartStopWatch();
+			for(final String pool : pools)
+			{
 			
+				
+				MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password,pool);
+				
+				
+				
+				ExecutorService execService = Executors.newCachedThreadPool(new SequentiallyNamedThreadFactory("Migration Runners", true));
+				
+				try {
+					mysqlPM.preMigrate();
+					
+					
+					Runnable run = new Runnable()
+					{
+	
+						@Override
+						public void run() {
+							try 
+							{
+								MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password, pool);
+								try {
+									mysqlPM.fixAlgorithmRunsTable(250);
+								} catch (SQLException e) {
+									log.error("Unfortunately an error occurred and we couldn't continue, see the details below:", e);
+								}
+								mysqlPM.close();
+							} finally
+							{
+								
+							}
+							
+						}
+						
+					};
+					
+					for(int i=0; i < Math.min(Runtime.getRuntime().availableProcessors(),4); i++)
+					{
+						execService.execute(run);
+					}
+					execService.shutdown();
+					execService.awaitTermination(24, TimeUnit.DAYS);
+					
+					
+				} catch (SQLException e) {
+					log.error("Unfortunately an error occurred and we couldn't continue, see the details below:", e);
+				}
+				
+				mysqlPM.close();
+			}
 			
 			
 			

@@ -29,8 +29,12 @@ public class MigrationUtilityOptions extends AbstractOptions{
 	public MySQLOptions mysqlOptions = new MySQLOptions();
 	
 	@UsageTextField(level=OptionLevel.BASIC)
-	@Parameter(names="--pool", description="Pool to take tasks from", required = true)
+	@Parameter(names="--pool", description="Pool to take tasks from")
 	public String pool;
+	
+	@UsageTextField(level=OptionLevel.BASIC)
+	@Parameter(names="--all-pools", description="If true then all pools in the database will be upgraded")
+	public boolean allPools = false;
 	
 	@Parameter(names={"--skip-warning","--skip-warning-pause"}, description="If true the start up warning will be skipped")
 	public boolean skipWarningPause = false;
