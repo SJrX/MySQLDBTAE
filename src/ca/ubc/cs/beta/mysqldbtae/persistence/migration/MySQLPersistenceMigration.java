@@ -1,10 +1,16 @@
 package ca.ubc.cs.beta.mysqldbtae.persistence.migration;
 
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -14,6 +20,11 @@ import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+
+
+
+
 
 
 
@@ -78,6 +89,11 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 	
 	public void preMigrate() throws SQLException
 	{
+		fixTableSchemaIfNecessary();
+		
+		
+		
+		
 		fixWorkersTable();
 		
 		fixAlgorithmExecutionConfigurationTable();
@@ -87,6 +103,149 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 	}
 	
 	
+	/**
+	 * Checks if the version information in the table matches our version, if not runs the migration script and replaces it.
+	 * @throws SQLException 
+	 */
+	public void fixTableSchemaIfNecessary() throws SQLException {
+		
+		//TODO Check existing version
+		
+		BufferedReader br = new BufferedReader(new InputStreamReader(MySQLPersistence.class.getClassLoader().getResourceAsStream("tables.sql")));
+		
+		StringBuilder sb = new StringBuilder();
+		
+		String line;
+		boolean nothingFound = true;
+    	try {
+			while ((line = br.readLine()) != null) {
+				sb.append(line).append("\n");
+				nothingFound = false;
+			}
+		} catch (IOException e) {
+			throw new IllegalStateException("Couldn't read line from tables.sql file",e);
+		} 
+    	
+    	if(nothingFound) throw new IllegalStateException("Couldn't load tables.sql");
+		String sql = sb.toString();
+		
+		
+		String versionHash = getHash(sql);
+		
+		
+
+		try(Connection conn = getConnection())
+		{
+			ResultSet rs = conn.createStatement().executeQuery("SELECT version, hash FROM " + TABLE_VERSION + " ORDER BY id LIMIT 1");
+			
+			rs.next();
+			
+			String oVersion = rs.getString(1);
+			String oHash = rs.getString(2);
+			 
+			log.info("Pool is presently version {} created by version {} and the most recent hash is {} ",oHash, oVersion, versionHash);
+		
+			if(oHash.equals(versionHash))
+			{
+				log.info("Version looks correct, will not attempt to alter");
+				return;
+			}
+		}
+		
+		
+		
+		
+		br = new BufferedReader(new InputStreamReader(MySQLPersistence.class.getClassLoader().getResourceAsStream("migration.sql")));
+		
+		sb = new StringBuilder();
+		
+		List<String> queries = new ArrayList<String>();
+		
+		nothingFound = true;
+    	try {
+			while ((line = br.readLine()) != null) {
+				
+				if(line.trim().startsWith("--"))
+				{
+					continue;
+				}
+				
+				if(line.trim().startsWith("/*"))
+				{
+					continue;
+				}
+				
+				
+				sb.append(line).append("\n");
+				
+				
+				if(line.contains(";"))
+				{
+					queries.add(sb.toString().replace("ACLIB_POOL_NAME", this.POOL).trim());
+					
+					sb = new StringBuilder();
+				}
+				
+				nothingFound = false;
+			}
+		} catch (IOException e) {
+			throw new IllegalStateException("Couldn't read line from tables.sql file",e);
+		} 
+    	
+    	if(nothingFound) throw new IllegalStateException("Couldn't load migration.sql");
+		//String sql = sb.toString();
+		
+		
+    	log.info("Trying to repair table structure");
+    	for(String query : queries)
+    	{
+    		try(Connection conn = getConnection())
+    		{
+    		
+    			try {
+    				conn.createStatement().execute(query);
+    				log.info("Query completed successfully");
+    			} catch(SQLException e)
+    			{
+    				log.info("Query did not execute successfully, this may be harmless and suggests that you are upgrading from an intermediate version, here is the query that failed and the reason:\n==== QUERY ====\n{}\n===== REASON =====\n{}\n{}",query, e.getClass().getCanonicalName() + ":" + e.getMessage(), Arrays.toString(e.getStackTrace()));
+    			}
+    		}
+    		
+    	}
+    		
+    	
+    	try(Connection conn = getConnection())
+		{
+    		
+    		log.info("Repairing table version information");
+    		//Fixes the version in the table
+    		PreparedStatement stmt = conn.prepareStatement("REPLACE " + TABLE_VERSION + " (version, hash) VALUES (?,?) ",Statement.RETURN_GENERATED_KEYS );
+			
+			
+			MySQLDBTAEVersionInfo myinfo = new MySQLDBTAEVersionInfo();
+			stmt.setString(1, myinfo.getVersion());
+			stmt.setString(2, versionHash);
+			
+			
+			stmt.executeUpdate();
+			
+			ResultSet rs =stmt.getGeneratedKeys();
+			
+			
+			rs.next();
+			
+			rs.getInt(1);
+			
+			conn.createStatement().execute("DELETE FROM " + TABLE_VERSION + " WHERE id <> " + rs.getInt(1)); 
+		}
+		
+    	
+    	
+		
+		
+	}
+
+
 	private void prepareAlgorithmRunsTable() throws SQLException
 	{
 		try(Connection conn = getConnection())
@@ -94,7 +253,7 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 			/***
 			 * We are overloading the ABORT flag to tell us whether the run was completed or not.
 			 */
-			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"PAUSED\", runResult=\"ABORT\" WHERE status IN (\"NEW\",\"ASSIGNED\")");
+			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"PAUSED\", result_status=\"ABORT\" WHERE status IN (\"NEW\",\"ASSIGNED\")");
 			
 			
 			log.info(sb.toString());
@@ -147,8 +306,8 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 			for(Entry<AlgorithmRunConfiguration, String> ent : runConfigIDMap.entrySet())
 			{
 				AlgorithmRunConfiguration rc = ent.getKey();
-				String runConfigID = ent.getValue();
-				sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runConfigUUID=\"").append(MySQLPersistenceClient.getHash(rc, runConfigToRunPartitionMap.get(rc), new PathStripper())).append("\", status=IF(runResult=\"ABORT\",\"NEW\",\"COMPLETE\") WHERE runConfigID=\"" + runConfigID + "\";\n");
+				String runID = ent.getValue();
+				sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runHashCode=\"").append(MySQLPersistenceClient.getHash(rc, runConfigToRunPartitionMap.get(rc), new PathStripper())).append("\", status=IF(result_status=\"ABORT\",\"NEW\",\"COMPLETE\") WHERE runID=\"" + runID + "\";\n");
 			}
 			
 			

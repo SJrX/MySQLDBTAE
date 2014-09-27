@@ -126,7 +126,7 @@ public class MySQLPersistence implements AutoCloseable{
 			
 			cpds = getComboPooledDataSource(username, password, url);
 			
-			BufferedReader br = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("tables.sql")));
+			BufferedReader br = new BufferedReader(new InputStreamReader(MySQLPersistence.class.getClassLoader().getResourceAsStream("tables.sql")));
 			
 			StringBuilder sb = new StringBuilder();
 			
@@ -144,8 +144,8 @@ public class MySQLPersistence implements AutoCloseable{
 			String versionHash = getHash(sql);
 			
 			TABLE_COMMAND = pool + "_commandTable";
-			TABLE_EXECCONFIG = pool + "_execConfig";
-			TABLE_RUNCONFIG = pool + "_runConfigs";
+			TABLE_EXECCONFIG = pool + "_algoExecConfig";
+			TABLE_RUNCONFIG = pool + "_runs";
 			TABLE_WORKERS = pool + "_workers";
 			TABLE_VERSION = pool + "_version";
 			POOL = pool;	
@@ -354,7 +354,8 @@ public class MySQLPersistence implements AutoCloseable{
 		}
 		
 	}
-	private final String getHash(String hash)
+	
+	protected final String getHash(String hash)
 	{
 		MessageDigest digest = DigestUtils.getSha1Digest();
 		
@@ -394,7 +395,7 @@ public class MySQLPersistence implements AutoCloseable{
 			if(!execConfigMap.containsKey(execConfigID)) 
 			{
 			 StringBuilder sb = new StringBuilder();
-			 sb.append("SELECT algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigurationJSON  FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
+			 sb.append("SELECT algorithmExecutable, algorithmExecutableDirectory, parameterFile, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigurationJSON  FROM ").append(TABLE_EXECCONFIG).append("  WHERE algorithmExecutionConfigID = " + execConfigID);
 			 Connection conn = null;
 			 try {
 				 conn = getConnection();
@@ -416,12 +417,12 @@ public class MySQLPersistence implements AutoCloseable{
 				 
 				 try 
 				 {
-					 if ((rs.getString(7).trim().length()) == 0)
+					 if ((rs.getString(6).trim().length()) == 0)
 					 {
 						 throw new IllegalArgumentException("No JSON found in database, maybe this is an old version");
 					 }
 						
-					execConfig = JSONHelper.getAlgorithmExecutionConfiguration(rs.getString(7));
+					execConfig = JSONHelper.getAlgorithmExecutionConfiguration(rs.getString(6));
 					 
 				 } catch(RuntimeException e2)
 				 {
@@ -432,12 +433,12 @@ public class MySQLPersistence implements AutoCloseable{
 					 
 					 ParameterConfigurationSpace paramFile = ParamFileHelper.getParamFileParser(rs.getString(3));
 					 
-					 boolean executeOnCluster = rs.getBoolean(4);
-					 boolean deterministicAlgorithm = rs.getBoolean(5);
-					 double cutoffTime = rs.getDouble(6);
+					 
+					 boolean deterministicAlgorithm = rs.getBoolean(4);
+					 double cutoffTime = rs.getDouble(5);
 					 
 					 
-					execConfig = new AlgorithmExecutionConfiguration(algorithmExecutable, algorithmExecutionDirectory, paramFile,  executeOnCluster, deterministicAlgorithm, cutoffTime);
+					execConfig = new AlgorithmExecutionConfiguration(algorithmExecutable, algorithmExecutionDirectory, paramFile,  false, deterministicAlgorithm, cutoffTime);
 					 
 					 
 				 }
@@ -895,11 +896,11 @@ public class MySQLPersistence implements AutoCloseable{
 			}
 			
 			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (\n\t").append(
-					"SELECT runConfigID, priority FROM (");
+					"SELECT runID, priority FROM (");
 					int i=0;
 					for(JobPriority job : JobPriority.values())
 					{
-						sb.append("\n\t\t(SELECT runConfigID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"").append(statusToRequest).append("\" AND priority=\"").append(job).append("\" ORDER BY runConfigID LIMIT " + n +  ")\n\t\t").append("UNION ALL");
+						sb.append("\n\t\t(SELECT runID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"").append(statusToRequest).append("\" AND priority=\"").append(job).append("\" ORDER BY runID LIMIT " + n +  ")\n\t\t").append("UNION ALL");
 						i++;
 					}
 			
@@ -907,7 +908,7 @@ public class MySQLPersistence implements AutoCloseable{
 					
 							
 					sb.append("\t) innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(
-					" ) B ON B.runConfigID=A.runConfigID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1,worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND)");
+					" ) B ON B.runID=A.runID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1,worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND)");
 					
 					
 			//System.out.println(sb.toString());
@@ -934,7 +935,7 @@ public class MySQLPersistence implements AutoCloseable{
 				
 			 
 				//
-				sb.append(";\nSELECT runConfigID , execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob,runPartition FROM ").append(TABLE_RUNCONFIG);
+				sb.append(";\nSELECT runID , algorithmExecutionConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob,runPartition FROM ").append(TABLE_RUNCONFIG);
 				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\" ORDER BY priority DESC;");
 				
 		

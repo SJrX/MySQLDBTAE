@@ -6,13 +6,12 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_commandTable` (
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
 
-CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_execConfig` (
+CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_algoExecConfig` (
   `algorithmExecutionConfigID` int(11) NOT NULL AUTO_INCREMENT,
   `algorithmExecutionConfigHashCode` char(40) NOT NULL,
   `algorithmExecutable` TEXT NOT NULL,
   `algorithmExecutableDirectory` TEXT NOT NULL,
   `parameterFile` TEXT NOT NULL,
-  `executeOnCluster` tinyint(1) NOT NULL,
   `deterministicAlgorithm` tinyint(1) NOT NULL,
   `cutoffTime` double NOT NULL,
   `algorithmExecutionConfigurationJSON` TEXT NOT NULL, #Full JSON representation (this is a much better approach and this will likely supplant the other fields, in the interim this will be read first, otherwise the others will)
@@ -22,11 +21,10 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_execConfig` (
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
 
-
-CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
-`runConfigID` int(11) NOT NULL AUTO_INCREMENT,
-`runConfigUUID` char(48) NOT NULL,
-`execConfigID` int(11) NOT NULL,
+CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runs` (
+`runID` int(11) NOT NULL AUTO_INCREMENT,
+`runHashCode` char(48) NOT NULL,
+`algorithmExecutionConfigID` int(11) NOT NULL,
 `problemInstance` varchar(8172) NOT NULL,
 `instanceSpecificInformation` LONGTEXT NOT NULL,
 `seed` bigint(20) NOT NULL,
@@ -39,21 +37,20 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runConfigs` (
 `killJob` tinyint(1) NOT NULL DEFAULT '0',
 `retryAttempts` int(11) NOT NULL DEFAULT '0',
 `runPartition` int(11) NOT NULL,
-`noop` tinyint(1) NOT NULL DEFAULT '0',
-`runResult` enum('TIMEOUT','SAT','UNSAT','CRASHED','ABORT','KILLED') NOT NULL DEFAULT 'ABORT',
-`runLength` double NOT NULL DEFAULT '0',
-`quality` double NOT NULL DEFAULT '0',
-`resultSeed` bigint(20) NOT NULL DEFAULT 1,
-`runtime` double NOT NULL DEFAULT '0',
-`walltime` double NOT NULL DEFAULT '0',
-`additionalRunData` LONGTEXT NOT NULL,
+`result_status` enum('TIMEOUT','SAT','UNSAT','CRASHED','ABORT','KILLED') NOT NULL DEFAULT 'ABORT',
+`result_runLength` double NOT NULL DEFAULT '0',
+`result_quality` double NOT NULL DEFAULT '0',
+`result_seed` bigint(20) NOT NULL DEFAULT 1,
+`result_runtime` double NOT NULL DEFAULT '0',
+`result_walltime` double NOT NULL DEFAULT '0',
+`result_additionalRunData` LONGTEXT NOT NULL,
 `worstCaseEndtime`  datetime NOT NULL DEFAULT '1900-01-01 00:00:00',
 `worstCaseNextUpdateWhenAssigned` datetime NOT NULL DEFAULT '1900-01-01 00:00:00',
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
- PRIMARY KEY (`runConfigID`),
- UNIQUE KEY `runConfigUUID` (`runConfigUUID`),
+ PRIMARY KEY (`runID`),
+ UNIQUE KEY `runConfigUUID` (`runHashCode`),
  KEY `status2` (`status`,`priority`),
- KEY `status` (`status`,`workerUUID`,`priority`,`retryAttempts`,`runConfigID`),
+ KEY `status` (`status`,`workerUUID`,`priority`,`retryAttempts`,`runID`),
  KEY `statusCutoff` (`status`,`cutoffTime`),
  KEY `statusEndtime` (`status`,`worstCaseEndtime`),
  KEY `statusWorstCaseUpdate` (`status`,`worstCaseNextUpdateWhenAssigned`)
