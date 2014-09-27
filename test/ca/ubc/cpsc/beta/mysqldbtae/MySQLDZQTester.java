@@ -92,7 +92,7 @@ public class MySQLDZQTester {
 				assertTrue("File expected to exist: " + newTempFile, newTempFile.exists());
 			}
 			
-			String[] args = {"--mysqldbtae-pool", MYSQL_POOL, "--runtime", "60", "--exec", "rm " + tempDir + File.separator + "deleteMe-%ID%", "--mysqldbtae-hostname", mysqlConfig.host, "--mysqldbtae-port",mysqlConfig.port+"", "--mysqldbtae-database", mysqlConfig.databaseName, "--mysqldbtae-password", mysqlConfig.password, "--tae", "MYSQLDB", "--wait-for-runs","true", "--count", "50"};
+			String[] args = {"--mysqldbtae-pool", MYSQL_POOL, "--runtime", "60", "--exec", "rm " + tempDir + File.separator + "deleteMe-%ID%", "--mysqldbtae-hostname", mysqlConfig.host, "--mysqldbtae-port",mysqlConfig.port+"", "--mysqldbtae-database", mysqlConfig.databaseName,"--mysqldbtae-username",mysqlConfig.username, "--mysqldbtae-password", mysqlConfig.password, "--tae", "MYSQLDB", "--wait-for-runs","true", "--count", "50"};
 			try {
 				
 				

@@ -298,9 +298,9 @@ public class MySQLDBTAETester {
 
 			
 			//Different RunPartition
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), tae);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("DELETE FROM "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runs WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), tae);
 			runs = tae.evaluateRun(runConfigs);			
-			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runConfigs SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), tae);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("UPDATE "+ mysqlConfig.databaseName + "." +  MYSQL_POOL + "_runs SET result_runtime=result_runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1), tae);
 			
 			runs = tae.evaluateRun(runConfigs);
 			for(AlgorithmRunResult run : runs)
@@ -312,7 +312,7 @@ public class MySQLDBTAETester {
 				assertDEquals(config.get("runtime"), run.getRuntime()+1, 0.1);
 				} catch(AssertionError e)
 				{
-					System.err.println("Make sure to run this configuration to fix the database (after truncating the table and one failed run) UPDATE "+ mysqlConfig.databaseName + ".runConfigs_" +  MYSQL_POOL + " SET runtime=runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1));
+					System.err.println("Make sure to run this configuration to fix the database (after truncating the table and one failed run) UPDATE "+ mysqlConfig.databaseName + ".runs_" +  MYSQL_POOL + " SET result_runtime=result_runtime-1 WHERE runPartition = " + (Integer.valueOf(MYSQL_PERMANENT_RUN_PARTITION)+1));
 					throw e;
 				}
 				assertDEquals(config.get("runlength"), run.getRunLength(), 0.1);

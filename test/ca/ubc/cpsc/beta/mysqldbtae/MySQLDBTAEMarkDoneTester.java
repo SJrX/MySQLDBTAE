@@ -155,29 +155,45 @@ public class MySQLDBTAEMarkDoneTester {
 			
 			MySQLTargetAlgorithmEvaluator mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority);			
 			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE),mySQLTAE);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getWorkerTable(mySQLTAE),mySQLTAE);
+			
+			
 			Process proc1 = setupWorker("180s","5s","proc1");
 			
-			long startTime = System.currentTimeMillis();
-			
-			
-			List<AlgorithmRunResult> runs = mySQLTAE.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver() {
-
-				@Override
-				public void currentStatus(List<? extends AlgorithmRunResult> runs) {
-					if(runs.get(0).isRunCompleted())
-					{
-						for(AlgorithmRunResult run: runs)
+			try 
+			{
+				long startTime = System.currentTimeMillis();
+				
+				
+				List<AlgorithmRunResult> runs = mySQLTAE.evaluateRun(runConfigs,new TargetAlgorithmEvaluatorRunObserver() {
+	
+					@Override
+					public void currentStatus(List<? extends AlgorithmRunResult> runs) {
+						if(runs.get(0).isRunCompleted())
 						{
-							System.err.println("Killing Run");
-							run.kill();
-						}
-					}	
-				} });
-			
-			long endTime = System.currentTimeMillis();
-			assertTrue(runs.get(0).isRunCompleted());
-			assertTrue((endTime-startTime)<20000);
-		
+							for(AlgorithmRunResult run: runs)
+							{
+								System.err.println("Killing Run");
+								run.kill();
+							}
+						}	
+					} });
+				
+				long endTime = System.currentTimeMillis();
+				assertTrue(runs.get(0).isRunCompleted());
+				assertTrue((endTime-startTime)<20000);
+
+			} finally
+			{
+				proc1.destroy();
+				try {
+					proc1.waitFor();
+				} catch (InterruptedException e) {
+				
+					e.printStackTrace();
+				}
+			}
 		} catch(RuntimeException e)
 		{
 			e.printStackTrace();

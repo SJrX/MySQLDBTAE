@@ -727,7 +727,10 @@ public class MySQLPersistence implements AutoCloseable{
 						deadWorkers.add(rs.getString(1));
 						workers[i%workers.length] = " " + rs.getString(2) + " (" + rs.getString(1) + ")";
 					}
+
+					
 				}
+
 
 				TreeSet<String> workersToLog = new TreeSet<>();
 				
@@ -739,6 +742,7 @@ public class MySQLPersistence implements AutoCloseable{
 					}
 				}
 				
+
 				boolean cleanupRunsTable = false;
 				if(deadWorkers.size() > 0)
 				{
@@ -762,11 +766,12 @@ public class MySQLPersistence implements AutoCloseable{
 							log.warn("Detected {} workers that did not respond in time, successfully repaired {} of them (these numbers may not be equal, it just means something changed in the interim.). Some of the workers that did not seem updated were: {} ", deadWorkers.size(), updateCount, workersToLog);
 							log.debug("Worker UUIDs:{}", deadWorkers);
 						}
+						
 						if(updateCount > 0)
 						{
 							cleanupRunsTable = true;
 						}
-						
+						//System.err.println("****************************\n\n\nCleanUp" + cleanupRunsTable + "\n\n\n");
 					}
 				
 				}
@@ -774,7 +779,7 @@ public class MySQLPersistence implements AutoCloseable{
 				sb = new StringBuilder();
 	
 				//Don't grab too many jobs at any one time.
-				sb.append("SELECT runConfigID FROM ").append(TABLE_RUNCONFIG).append( " WHERE status=\"ASSIGNED\" AND worstCaseNextUpdateWhenAssigned < NOW() LIMIT 5000");
+				sb.append("SELECT runID FROM ").append(TABLE_RUNCONFIG).append( " WHERE status=\"ASSIGNED\" AND worstCaseNextUpdateWhenAssigned < NOW() LIMIT 5000");
 				
 				Set<Integer> keys = new TreeSet<>();
 	
@@ -799,7 +804,7 @@ public class MySQLPersistence implements AutoCloseable{
 					{
 						sb = new StringBuilder();
 	
-						sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " SET status='NEW', retryAttempts=retryAttempts+1 WHERE status=\"ASSIGNED\"  AND runConfigID IN (");
+						sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " SET status='NEW', retryAttempts=retryAttempts+1 WHERE status=\"ASSIGNED\"  AND runID IN (");
 							
 						for(Integer key : keys)
 						{
@@ -817,23 +822,25 @@ public class MySQLPersistence implements AutoCloseable{
 				
 				
 				
-				
-				
+		
 				if(cleanupRunsTable)
 				{
+					
+					System.err.println("*******************\n\n\nCleaning up runs table\n\n\n");
 					sb = new StringBuilder();
 	
 					sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " SET status='NEW', retryAttempts=retryAttempts+1 WHERE status=\"ASSIGNED\"  AND workerUUID IN (");
 						
-	
+					
 					for(String workerUUID : deadWorkers)
 					{
 						sb.append("\""+workerUUID+"\"").append(",");
 					}
 					sb.setCharAt(sb.length() - 1, ')');
-					sb.append(" AND worstCaseNextUpdateWhenAssigned < NOW()");
+					
 					
 					//
+					
 					try (Statement stmt = conn.createStatement())
 					{
 					
@@ -841,9 +848,11 @@ public class MySQLPersistence implements AutoCloseable{
 						
 						if(updatedRuns > 0)
 						{ 
-							log.debug("Moved {} runs back to NEW by worker", updatedRuns);
+							log.warn("Moved {} runs back to NEW by worker", updatedRuns);
 						}
+						//System.err.println("***************\n\n\nRepaired progress:" + sb.toString() + "\n"+updatedRuns + "\n\n\n");
 					}
+					
 					
 					
 				}

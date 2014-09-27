@@ -120,7 +120,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					sb.append(s).append("\n");
 				}
 				
-				log.info("Worker process is being shutdown. The following queries will reset the the jobs that this worker did while running to NEW:\n=======================\n{}=======================", sb.toString());
+				log.info("Worker process is being shutdown. The following queries will reset the jobs that this worker did while running to NEW:\n=======================\n{}=======================", sb.toString());
 				
 				
 			}
@@ -188,7 +188,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	{
 	
 		
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult=?, runLength=?, quality=?, resultSeed=?, runtime=?, additionalRunData=?, walltime=?, status='COMPLETE' WHERE workerUUID = ? AND runConfigID=?");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET result_status=?, result_runLength=?, result_quality=?, result_seed=?, result_runtime=?, result_additionalRunData=?, result_walltime=?, status='COMPLETE' WHERE workerUUID = ? AND runID=?");
 		
 		try {
 			
@@ -247,7 +247,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 */
 	private void setAbortRun(String runConfigUUID)
 	{
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET runResult='ABORT', status='COMPLETE'  WHERE runConfigID=?");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET result_status='ABORT', status='COMPLETE'  WHERE runID=?");
 		
 		try {
 			
@@ -661,7 +661,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		if(extraRuns.isEmpty())
 			return;
 		
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  status='NEW', workerUUID=0 WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\" AND runConfigID IN (" );
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  status='NEW', workerUUID=0 WHERE status=\"ASSIGNED\"  AND workerUUID=\""+ workerUUID.toString() +"\" AND runID IN (" );
 
 		for(AlgorithmRunConfiguration ent : extraRuns)
 		{
@@ -699,7 +699,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		//This query is designed to update the database IF and only IF
 		//The run hasn't been killed. If we get 0 runs back, then we know the run has been killed
 		//This saves us another trip to the database
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  runtime=?, runLength=?, worstCaseEndtime=?, walltime=? WHERE runConfigID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET  result_runtime=?, result_runLength=?, worstCaseEndtime=?, result_walltime=? WHERE runID=? AND workerUUID=\""+ workerUUID.toString() +"\" AND status=\"ASSIGNED\" AND killJob=0" );
 		
 		
 		try {
@@ -745,7 +745,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			//This saves us another trip to the database
 			
 			
-			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(this.worstCaseMultiplier*delayBetweenRequests,this.minWorstCaseTime)).append(" SECOND) WHERE runConfigID IN (");
+			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(this.worstCaseMultiplier*delayBetweenRequests,this.minWorstCaseTime)).append(" SECOND) WHERE runID IN (");
 			
 			if(this.runConfigIDMap.size() > 0)
 			{

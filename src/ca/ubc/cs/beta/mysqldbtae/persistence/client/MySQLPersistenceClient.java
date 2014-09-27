@@ -266,8 +266,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						{
 							StringBuilder sb = new StringBuilder();	
 							
-							String addlRunData = (this.opts.additionalRunData) ? ", additionalRunData" : "";
-							sb.append("SELECT runConfigUUID, status, runResult, runtime, runLength, quality, resultSeed, walltime"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runConfigUUID IN (");
+							String addlRunData = (this.opts.additionalRunData) ? ", result_additionalRunData" : "";
+							sb.append("SELECT runHashCode, status, result_status, result_runtime, result_runLength, result_quality, result_seed, result_walltime"+ addlRunData + "  FROM ").append(TABLE_RUNCONFIG).append(" WHERE runHashCode IN (");
 							
 						
 							int querySize = 0;
@@ -386,7 +386,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								
 								//=== Kill all the NEW jobs by marking them as complete
 								sb = new StringBuilder();
-								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, resultSeed=seed, additionalRunData=CONCAT(\"Killed By Client (\",?,\" ) While Status \",status), status=\"COMPLETE\",runResult=\"KILLED\" WHERE (status=\"NEW\" OR status=\"ASSIGNED\") AND runConfigUUID IN (");
+								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, result_seed=seed, result_additionalRunData=CONCAT(\"Killed By Client (\",?,\" ) While Status \",status), status=\"COMPLETE\",result_status=\"KILLED\" WHERE (status=\"NEW\" OR status=\"ASSIGNED\") AND runHashCode IN (");
 								
 								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
 								{
@@ -553,7 +553,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( execConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runConfigUUID, runPartition, priority, additionalRunData) VALUES ");
+				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( algorithmExecutionConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runHashCode, runPartition, priority, result_additionalRunData) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
@@ -564,7 +564,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 		
 				sb.setCharAt(sb.length()-1, ' ');
 				
-				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +opts.priority+ "\",retryAttempts=0, runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),0,runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND runResult=\"ABORT\"),\"NEW\",status), killJob=0");
+				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +opts.priority+ "\",retryAttempts=0, result_runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND result_status=\"ABORT\"),0,result_runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND result_status=\"ABORT\"),\"NEW\",status), killJob=0");
+				
 
 				try {
 					PreparedStatement stmt = null;
@@ -726,7 +727,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			File f = new File(execConfig.getParameterConfigurationSpace().getParamFileName());
 
 			StringBuilder sb = new StringBuilder();
-			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, executeOnCluster, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode, algorithmExecutionConfigurationJSON) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE algorithmExecutionConfigID=LAST_INSERT_ID(algorithmExecutionConfigID), lastModified = NOW()");
+			sb.append("INSERT INTO ").append(TABLE_EXECCONFIG).append(" (algorithmExecutable, algorithmExecutableDirectory, parameterFile, deterministicAlgorithm, cutoffTime, algorithmExecutionConfigHashCode, algorithmExecutionConfigurationJSON) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE algorithmExecutionConfigID=LAST_INSERT_ID(algorithmExecutionConfigID), lastModified = NOW()");
 			
 			try {
 				PreparedStatement stmt = conn.prepareStatement(sb.toString(), Statement.RETURN_GENERATED_KEYS);
@@ -734,12 +735,11 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				stmt.setString(1, pathStrip.stripPath(execConfig.getAlgorithmExecutable()));
 				stmt.setString(2, pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()));
 				stmt.setString(3, pathStrip.stripPath(execConfig.getParameterConfigurationSpace().getParamFileName()));
-				stmt.setBoolean(4, false);
-				stmt.setBoolean(5, execConfig.isDeterministicAlgorithm());
-				stmt.setDouble(6,execConfig.getAlgorithmMaximumCutoffTime());
-				stmt.setString(7, hasher.getHash(execConfig,pathStrip));
+				stmt.setBoolean(4, execConfig.isDeterministicAlgorithm());
+				stmt.setDouble(5,execConfig.getAlgorithmMaximumCutoffTime());
+				stmt.setString(6, hasher.getHash(execConfig,pathStrip));
 				
-				stmt.setString(8, JSONHelper.getJSON(execConfig));
+				stmt.setString(7, JSONHelper.getJSON(execConfig));
 				/*
 				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutable()));
 				System.out.println(pathStrip.stripPath(execConfig.getAlgorithmExecutionDirectory()));

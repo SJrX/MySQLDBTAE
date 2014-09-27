@@ -104,7 +104,7 @@ public class MySQLDBTAEJobReclaimTester {
 				continue;
 			} else
 			{
-				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 20, config,execConfig);
+				AlgorithmRunConfiguration rc = new AlgorithmRunConfiguration(new ProblemInstanceSeedPair(new ProblemInstance("TestInstance"), Long.valueOf(config.get("seed"))), 2, config,execConfig);
 				runConfigs.add(rc);
 			}
 		}
@@ -177,6 +177,7 @@ public class MySQLDBTAEJobReclaimTester {
 			MySQLTargetAlgorithmEvaluator mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, BATCH_INSERT_SIZE, true, MYSQL_PERMANENT_RUN_PARTITION+1, false, priority, taeCleanUp)	;		
 			
 			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE),mySQLTAE);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getWorkerTable(mySQLTAE),mySQLTAE);
 			Process proc1 = setupWorker();
 			
 			/*Process proc2 = setupWorker();
@@ -220,7 +221,8 @@ public class MySQLDBTAEJobReclaimTester {
 			
 				int pid = CommandLineAlgorithmRun.getPID(proc1);
 				
-				
+				System.out.println("Shutting down current worker");
+				System.out.flush();
 				try {
 					Process p2 = Runtime.getRuntime().exec("kill -KILL " + pid);
 					
@@ -230,6 +232,7 @@ public class MySQLDBTAEJobReclaimTester {
 					e1.printStackTrace();
 				}
 				
+				//System.exit(2);
 				System.out.println("Starting second worker");
 				Process proc2 = setupWorker();
 				try {
@@ -262,6 +265,11 @@ public class MySQLDBTAEJobReclaimTester {
 					}
 				} finally
 				{
+
+					//pid = CommandLineAlgorithmRun.getPID(proc2);
+					
+					
+					
 					proc2.destroy();
 				}
 			} catch (InterruptedException e1) {
