@@ -100,7 +100,7 @@
 		</javac>
 		<copy todir="build/classes">
 			<fileset dir="src/">
-				<include name="tables.sql"/>
+				<include name="*.sql"/>
 			</fileset>
 		</copy>
 		
@@ -133,6 +133,8 @@
 			<fileset dir="">
 						<include name="conf/**"/>
 			</fileset>
+			<fileset dir="deployables"/>
+				
 			<!--<fileset refid="lib"/>
 
 			<fileset refid="aeatk"/>-->
@@ -173,7 +175,33 @@
 					<arg value="--file-to-write"/>
 					<arg value="dist/"/>	
 		</java>
-				
+		
+		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+							<arg value="--class"/>
+							<arg value="ca.ubc.cs.beta.mysqldbtae.migration.MigrationUtilityExecutor"/>
+							<arg value="--name"/>
+							<arg value="mysqldbtae-repair"/>
+							<arg value="--file-to-write"/>
+							<arg value="dist/"/>
+							<arg value="--default-mem"/>
+							<arg value="1500"/>
+		</java>
+
+		
+		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
+							<arg value="--class"/>
+							<arg value="ca.ubc.cs.beta.mysqldbtae.example.BraninSearch"/>
+							<arg value="--name"/>
+							<arg value="branin-search"/>
+							<arg value="--file-to-write"/>
+							<arg value="dist/example"/>
+							<arg value="--print-mem"/>
+							<arg value="false"/>
+							<arg value="--default-mem"/>
+							<arg value="256"/>
+		</java>
+								
+		
 		
 		<java classname="ca.ubc.cs.beta.aeatk.ant.execscript.ExecScriptCreator" failonerror="true" classpathref="build.classpath" fork="true">
 							<arg value="--class"/>
@@ -192,6 +220,9 @@
 					<arg value="--file-to-write"/>
 					<arg value="dist/${ant.project.name}-plugin/"/>	
 		</java>
+		
+		
+		
 		
 		<echo file="dist/${ant.project.name}-plugin/README">**********************************
 MySQL Target Algorithm Evaluator Plugin Readme

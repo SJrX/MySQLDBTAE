@@ -112,11 +112,11 @@ public class MigrationUtilityExecutor {
 			{
 			
 				
-				MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password,pool);
+				MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password,pool, muo.resetAllRunsHashes);
 				
 				
 				
-				ExecutorService execService = Executors.newCachedThreadPool(new SequentiallyNamedThreadFactory("Migration Runners", true));
+				//ExecutorService execService = Executors.newCachedThreadPool(new SequentiallyNamedThreadFactory("Migration Runners", true));
 				
 				try {
 					mysqlPM.preMigrate();
@@ -129,9 +129,9 @@ public class MigrationUtilityExecutor {
 						public void run() {
 							try 
 							{
-								MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password, pool);
+								MySQLPersistenceMigration mysqlPM = new MySQLPersistenceMigration(muo.mysqlOptions.host, muo.mysqlOptions.port, muo.mysqlOptions.databaseName, muo.mysqlOptions.username, muo.mysqlOptions.password, pool, false);
 								try {
-									mysqlPM.fixAlgorithmRunsTable(250);
+									mysqlPM.fixAlgorithmRunsTable(muo.batchSize);
 								} catch (SQLException e) {
 									log.error("Unfortunately an error occurred and we couldn't continue, see the details below:", e);
 								}
@@ -145,13 +145,16 @@ public class MigrationUtilityExecutor {
 						
 					};
 					
-					for(int i=0; i < Math.min(Runtime.getRuntime().availableProcessors(),4); i++)
+					
+					run.run();
+					/*
+					for(int i=0; i < Math.min(1); i++)
 					{
 						execService.execute(run);
 					}
 					execService.shutdown();
 					execService.awaitTermination(24, TimeUnit.DAYS);
-					
+					*/
 					
 				} catch (SQLException e) {
 					log.error("Unfortunately an error occurred and we couldn't continue, see the details below:", e);

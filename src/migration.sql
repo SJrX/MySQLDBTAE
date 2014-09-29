@@ -17,8 +17,7 @@ CHANGE  `resultSeed`  `result_seed` BIGINT( 20 ) NOT NULL DEFAULT  '1',
 CHANGE  `runtime`  `result_runtime` DOUBLE NOT NULL DEFAULT  '0',
 CHANGE  `walltime`  `result_walltime` DOUBLE NOT NULL DEFAULT  '0',
 CHANGE  `execConfigID`  `algorithmExecutionConfigID` INT( 11 ) NOT NULL,
+DROP `noop`,
 CHANGE  `additionalRunData`  `result_additionalRunData` LONGTEXT CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL ;
-
-ALTER TABLE `ACLIB_POOL_NAME_runs` DROP `noop`;
 
 

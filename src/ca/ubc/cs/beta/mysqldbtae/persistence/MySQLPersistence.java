@@ -23,6 +23,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -33,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import ca.ubc.cs.beta.aeatk.algorithmexecutionconfiguration.AlgorithmExecutionConfiguration;
 import ca.ubc.cs.beta.aeatk.algorithmrunconfiguration.AlgorithmRunConfiguration;
+import ca.ubc.cs.beta.aeatk.concurrent.threadfactory.SequentiallyNamedThreadFactory;
 import ca.ubc.cs.beta.aeatk.json.JSONHelper;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParamFileHelper;
 import ca.ubc.cs.beta.aeatk.parameterconfigurationspace.ParameterConfiguration;
@@ -95,7 +99,7 @@ public class MySQLPersistence implements AutoCloseable{
 	
 	protected final String DATABASE;
 	
-	public MySQLPersistence(String host, int port, String databaseName, String username, String password, String pool, Boolean createTables)
+	public MySQLPersistence(final String host, final int port, final String databaseName, final String username, String password, String pool, Boolean createTables)
 	{
 
 		pool = pool.trim();
@@ -118,13 +122,24 @@ public class MySQLPersistence implements AutoCloseable{
 		}
 		
 		
-		
+		System.setProperty("com.mchange.v2.log.MLog", "com.mchange.v2.log.slf4j.Slf4jMLog");
 		
 		try {
 			
-			String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?allowMultiQueries=true";
+			final String url="jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?allowMultiQueries=true";
+			
+			log.info("Starting MySQL Database Target Algorithm Evaluator (next few lines are the database library starting up)");
+			
+			
+			final AtomicBoolean connected = new AtomicBoolean(false);
+			
+			
 			
 			cpds = getComboPooledDataSource(username, password, url);
+			
+			
+			
+			
 			
 			BufferedReader br = new BufferedReader(new InputStreamReader(MySQLPersistence.class.getClassLoader().getResourceAsStream("tables.sql")));
 			
@@ -158,8 +173,53 @@ public class MySQLPersistence implements AutoCloseable{
 			
 			
 			
-			Connection conn = cpds.getConnection();
-	
+			ScheduledExecutorService execService = Executors.newScheduledThreadPool(1, new SequentiallyNamedThreadFactory("MySQL DB TAE Startup Monitor", true));
+			
+			execService.schedule(new Runnable()
+			{
+
+				@Override
+				public void run() {
+					if(!connected.get())
+					{
+						String localHostname = "localhost";
+						try {
+							localHostname = InetAddress.getLocalHost().getHostName();
+							
+						} catch(Exception e)
+						{
+							//Don't care if we can't resolve.
+						}
+						
+						
+						
+						log.warn("It appears that the connection to the database has stalled this may occur due to:\n1) High latency\n2) Specifying the wrong hostname/port/database\n3) Specifying the wrong username and password (oddly enough) \nDo these settings look correct?\nMySQL Hostname:{}\nMySQL Port:{}\nMySQL Database:{}\nMySQL Username:{}\nConnecting from this host: {}", host, port, databaseName, username, localHostname ); 
+					}
+					
+				}
+				
+			}, 5, TimeUnit.SECONDS);
+			
+			
+			
+			
+			Connection conn;
+			
+			
+			try 
+			{
+				try 
+				{
+					conn = cpds.getConnection();
+				} finally
+				{
+					
+					connected.set(true);
+				}
+			} finally
+			{
+				execService.shutdownNow();
+			}
 			
 			try {
 				try {
@@ -168,7 +228,7 @@ public class MySQLPersistence implements AutoCloseable{
 				
 				} catch(SQLException e)
 				{
-					log.info("Autodetecting of tables for pool {} failed suggesting it doesn't exist, will create tables", pool);
+					log.debug("Autodetecting of tables for pool {} failed suggesting it doesn't exist, will create tables", pool);
 			
 				}
 			} finally
@@ -191,15 +251,7 @@ public class MySQLPersistence implements AutoCloseable{
 				
 				
 				String[] chunks = sql.split(";");
-				 String hostname = "[UNABLE TO DETERMINE HOSTNAME]";
-					try {
-						hostname = InetAddress.getLocalHost().getHostName();
-					} catch(UnknownHostException e)
-					{ //If this fails it's okay we just use it to output to the log
-						
-					}
-				Object args[] = { url, hostname, host, port };
-				log.info("Attempting database connection to {} , if nothing is happening it probably means the database is inaccessible. Please try connecting to the database from host {} to {} : {}",args );
+				
 				conn = cpds.getConnection();
 				for(String sqlStatement : chunks)
 				{
@@ -212,10 +264,10 @@ public class MySQLPersistence implements AutoCloseable{
 				
 				conn.close();
 				br.close();
-				log.info("Pool Created");
+				log.debug("Pool Created");
 			} else
 			{
-				log.info("Skipping table creation");
+				log.debug("Skipping table creation");
 			}
 			
 			

@@ -180,6 +180,8 @@ public class MySQLDBTAEMigrationTester {
 			{
 				//Drop the target of the migration
 				conn.createStatement().execute("DROP TABLE IF EXISTS `junit_migratetest_runs`");
+				conn.createStatement().execute("DROP TABLE IF EXISTS `junit_migratetest_algoExecConfig`");
+				
 				System.out.print(".");
 				
 				
@@ -202,7 +204,7 @@ public class MySQLDBTAEMigrationTester {
 			
 			
 			
-			MySQLPersistenceMigration mpm = new MySQLPersistenceMigration(mysqlConfig.host, mysqlConfig.port, mysqlConfig.databaseName, mysqlConfig.username, mysqlConfig.password,MYSQL_POOL );
+			MySQLPersistenceMigration mpm = new MySQLPersistenceMigration(mysqlConfig.host, mysqlConfig.port, mysqlConfig.databaseName, mysqlConfig.username, mysqlConfig.password,MYSQL_POOL , true);
 			
 			
 			mpm.migrate();

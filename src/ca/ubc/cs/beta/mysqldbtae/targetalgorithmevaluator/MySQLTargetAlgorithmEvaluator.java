@@ -89,7 +89,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 			}
 			
 		};
-		log.info("Scheduling dead job checker with frequency {} s", deadJobCheckFrequency);
+		log.debug("Scheduling dead job checker with frequency {} s", deadJobCheckFrequency);
 		requestWatcher.scheduleAtFixedRate(deadJobChecker, 0, deadJobCheckFrequency, TimeUnit.SECONDS);
 		
 	}
@@ -98,7 +98,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 	private AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 	@Override
 	public void notifyShutdown() {
-		log.info("MySQL TAE Shutdown in Progress");
+		log.debug("MySQL TAE Shutdown in Progress");
 		
 		if(workersCleanedUp.getCount() > 0)
 		{
@@ -126,7 +126,7 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		}
 		
 		persistence.shutdown();
-		log.info("MySQL TAE Shutdown Complete");
+		log.debug("MySQL TAE Shutdown Complete");
 		requestWatcher.shutdownNow();
 		
 		

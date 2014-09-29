@@ -8,6 +8,8 @@ import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
 import ca.ubc.cs.beta.aeatk.help.HelpOptions;
+import ca.ubc.cs.beta.aeatk.logging.LoggingOptions;
+import ca.ubc.cs.beta.aeatk.logging.SingleLogFileLoggingOptions;
 import ca.ubc.cs.beta.aeatk.misc.file.HomeFileUtils;
 import ca.ubc.cs.beta.aeatk.misc.jcommander.converter.DurationConverter;
 import ca.ubc.cs.beta.aeatk.misc.options.OptionLevel;
@@ -59,7 +61,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	public int uncaughtExceptionLimit = 5;
 
 	@UsageTextField(level=OptionLevel.INTERMEDIATE)
-	@Parameter(names={"--delay-between-requests","--delay","--delayBetweenRequests"}, description="Minimum amount of time (in seconds) required between fetching requests from the MySQL DB", validateWith=PositiveInteger.class)
+	@Parameter(names={"--delay-between-requests","--delay","--delayBetweenRequests"}, description="Minimum amount of time (in seconds) required between fetching runs from the MySQL DB", validateWith=PositiveInteger.class)
 	//MySQL worker other thread may read this
 	public volatile int delayBetweenRequests = 10;
 
@@ -68,7 +70,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	public String pool;
 	
 	@UsageTextField(level=OptionLevel.INTERMEDIATE)
-	@Parameter(names={"--pool-idle-time-limit","--poolIdleTimeLimit"}, description="Amount of idle time allowed to accumulate in the pool before shutdown", converter=DurationConverter.class)
+	@Parameter(names={"--pool-idle-time-limit","--poolIdleTimeLimit"}, description="Amount of idle time allowed to accumulate in the pool before shutdown (we will shutdown if this limit is exceeded and there is no work)", converter=DurationConverter.class)
 	public volatile int poolIdleTimeLimit = 14400000;
 	
 	@UsageTextField(level=OptionLevel.BASIC, defaultValues="no time limit")
@@ -102,7 +104,7 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	public int minCutoffDeathTime = 600;
 	
 	@UsageTextField(defaultValues="10 days")
-	@Parameter(names={"--idle-limit","--idleLimit"}, description="Amount of time to not have a task before shutting down (by default this limit is set to 10 days)" , converter=DurationConverter.class)
+	@Parameter(names={"--idle-time-limit","--idle-limit","--idleLimit"}, description="Amount of time to not have a task before shutting down (by default this limit is set to 10 days)" , converter=DurationConverter.class)
 	public int idleLimit = 86400*10;
 	
 	@Parameter(names="--pushback-threshold", description="Number of NEW jobs in the database")
@@ -126,11 +128,6 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@ParametersDelegate
 	public HelpOptions help = new HelpOptions();
-
-
-
-
-
 	
 	
 }

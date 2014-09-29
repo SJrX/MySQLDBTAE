@@ -54,9 +54,11 @@ import ca.ubc.cs.beta.mysqldbtae.version.MySQLDBTAEVersionInfo;
 public class MySQLPersistenceMigration extends MySQLPersistence{
 
 	private Logger log = LoggerFactory.getLogger(getClass());
+	private final boolean resetAllRunHashes;
 	public MySQLPersistenceMigration(String host, int port,
-			String databaseName, String username, String password, String pool) {
+			String databaseName, String username, String password, String pool, boolean resetAllHashes) {
 		super(host, port, databaseName, username, password, pool, false);
+		this.resetAllRunHashes = resetAllHashes;
 	}
 
 	
@@ -248,31 +250,34 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 
 	private void prepareAlgorithmRunsTable() throws SQLException
 	{
-		try(Connection conn = getConnection())
+		if(this.resetAllRunHashes)
 		{
-			/***
-			 * We are overloading the ABORT flag to tell us whether the run was completed or not.
-			 */
-			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"PAUSED\", result_status=\"ABORT\" WHERE status IN (\"NEW\",\"ASSIGNED\")");
+			try(Connection conn = getConnection())
+			{
+				/***
+				 * We are overloading the ABORT flag to tell us whether the run was completed or not.
+				 */
+				StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"PAUSED\", result_status=\"ABORT\" WHERE status IN (\"NEW\",\"ASSIGNED\")");
+				
+				
+				log.info(sb.toString());
+				int updatedRows = conn.createStatement().executeUpdate(sb.toString());
+				
+				log.info("Moved {} runs that were NEW or ASSIGNED to PAUSED state", updatedRows);
+			}
 			
-			
-			log.info(sb.toString());
-			int updatedRows = conn.createStatement().executeUpdate(sb.toString());
-			
-			log.info("Moved {} runs that were NEW or ASSIGNED to PAUSED state", updatedRows);
+			try(Connection conn = getConnection())
+			{
+				
+				
+				StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"PAUSED\" WHERE status IN (\"COMPLETE\")");
+				
+				
+				int updatedRows = conn.createStatement().executeUpdate(sb.toString());
+				
+				log.info("Moved {} runs that were COMPLETED back to PAUSED state", updatedRows);
+			}
 		}
-		
-		try(Connection conn = getConnection())
-		{
-			
-			
-			StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET status=\"PAUSED\" WHERE status IN (\"COMPLETE\")");
-			
-			
-			int updatedRows = conn.createStatement().executeUpdate(sb.toString());
-			
-			log.info("Moved {} runs that were COMPLETED back to PAUSED state", updatedRows);
-		} 
 		
 	}
 	public void fixAlgorithmRunsTable(int batchSize) throws SQLException {
@@ -290,12 +295,13 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 		List<AlgorithmRunConfiguration> results;
 		//int totalRunsDone = 0;
 		
-		StopWatch watch = new AutoStartStopWatch();
+	
 		
 		long lastLogTime = 0;
 		
 		do
 		{
+			StopWatch watch = new AutoStartStopWatch();
 			Map<AlgorithmRunConfiguration, String> runConfigIDMap = new HashMap<>();
 			Map<AlgorithmRunConfiguration, Integer> runConfigToRunPartitionMap = new HashMap<>();
 			MySQLDBTAEVersionInfo mysqlVersionInfo = new MySQLDBTAEVersionInfo();
@@ -319,7 +325,16 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 				try(Connection conn = getConnection())
 				{
 					
-					conn.createStatement().executeUpdate(sb.toString());
+					do
+					{
+						try 
+						{
+							conn.createStatement().executeUpdate(sb.toString());
+						} catch(com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException e)
+						{
+							continue;
+						}
+					} while(false);
 				} catch(SQLException e)
 				{
 				
@@ -366,7 +381,7 @@ public class MySQLPersistenceMigration extends MySQLPersistence{
 				} 
 				
 				
-				log.info("Successfully repaired {} runs so far {} left {} total, estimated completion in {} seconds", totalRunsDone, totalRows-totalRunsDone,totalRows, (totalRows - totalRunsDone) /(totalRunsDone/((watch.time() / 1000.0))) );
+				log.info("Successfully repaired {} runs so far {} left {} total, estimated completion in {} seconds", totalRunsDone, totalRows-totalRunsDone,totalRows, (totalRows - totalRunsDone) /(results.size()/((watch.time() / 1000.0))) );
 				lastLogTime = System.currentTimeMillis();
 			}
 			
