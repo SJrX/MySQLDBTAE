@@ -188,7 +188,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	{
 	
 		
-		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET result_status=?, result_runLength=?, result_quality=?, result_seed=?, result_runtime=?, result_additionalRunData=?, result_walltime=?, status='COMPLETE' WHERE workerUUID = ? AND runID=?");
+		StringBuilder sb = new StringBuilder("UPDATE ").append(TABLE_RUNCONFIG).append(" SET result_status=?, result_runLength=?, result_quality=?, result_seed=?, result_runtime=?, result_additionalRunData=?, result_walltime=?, status='COMPLETE', lastCompletedTime=NOW() WHERE workerUUID = ? AND runID=?");
 		
 		try {
 			

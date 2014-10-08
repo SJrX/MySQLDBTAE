@@ -553,18 +553,18 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 				
 				
 				StringBuilder sb = new StringBuilder();
-				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( algorithmExecutionConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runHashCode, runPartition, priority, result_additionalRunData) VALUES ");
+				sb.append("INSERT INTO ").append(TABLE_RUNCONFIG).append(" ( algorithmExecutionConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, runHashCode, runPartition, priority, result_additionalRunData, lastInsertionTime) VALUES ");
 		
 				
 				for(int j = listLowerBound; j < listUpperBound; j++ )
 				{				
-						 sb.append(" (?,?,?,?,?,?,?,?,?,?,''),");
+						 sb.append(" (?,?,?,?,?,?,?,?,?,?,'',NOW()),");
 				
 				}
 		
 				sb.setCharAt(sb.length()-1, ' ');
 				
-				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +opts.priority+ "\",retryAttempts=0, result_runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND result_status=\"ABORT\"),0,result_runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND result_status=\"ABORT\"),\"NEW\",status), killJob=0");
+				sb.append(" ON DUPLICATE KEY UPDATE priority=\"" +opts.priority+ "\",retryAttempts=0, result_runtime=IF(killJob=1 OR (status=\"COMPLETE\" AND result_status=\"ABORT\"),0,result_runtime), status=IF(killJob = 1 OR (status=\"COMPLETE\" AND result_status=\"ABORT\"),\"NEW\",status), lastInsertionTime=IF(killJob=1 OR (status=\"COMPLETE\" AND result_status=\"ABORT\"),NOW(),lastInsertionTime), killJob=0");
 				
 
 				try {

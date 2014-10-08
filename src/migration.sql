@@ -18,6 +18,8 @@ CHANGE  `runtime`  `result_runtime` DOUBLE NOT NULL DEFAULT  '0',
 CHANGE  `walltime`  `result_walltime` DOUBLE NOT NULL DEFAULT  '0',
 CHANGE  `execConfigID`  `algorithmExecutionConfigID` INT( 11 ) NOT NULL,
 DROP `noop`,
-CHANGE  `additionalRunData`  `result_additionalRunData` LONGTEXT CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL ;
-
+CHANGE  `additionalRunData`  `result_additionalRunData` LONGTEXT CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL ,
+ADD COLUMN `lastInsertionTime` datetime NOT NULL DEFAULT '1900-01-01 00:00:00' AFTER  `worstCaseNextUpdateWhenAssigned`,
+ADD COLUMN `lastAssignedTime` datetime NOT NULL DEFAULT '1900-01-01 00:00:00' AFTER `lastInsertionTime`,
+ADD COLUMN `lastCompletedTime` datetime NOT NULL DEFAULT '1900-01-01 00:00:00' AFTER `lastAssignedTime`;
 

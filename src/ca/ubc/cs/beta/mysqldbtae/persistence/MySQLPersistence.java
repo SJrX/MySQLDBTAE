@@ -961,7 +961,7 @@ public class MySQLPersistence implements AutoCloseable{
 					int i=0;
 					for(JobPriority job : JobPriority.values())
 					{
-						sb.append("\n\t\t(SELECT runID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" WHERE status=\"").append(statusToRequest).append("\" AND priority=\"").append(job).append("\" ORDER BY runID LIMIT " + n +  ")\n\t\t").append("UNION ALL");
+						sb.append("\n\t\t(SELECT runID,").append(i).append(" AS priority FROM ").append(TABLE_RUNCONFIG).append(" USE INDEX(status2) WHERE status=\"").append(statusToRequest).append("\" AND priority=\"").append(job).append("\" ORDER BY runID LIMIT " + n +  ")\n\t\t").append("UNION ALL");
 						i++;
 					}
 			
@@ -969,7 +969,7 @@ public class MySQLPersistence implements AutoCloseable{
 					
 							
 					sb.append("\t) innerTable ORDER BY priority DESC LIMIT " + n + "\n").append(
-					" ) B ON B.runID=A.runID SET status=\"ASSIGNED\", workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1,worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND)");
+					" ) B ON B.runID=A.runID SET status=\"ASSIGNED\", lastAssignedTime=NOW(), workerUUID=\"" + workerUUID.toString() + "\", retryAttempts = retryAttempts+1,worstCaseNextUpdateWhenAssigned=DATE_ADD(NOW(),INTERVAL ").append(Math.max(worstCaseMultplier*delayBetweenRequests,minWorstCaseTime)).append(" SECOND)");
 					
 					
 			//System.out.println(sb.toString());
