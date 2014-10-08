@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -956,6 +957,8 @@ public class MySQLPersistence implements AutoCloseable{
 				sb.append("SELECT GET_LOCK(\"" + this.DATABASE + "." + TABLE_RUNCONFIG + ".readLock_" + lock + "\",172800);\n" );
 			}
 			
+			
+			
 			sb.append("UPDATE ").append(TABLE_RUNCONFIG).append( " A JOIN (\n\t").append(
 					"SELECT runID, priority FROM (");
 					int i=0;
@@ -996,7 +999,7 @@ public class MySQLPersistence implements AutoCloseable{
 				
 			 
 				//
-				sb.append(";\nSELECT runID , algorithmExecutionConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob,runPartition FROM ").append(TABLE_RUNCONFIG);
+				sb.append(";\nSELECT runID , algorithmExecutionConfigID, problemInstance, instanceSpecificInformation, seed, cutoffTime, paramConfiguration, cutoffLessThanMax, killJob,runPartition,priority FROM ").append(TABLE_RUNCONFIG);
 				sb.append(" WHERE status=\"ASSIGNED\" AND workerUUID=\"" + workerUUID.toString() + "\" ORDER BY priority DESC;");
 				
 		
@@ -1047,8 +1050,17 @@ public class MySQLPersistence implements AutoCloseable{
 					rs = stmt.getResultSet();
 				} 
 			
-				List<AlgorithmRunConfiguration> rcList = new ArrayList<AlgorithmRunConfiguration>();
+				//We need to sort the data entries we get from the database to ensure a FIFO order. 
+				//We don't sort IN the database because two columns in an ORDER BY can't be resolved. 
+				//Essentially we want the SELECT query to be ORDER BY priority DESC, runID ASC.
+				Map<Integer, Map<Integer, AlgorithmRunConfiguration>> runsToDo = new TreeMap<Integer,Map<Integer, AlgorithmRunConfiguration>>();
 			
+				
+				for(JobPriority pri : JobPriority.values())
+				{
+					runsToDo.put(pri.getReverseOrderIndex(), new TreeMap<Integer, AlgorithmRunConfiguration>());
+				}
+				
 				while(rs.next())
 				{
 					AlgorithmExecutionConfiguration execConfig = null;
@@ -1081,6 +1093,7 @@ public class MySQLPersistence implements AutoCloseable{
 						boolean cutoffLessThanMax = rs.getBoolean(8);
 						killJob = rs.getBoolean(9);
 						
+						JobPriority priority = JobPriority.valueOf(rs.getString(11));
 						
 						int instanceId =0;
 						try
@@ -1104,6 +1117,8 @@ public class MySQLPersistence implements AutoCloseable{
 						
 						runConfigIDMap.put(rc, rcID);
 						runConfigurationToRunParitionMap.put(rc,rs.getInt(10));
+						
+						runsToDo.get(priority.getReverseOrderIndex()).put(Integer.valueOf(rcID), rc);
 					} catch(RuntimeException e)
 					{
 						log.error("Exception occured while trying to process run " + rcID + " with execConfigID: "+ execConfigID , e);
@@ -1114,8 +1129,7 @@ public class MySQLPersistence implements AutoCloseable{
 						continue;
 					}
 					
-
-					rcList.add( rc);					
+								
 				}
 				rs.close();
 				conn.close();
@@ -1126,6 +1140,13 @@ public class MySQLPersistence implements AutoCloseable{
 					log.warn("We somehow got more runs than we asked for");
 				}*/
 					
+				List<AlgorithmRunConfiguration> rcList = new ArrayList<AlgorithmRunConfiguration>();
+				
+				
+				for(Map<Integer, AlgorithmRunConfiguration> runMap : runsToDo.values())
+				{
+					rcList.addAll(runMap.values());
+				}
 				
 				return rcList;
 			}

@@ -33,11 +33,11 @@ import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstance;
 import ca.ubc.cs.beta.aeatk.probleminstance.ProblemInstanceSeedPair;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorCallback;
+import ca.ubc.cs.beta.aeatk.targetalgorithmevaluator.TargetAlgorithmEvaluatorRunObserver;
 import ca.ubc.cs.beta.mysqldbtae.JobPriority;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistence;
 import ca.ubc.cs.beta.mysqldbtae.persistence.MySQLPersistenceUtil;
 import ca.ubc.cs.beta.mysqldbtae.persistence.client.MySQLPersistenceClient;
-
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluator;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorFactory;
 import ca.ubc.cs.beta.mysqldbtae.targetalgorithmevaluator.MySQLTargetAlgorithmEvaluatorOptions;
@@ -125,6 +125,10 @@ public class MySQLDBTAEConcurrencyFactorTester {
 		
 			MySQLTargetAlgorithmEvaluator mySQLTAE = MySQLTargetAlgorithmEvaluatorFactory.getMySQLTargetAlgorithmEvaluator(mysqlConfig, MYSQL_POOL, 25, null, MYSQL_PERMANENT_RUN_PARTITION, false, priority);
 			
+			
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE),mySQLTAE);
+			MySQLPersistenceUtil.executeQueryForDebugPurposes("TRUNCATE TABLE " + MySQLPersistenceUtil.getWorkerTable(mySQLTAE),mySQLTAE);
+			
 			//MySQLPersistenceClient  mysqlPersistence = new MySQLPersistenceClient(mysqlConfig, MYSQL_POOL, 25, null ,MYSQL_PERMANENT_RUN_PARTITION,false, priority);
 			
 			
@@ -136,8 +140,9 @@ public class MySQLDBTAEConcurrencyFactorTester {
 			};
 			
 			
+			// First five should process successfully.
 			List<AlgorithmRunConfiguration> runConfigs = new ArrayList<AlgorithmRunConfiguration>(20);
-			for(int i=0; i < 5; i++)
+			for(int i=0; i < 1; i++)
 			{
 				ParameterConfiguration config = configSpace.getRandomParameterConfiguration(rand);
 				if(config.get("solved").equals("INVALID") || config.get("solved").equals("ABORT") || config.get("solved").equals("CRASHED"))
@@ -173,22 +178,23 @@ public class MySQLDBTAEConcurrencyFactorTester {
 			}
 			
 			
+			
+			//This time we grab a lock, wait and then continue.
 			MySQLPersistenceClient mysqlPeristence = MySQLPersistenceUtil.getPersistence(mySQLTAE);
 			
 			try (Connection conn = MySQLPersistenceUtil.getConnection(mysqlPeristence))
 			{
 				Statement stmt = conn.createStatement();
 				
-				for(int i=0; i < 1; i++)
-				{
-					String lockSQL = "SELECT GET_LOCK(\"" + mysqlConfig.databaseName + "." + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE) + ".readLock_" + i + "\",172800);";
-					
-					stmt.execute(lockSQL);
-					
-					ResultSet rs = stmt.getResultSet();
-					rs.next();
-					System.out.println(lockSQL + "=>" + rs.getString(1));
-				}
+				
+				String lockSQL = "SELECT GET_LOCK(\"" + mysqlConfig.databaseName + "." + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE) + ".readLock_" + 1 + "\",172800);";
+				
+				stmt.execute(lockSQL);
+				
+				ResultSet rs = stmt.getResultSet();
+				rs.next();
+				System.out.println(lockSQL + "=>" + rs.getString(1));
+			
 			
 				final AtomicBoolean sawResults = new AtomicBoolean(false);
 				
@@ -204,23 +210,47 @@ public class MySQLDBTAEConcurrencyFactorTester {
 					public void onFailure(RuntimeException e) {
 						e.printStackTrace();
 						
+					} 
+				}, new TargetAlgorithmEvaluatorRunObserver()
+				{
+
+					@Override
+					public void currentStatus(
+							List<? extends AlgorithmRunResult> runs) {
+						for(AlgorithmRunResult run : runs)
+						{
+							if(run.getWallclockExecutionTime() > 0 || run.isRunCompleted() || run.getRuntime() > 0)
+							{
+								
+								if(sawResults.compareAndSet(false, true))
+								{
+									System.err.println("Saw result that had started with lock:" + run);
+								}
+							}
+						}
+						
 					}
-				});
+					
+				}
+				);
 				
 				try {
-					Thread.sleep(2048);
+					Thread.sleep(4096);
 				} catch (InterruptedException e1) {
 					Thread.currentThread().interrupt();
 					return;
 				}
 				
+			
 				
 				assertFalse("Expected that we hadn't seen the results yet", sawResults.get());
 				
-				String lockSQL = "SELECT RELEASE_LOCK(\"" + mysqlConfig.databaseName + "." + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE) + ".readLock_" + 0 + "\");";
-				
+				sawResults.set(true);
+				lockSQL = "SELECT RELEASE_LOCK(\"" + mysqlConfig.databaseName + "." + MySQLPersistenceUtil.getRunConfigTable(mySQLTAE) + ".readLock_" + 1 + "\");";
+				System.out.println("Lock released");
 				stmt.execute(lockSQL);
 				
+			
 				try {
 					Thread.sleep(2048);
 				} catch (InterruptedException e1) {
