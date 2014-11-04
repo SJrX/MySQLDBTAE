@@ -227,7 +227,7 @@ public class MySQLTAEWorkerTaskProcessor {
 								mysqlPersistence.resetUnfinishedRuns();
 							}
 							
-							int minCutoffInDB = mysqlPersistence.getMinCutoff();
+							double minCutoffInDB = mysqlPersistence.getMinCutoff();
 							if(jobsEvaluated==0)
 							{
 								log.info("No jobs were evaluated");
@@ -407,7 +407,7 @@ public class MySQLTAEWorkerTaskProcessor {
 	 */
 	private boolean checkShutdownConditions(long minCutoffDeathTimestampInMillis,
 			long lastJobFinished,
-			final MySQLPersistenceWorker mysqlPersistence, int minCutoffInDB,
+			final MySQLPersistenceWorker mysqlPersistence, double minCutoffInDB,
 			double waitTime) {
 
 		double idleTime = (int) (System.currentTimeMillis()/1000.0 - lastJobFinished/1000.0);

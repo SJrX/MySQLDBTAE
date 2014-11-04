@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_runs` (
 
  
 CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
+`workerID` int(11) NOT NULL AUTO_INCREMENT,
 `workerUUID` char(40) NOT NULL,
 `hostname` varchar(256) NOT NULL,
 `username` varchar(256) NOT NULL,
@@ -86,7 +87,8 @@ CREATE TABLE IF NOT EXISTS `ACLIB_POOL_NAME_workers` (
 `upToDate` tinyint(1) NOT NULL,
 `worstCaseNextUpdateWhenRunning` datetime NOT NULL DEFAULT '2028-10-10 12:34:56', #This date should be in the future
 `lastModified` timestamp NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP,
-PRIMARY KEY (`workerUUID`),
+PRIMARY KEY (`workerID`),
+UNIQUE KEY `workerUUID` (`workerUUID`),
 KEY `sumIdleTime` (`startWeekYear`,`workerIdleTime_UPDATEABLE`),
 KEY `currentlyIdleTime` (`currentlyIdle`,`worstCaseNextUpdateWhenRunning`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

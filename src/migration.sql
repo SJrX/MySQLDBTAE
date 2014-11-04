@@ -23,3 +23,9 @@ ADD COLUMN `lastInsertionTime` datetime NOT NULL DEFAULT '1900-01-01 00:00:00' A
 ADD COLUMN `lastAssignedTime` datetime NOT NULL DEFAULT '1900-01-01 00:00:00' AFTER `lastInsertionTime`,
 ADD COLUMN `lastCompletedTime` datetime NOT NULL DEFAULT '1900-01-01 00:00:00' AFTER `lastAssignedTime`;
 
+
+ALTER TABLE `ACLIB_POOL_NAME_workers`
+  ADD COLUMN `workerID` int(11) NOT NULL AUTO_INCREMENT FIRST,
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY (`workerID`),
+  ADD UNIQUE KEY `workerUUID` (`workerUUID`);

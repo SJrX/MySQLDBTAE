@@ -104,7 +104,7 @@ public class MySQLTAEWorker {
 				System.setProperty("LOG_LOCATION", logLocation);
 				System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");
 				
-				log = LoggerFactory.getLogger(MySQLTAEWorker.class);;
+				log = LoggerFactory.getLogger(MySQLTAEWorker.class);
 				if(com != null)
 				{
 					for(String name : com.getParameterFilesToRead())

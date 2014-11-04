@@ -587,7 +587,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 	 * Gets the minimum cutoffTime of all 'NEW' runConfigs
 	 * @return int representing the minimum cutoffTime of all 'NEW' runConfigs
 	 */
-	public int getMinCutoff() {
+	public double getMinCutoff() {
 		
 		StringBuilder sb = new StringBuilder("SELECT MIN(cutoffTime) FROM ").append(TABLE_RUNCONFIG).append(" WHERE status='NEW'");
 				
@@ -607,7 +607,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 					return -1;
 				}				
 
-				return rs.getInt(1);
+				return rs.getDouble(1);
 			} finally
 			{
 				if(conn != null) conn.close();
