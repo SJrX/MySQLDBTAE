@@ -8,6 +8,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.validators.PositiveInteger;
 
 import ca.ubc.cs.beta.aeatk.help.HelpOptions;
+import ca.ubc.cs.beta.aeatk.logging.ExplicitLogFileLoggingOptions;
 import ca.ubc.cs.beta.aeatk.logging.LoggingOptions;
 import ca.ubc.cs.beta.aeatk.logging.SingleLogFileLoggingOptions;
 import ca.ubc.cs.beta.aeatk.misc.file.HomeFileUtils;
@@ -97,8 +98,11 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	@Parameter(names={"--create-pool-tables","--createPoolTables"}, description="Create the tables for the pool in the database")
 	public Boolean createTables = null;
 	
-	@Parameter(names={"--check-min-cutoff","--checkMinCutoff"}, description="Check if the minimum cutoff time of remaining jobs is greater than the remaining time.")
+	@Parameter(names={"--check-min-cutoff","--checkMinCutoff"}, description="Check if the minimum cutoff time of remaining jobs is greater than the remaining time. If the cutoff time is ludircriously high, we will assume it takes 1 hour, unless --check-min-cutoff-strict is true")
 	public boolean checkMinCutoff = true;
+	
+	@Parameter(names={"--check-min-cutoff-strict"}, description="If false, any cutoff times greater than 10 years will be assumed to take 1 hour. The default is actually Double.MAX_VALUE and probably wasn't set correctly.")
+	public boolean checkMinCutoffStrict = false;
 	
 	@Parameter(names={"--min-cutoff-death-time","--minCutoffDeathTime"}, description="Amount of time to wait after discovering all jobs exceed the remaining time.", converter=DurationConverter.class)
 	public int minCutoffDeathTime = 600;
@@ -128,6 +132,9 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@ParametersDelegate
 	public HelpOptions help = new HelpOptions();
+	
+	@ParametersDelegate
+	public ExplicitLogFileLoggingOptions logOptions = new ExplicitLogFileLoggingOptions();
 	
 	
 }

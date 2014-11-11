@@ -227,7 +227,13 @@ public class MySQLTAEWorkerTaskProcessor {
 								mysqlPersistence.resetUnfinishedRuns();
 							}
 							
+							
 							double minCutoffInDB = mysqlPersistence.getMinCutoff();
+							
+							if(minCutoffInDB > 86400*365.25)
+							{ //This cutoff time is greater than 1 year probably not set correctly.
+								minCutoffInDB = 10;
+							}
 							if(jobsEvaluated==0)
 							{
 								log.info("No jobs were evaluated");
@@ -502,8 +508,15 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 			};			
 			
+			double cutoffTime = runConfig.getCutoffTime();
 			
-			if( (runConfig.getCutoffTime() < getSecondsLeft()) || !options.checkMinCutoff)
+			if(!options.checkMinCutoffStrict && cutoffTime > 86400 * 365.2425 * 10 )
+			{
+				log.warn("Cutoff time is a massive {} years, this probably means it wasn't set correctly. We will treat this run as taking 1 hour for scheduling purposes. You can disable this feature by using --check-min-cutoff-strict true. ", Math.round((cutoffTime / 86400 / 365.2425)) );
+				cutoffTime = 3600;
+			}
+			
+			if( ( cutoffTime < getSecondsLeft()) || !options.checkMinCutoff)
 			{
 				if(runConfig.getProblemInstanceSeedPair().getProblemInstance().getInstanceID() > 0)
 				{
@@ -514,11 +527,12 @@ public class MySQLTAEWorkerTaskProcessor {
 				}
 				
 				//TODO
-				//mysqlPersistence.updateOutstandingRunsLastUpdateTime(options.runsToBatch * (int) Math.max(3600,runConfig.getAlgorithmExecutionConfiguration().getAlgorithmMaximumCutoffTime()));
-				mysqlPersistence.updateOutstandingRunsLastUpdateTime((int) Math.max(options.minLastUpdateTime, 2*runConfig.getAlgorithmExecutionConfiguration().getAlgorithmMaximumCutoffTime()));
+
+				//If the exec Config cutoff time is explicitly set very huge, we don't want the table to overflow so we can it and something sane like 10,000,000 seconds. 
+				mysqlPersistence.updateOutstandingRunsLastUpdateTime((int) Math.max(options.minLastUpdateTime, Math.min(2*runConfig.getAlgorithmExecutionConfiguration().getAlgorithmMaximumCutoffTime(),1000*(cutoffTime+10000))));
 				
 				
-				mysqlPersistence.updateWorstCaseEndTime(options.runsToBatch, (int) (runConfig.getCutoffTime()+1) * 2);
+				mysqlPersistence.updateWorstCaseEndTime(options.runsToBatch, (int) (cutoffTime+1) * 2);
 				List<AlgorithmRunResult> finishedRuns=tae.evaluateRun(Collections.singletonList(runConfig), obs);
 				jobEvaluated = true;
 				mysqlPersistence.setRunResults(finishedRuns);
@@ -527,7 +541,7 @@ public class MySQLTAEWorkerTaskProcessor {
 				
 			} else
 			{
-				log.info("Skipping runs that could require up to {} (s), because we only have {} (s) left", runConfig.getCutoffTime(), getSecondsLeft() );
+				log.info("Skipping runs that could require up to {} (s), because we only have {} (s) left. You can disable this check by setting --check-min-cutoff false on the worker", runConfig.getCutoffTime(), getSecondsLeft() );
 			}
 			
 										

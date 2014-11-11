@@ -100,10 +100,13 @@ public class MySQLTAEWorker {
 					jobID= "CLI";
 				}
 				String workerID = jobID  + "/" + ManagementFactory.getRuntimeMXBean().getName();
-				String logLocation = options.logDirectory.getAbsolutePath() + File.separator + "log-worker-"+workerID.replaceAll("[^A-Za-z0-9_]+", "_")+".txt";
-				System.setProperty("LOG_LOCATION", logLocation);
-				System.out.println("*****************************\nLogging to: " + logLocation +  "\n*****************************");
+				String logLocation = options.logDirectory.getAbsolutePath();
+				String logFileName =  "log-worker-"+workerID.replaceAll("[^A-Za-z0-9_]+", "_")+".txt";
 				
+				//System.setProperty("LOG_LOCATION", logLocation);
+				System.out.println("*****************************\nLogging to: " + logLocation + File.separator + logFileName + "\n*****************************");
+				
+				options.logOptions.initializeLogging(logLocation, logFileName);
 				log = LoggerFactory.getLogger(MySQLTAEWorker.class);
 				if(com != null)
 				{
