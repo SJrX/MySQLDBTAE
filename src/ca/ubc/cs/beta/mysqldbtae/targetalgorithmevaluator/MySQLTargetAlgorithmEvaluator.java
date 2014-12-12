@@ -138,8 +138,8 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 			TargetAlgorithmEvaluatorCallback handler, TargetAlgorithmEvaluatorRunObserver obs) {
 	    
 	    //Start a stop watch.
-	    //Submission time should not take longer than 5 s plus one additional second for every additional 1000 runs.
-	    long maxSubmitTime = (5 + runConfigs.size()/1000)*1000;
+	    //Submission time should not take longer than 5 s plus one additional second for every additional 100 runs.
+	    long maxSubmitTimeInMS = 5000 + runConfigs.size()*10;
 	    AutoStartStopWatch stopwatch = new AutoStartStopWatch();
 	    
 	    if(runConfigs.size() == 0)
@@ -157,9 +157,9 @@ public class MySQLTargetAlgorithmEvaluator extends AbstractAsyncTargetAlgorithmE
 		
 		//Stop stopwatch, if >  max limit log a warning.
 		long submitTime = stopwatch.stop();
-		if(submitTime > maxSubmitTime)
+		if(submitTime > maxSubmitTimeInMS)
 		{
-		    log.warn("Took more than expected maximum time of {} ms to submit {} runs.",maxSubmitTime,runConfigs.size());
+		    log.warn("Took more than expected maximum time of {} ms to submit {} runs.",maxSubmitTimeInMS,runConfigs.size());
 		}
 		
 	}

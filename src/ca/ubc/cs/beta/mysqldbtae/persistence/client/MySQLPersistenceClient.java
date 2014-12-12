@@ -10,12 +10,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -134,7 +137,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	/**
 	 * Number of RunConfigUUIDs to pool for status at any given time
 	 */
-	private static final int QUERY_SIZE_LIMIT = 1000;
+//	private final int QUERY_SIZE_LIMIT = 1000;
 	
 	/**
 	 * Used to tie all the run requests with a specific execution
@@ -166,6 +169,10 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 	private final boolean shutdownWorkersOnCompletion;
 	
 	private final AtomicBoolean logWarningOnInstanceBeingTooLong = new AtomicBoolean(false);
+
+	
+	private static final AtomicBoolean logHowToTurnOffInsertionLogging = new AtomicBoolean(false);
+	
 	public MySQLPersistenceClient(MySQLTargetAlgorithmEvaluatorOptions opts)
 	{
 
@@ -231,7 +238,8 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			//=== Lock on the run token
 			synchronized(token)
 			{
-
+				AutoStartStopWatch watch = new AutoStartStopWatch();
+				
 				if(completedRunTokens.contains(token))
 				{
 					throw new IllegalStateException("RunToken is no longer valid");
@@ -273,7 +281,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 							int querySize = 0;
 							for(String key : incompleteRuns)
 							{
-								if(querySize >= QUERY_SIZE_LIMIT)
+								if(querySize >= opts.queryBatchSize)
 								{
 									break;
 								}
@@ -388,7 +396,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 								sb = new StringBuilder();
 								sb.append("UPDATE ").append(TABLE_RUNCONFIG).append(" SET killJob=1, result_seed=seed, result_additionalRunData=CONCAT(\"Killed By Client (\",?,\" ) While Status \",status), status=\"COMPLETE\",result_status=\"KILLED\" WHERE (status=\"NEW\" OR status=\"ASSIGNED\") AND runHashCode IN (");
 								
-								for(int i=0; i < Math.min(QUERY_SIZE_LIMIT,runsToKill.size()); i++)
+								for(int i=0; i < Math.min(opts.queryBatchSize,runsToKill.size()); i++)
 								{
 									//Only jobs upto the QUERY_SIZE_LIMIT will be killed, other jobs will wait until next poll
 									if(i!=0)
@@ -480,6 +488,7 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 
 					
 					
+					log.info("Total time to poll database was {} seconds", watch.stop() / 1000.0);
 					return runResults;
 				} finally
 				{
@@ -541,6 +550,24 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			Map<String,AlgorithmRunConfiguration> stringToRunConfig  = runTokenToStringRCMap.get(runToken);
 			Map<String, Integer> runConfigToIDMap = new HashMap<String, Integer>();
 			
+			
+			
+			boolean shouldLogProgress = ( opts.logIncrementalProgressOfLargeInserts && runConfigs.size() >= opts.incrementProgressLargeInsertSize) ? true : false;
+			
+			if(shouldLogProgress && logHowToTurnOffInsertionLogging.compareAndSet(false, true))
+			{
+				log.info("MySQL Target Algorithm Evaluator is set to log large requests, you can adjust this setting with --mysqldbtae-log-large-inserts-progress");
+			}
+			Double[] timesToLog = {Math.pow(10, -6),0.001,0.1,0.25, 0.33, 0.5, 0.66, 0.75,0.9,0.99, 1.1 /**DO NOT REMOVE THIS ELEMENT, IT ENSURES THAT WE CAN NEVER GET A NPE WHEN PEEKING **/};
+			
+			for(int i=0 ; i < timesToLog.length; i++)
+			{
+				timesToLog[i] = runConfigs.size()*timesToLog[i];
+			}
+			
+			Queue<Double> thresholdsToLog = new LinkedList<>(Arrays.asList(timesToLog)); 
+			
+			int totalRunsInserted = 0;
 			for(int i=0; (i < Math.ceil((runConfigs.size()/(double) opts.batchInsertSize)));i++)
 			{
 				
@@ -649,12 +676,31 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 						if(stmt != null) stmt.close();
 					}
 					
+					totalRunsInserted += (listUpperBound - listLowerBound);
+					
+					
+					
+					
 					double timePerRow = ((listUpperBound - listLowerBound) / (stopWatch.stop() / 1000.0));
 					
 					Object[] args = { listUpperBound - listLowerBound, stopWatch.time()/1000.0, timePerRow};
 					log.trace("Insertion of {} rows took {} seconds {} row / second", args);
 					
 				
+					if(shouldLogProgress)
+					{
+						boolean shouldLog = false;
+						while(totalRunsInserted > thresholdsToLog.peek())
+						{
+							shouldLog = true;
+							thresholdsToLog.poll();
+						}
+						
+						if(shouldLog)
+						{
+							log.info("Insertion progress {} of {} total rows, most recent insertion of {} rows took: {} seconds (@ {} rows / second) , cumulative time: {} seconds (@ {} rows / second).", totalRunsInserted, runConfigs.size(), listUpperBound - listLowerBound, stopWatch.time() / 1000.0, timePerRow, completeInsertionTime.time() / 1000.0 ,  totalRunsInserted / (completeInsertionTime.time() / 1000.0));
+						}
+					}
 				} catch(PacketTooBigException e)
 				{
 					throw new IllegalStateException("SQL Error Occured, Try lowering the Batch Size", e);
@@ -676,8 +722,15 @@ public class MySQLPersistenceClient extends MySQLPersistence {
 			this.runTokenToCompletedRuns.put(runToken, new HashMap<AlgorithmRunConfiguration, AlgorithmRunResult>());
 			this.runTokenToStringIDMap.put(runToken, runConfigToIDMap);
 			
-			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)}; 
-			log.debug("Total time to insert {} rows was {} seconds, {} rows / second", args3);
+			
+			Object[] args3 = { runConfigs.size(), completeInsertionTime.stop() / 1000.0, runConfigs.size() / (completeInsertionTime.stop() /1000.0)};
+			if(!shouldLogProgress)
+			{
+				log.debug("Total time to insert {} rows was {} seconds, {} rows / second", args3);
+			}  else
+			{
+				log.info("Total time to insert {} rows was {} seconds, {} rows / second", args3);
+			}
 			synchronized(runToken)
 			{
 				return runToken;

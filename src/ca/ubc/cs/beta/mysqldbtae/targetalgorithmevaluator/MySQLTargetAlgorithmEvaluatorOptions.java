@@ -98,19 +98,25 @@ public class MySQLTargetAlgorithmEvaluatorOptions extends AbstractOptions{
 	@Parameter(names={"--mysqldbtae-poll-threads"}, description="How many threads will be used to manage the outstanding requests", validateWith=FixedPositiveInteger.class)
 	public int pollPoolSize = Runtime.getRuntime().availableProcessors() * 2;
 
-
 	@UsageTextField(level=OptionLevel.DEVELOPER)
 	@Parameter(names="--mysqldbtae-poll-delay", description="How often (in milliseconds) to poll the database for new results", validateWith=FixedPositiveInteger.class)
 	public long delayBetweenPolls = 2000;
 
 	@UsageTextField(level=OptionLevel.ADVANCED)
-	@Parameter(names="--dead-job-check-frequency", description="How often (in seconds) to check for stale or dead jobs", validateWith=FixedPositiveInteger.class)
+	@Parameter(names={"--mysqldbtae-dead-job-check-frequency","--dead-job-check-frequency"}, description="How often (in seconds) to check for stale or dead jobs", validateWith=FixedPositiveInteger.class)
 	public int deadJobCheckFrequency = 120;
+	
+	@UsageTextField(level=OptionLevel.ADVANCED)
+	@Parameter(names="--mysqldbtae-max-jobs-to-poll", description="How many jobs to poll at any one time, a good value for this is (max_allowed_packet - 10000)/2500, where max_allowed_packet is the servers max allowed packet size. ")
+	public int queryBatchSize = 1000;
 
+	@UsageTextField(level=OptionLevel.ADVANCED)
+	@Parameter(names="--mysqldbtae-log-large-inserts-progress", description="If true inserts over --log-large-inserts-progress-threshold rows will have their progress logged")
+	public boolean logIncrementalProgressOfLargeInserts = true;
 	
-	
-	
-
+	@UsageTextField
+	@Parameter(names="--mysqldbtae-log-large-inserts-progress-threshold", description="Number of runs being inserted at a single time to consider 'large'. See also --log-large-inserts-progress", validateWith=FixedPositiveInteger.class)
+	public int incrementProgressLargeInsertSize = 10000;
 	
 	public Connection getConnection()
 	{

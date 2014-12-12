@@ -91,13 +91,16 @@ It is assumed that you have access to a MySQL Server running version 5.5. Versio
 \begin{bclogo}[logo=\bcattention, couleurBarre=red, noborder=true]{Important!}
 Good performance of the MySQL Target Algorithm Evaluator depends \emph{heavily} on the MySQL Server being tuned correctly. Unfortunately the default configuration of MySQL Server is incredibly inappropriate. More advanced users are encouraged to read Chapter 8 of \emph{High Performance MySQL 3rd Edition}.  Assuming that you are only interested in using MySQL for this application and are not running anything else, we would recommend the following changes (if you are using MySQL for something else, you will need to do your own research).
 
-The two most important settings to change are:
+The three most important settings to change are:
 
 \begin{itemize}
 \item \texttt{innodb\_buffer\_pool\_size} which should be set to 80\% of the RAM you would like MySQL to use (we use 16 GB). For more information see: \\ \url{http://dev.mysql.com/doc/refman/5.5/en/innodb-parameters.html\#sysvar\_innodb\_buffer\_pool\_size}
 
 \item \texttt{innodb\_log\_file\_size} which should be set to about 1 GB or higher.  For more information see: \\
 \url{http://dev.mysql.com/doc/refman/5.5/en/innodb-parameters.html\#sysvar\_innodb\_log\_file\_size}
+
+\item \texttt{max\_allowed\_packet} which should be set to 16 MB or higher (we set it to 64 MB). For more information see: \\
+\url{http://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html\#sysvar\_max\_allowed\_packet}
 
 \end{itemize}
 
@@ -567,7 +570,7 @@ In particular we have experienced situations when the database entirely stalls a
 
 \begin{description}
 
-\item[Large Bulk Inserts] If you are inserting a large number of rows at any given time by default they will be sliced into inserts of size 500, you can increase this with the \textbf{-$~\!$-mysqldbtae-batch-insert-size}. The reason all runs are not inserted all at once is because there is a limit to the size of a single SQL query can take. If set to high, the program may fail inserting at some runs. See also FAQ \ref{big}.
+\item[Large Bulk Inserts] If you are inserting a large number of rows at any given time by default they will be sliced into inserts of size 500, you can increase this with the \textbf{-$~\!$-mysqldbtae-batch-insert-size}. The reason all runs are not inserted all at once is because there is a limit to the size of a single SQL query can take (\texttt{max\_allowed\_packet}). If set to high, the program may fail inserting at some runs. See also FAQ \ref{big}. Another useful setting to change is \textbf{-$~\!$-mysqldbtae-max-jobs-to-poll} this controls how many jobs to poll for completion at any one time, this needs again to be below the max packet size. The actual size of the packet is unclear, and in many cases the MySQL Target Algorithm Evaluator is unaware of what the size is. The\textbf{-$~\!$-mysqldbtae-batch-insert-size} option also depends on how large your instance, and configuration space is. The \textbf{-$~\!$-mysqldbtae-max-jobs-to-poll} shouldn't be affected by any of this, and assuming the packets were ASCII text then it's just about $<$250 bytes of overhead, and then $\sim$60 bytes per run. \footnote{The command-line interface gives a MUCH more conservative estimate of 10K characters overhead and 2500 bytes per run, the estimate here is much tighter.}.
 
 \item[Decrease Latency of Runs] If you would like your runs to be more responsive then the following settings may help you. With these settings you do risk negatively affecting your applications performance and the performance of your database server. The biggest change in the AEATK application you could make is \textbf{-$~\!$-mysqldbtae-poll-delay}, if you have many small requests (as opposed to a few large requests), you may also want to increase \textbf{-$~\!$-mysqldbtae-poll-threads}. 
 
