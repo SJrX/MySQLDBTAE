@@ -126,7 +126,7 @@ public class MySQLDBTAEAutoAdjustBatchSizeTester {
 			b.append(" --pool ").append(MYSQL_POOL);
 			
 			b.append(" --timeLimit 300");
-			b.append(" --runsToBatch 1 --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit 10 --tae RANDOM --auto-adjust-batch-size true ");
+			b.append(" --runsToBatch 1 --console-log-level DEBUG --log-level DEBUG --delayBetweenRequests 1 --shutdownBuffer 0 --idleLimit 10 --tae RANDOM --auto-adjust-batch-size true --concurrency-factor 1");
 			b.append(" --mysql-hostname ").append(mysqlConfig.host).append(" --mysql-password ").append(mysqlConfig.password).append(" --mysql-database ").append(mysqlConfig.databaseName).append(" --mysql-username ").append(mysqlConfig.username).append(" --mysql-port ").append(mysqlConfig.port);
 			
 			System.out.println(b.toString());

@@ -1028,7 +1028,7 @@ public class MySQLPersistence implements AutoCloseable{
 					} catch(SQLException e2)
 					{
 						log.error("Couldn't release lock: ", e2);
-						conn.close();
+						
 					}
 					
 					throw e;
@@ -1132,7 +1132,7 @@ public class MySQLPersistence implements AutoCloseable{
 								
 				}
 				rs.close();
-				conn.close();
+			
 				
 				/*
 				if(rcList.size() > runs)

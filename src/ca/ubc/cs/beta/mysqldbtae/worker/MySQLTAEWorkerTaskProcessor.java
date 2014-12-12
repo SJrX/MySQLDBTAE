@@ -145,9 +145,11 @@ public class MySQLTAEWorkerTaskProcessor {
 			
 			try(TargetAlgorithmEvaluator tae = TargetAlgorithmEvaluatorBuilder.getTargetAlgorithmEvaluator(options.taeOptions,  false, taeOptions))
 			{
-				try {
+				try
+				{
 					
-					try {
+					try
+					{
 		
 				
 		
@@ -264,6 +266,19 @@ public class MySQLTAEWorkerTaskProcessor {
 								return;
 							} else
 							{
+								
+								
+								if(jobsEvaluated==options.runsToBatch && options.autoAdjustRuns && runFetchTime.time()  >  options.autoAdjustRunsOnLongPullThreshold)
+								{
+									int newRunsToBatch = Math.max(options.minRunsToBatch, Math.min(options.maxRunsToBatch, options.runsToBatch * 2));
+									
+									if(options.runsToBatch < newRunsToBatch)
+									{
+										log.debug("Retrieving jobs from the database took {} seconds, increasing number of runs to retrieve at any time from {} to {}", runFetchTime.time() / 1000.0 , options.runsToBatch, newRunsToBatch);
+										options.runsToBatch = newRunsToBatch;
+									}
+								}
+								
 								if(waitTime > 0.0)
 								{
 									
@@ -272,8 +287,7 @@ public class MySQLTAEWorkerTaskProcessor {
 									{
 										//Grab more jobs since we are waiting and we did all our runs
 										
-										double improvementFraction = Math.max(1, Math.min(1.2, options.delayBetweenRequests/(options.delayBetweenRequests - waitTime)));
-										
+										double improvementFraction = Math.max(1, Math.min(1.5, options.delayBetweenRequests/(options.delayBetweenRequests - waitTime)));
 										
 										int newRunsToBatch = (int) Math.max(1,Math.min(options.maxRunsToBatch, options.runsToBatch+Math.max(1.0, improvementFraction * options.runsToBatch)));  
 														
@@ -284,7 +298,13 @@ public class MySQLTAEWorkerTaskProcessor {
 										
 										
 										options.runsToBatch = newRunsToBatch;
+										
 									}
+									
+									
+									
+									
+									
 									
 									log.info("Processing results took {} seconds, waiting for {} seconds", loopStop / 1000.0, waitTime);
 									boolean fullSleep = mysqlPersistence.sleep(waitTime);
@@ -336,6 +356,7 @@ public class MySQLTAEWorkerTaskProcessor {
 					
 				} finally
 				{
+					
 					try
 					{
 							if(Thread.interrupted())

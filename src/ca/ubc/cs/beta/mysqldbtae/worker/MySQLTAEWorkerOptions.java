@@ -46,17 +46,21 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	public volatile int runsToBatch = 3;
 	
 	@UsageTextField(level=OptionLevel.INTERMEDIATE)
-	@Parameter(names={"--min-runs-to-batch"}, description="Number of runs to batch at a single time", validateWith=FixedPositiveInteger.class)
+	@Parameter(names={"--min-runs-to-batch"}, description="Minimum number of runs to batch at a single time", validateWith=FixedPositiveInteger.class)
 	public volatile int minRunsToBatch = 1;
 	
 	@UsageTextField(level=OptionLevel.INTERMEDIATE)
-	@Parameter(names={"--max-runs-to-batch"}, description="Number of runs to batch at a single time", validateWith=FixedPositiveInteger.class)
-	public volatile int maxRunsToBatch = 100;
+	@Parameter(names={"--max-runs-to-batch"}, description="Maximum number of runs to batch at a single time", validateWith=FixedPositiveInteger.class)
+	public volatile int maxRunsToBatch = 1000;
 	
 	@UsageTextField(level=OptionLevel.INTERMEDIATE, defaultValues="true if --runs-to-batch > 1, false otherwise.")
 	@Parameter(names="--auto-adjust-batch-size", description="If set to true, we will automatically adjust the number of runs we take from the database as needed")
 	public volatile Boolean autoAdjustRuns = null;
 
+	@UsageTextField(level=OptionLevel.ADVANCED)
+	@Parameter(names="--auto-adjust-batch-size-on-long-pull-threshhold", description="If --auto-adjust-batch-size is true, and retrieving data from the database takes longer than this value (in milliseconds) we will also adjust.")
+	public long autoAdjustRunsOnLongPullThreshold = 2000;
+	
 	@UsageTextField(level=OptionLevel.ADVANCED)
 	@Parameter(names={"--num-uncaught-exceptions","--numUncaughtExceptions"}, description="Will retry the entire process until this many uncaught exceptions occur", validateWith=PositiveInteger.class)
 	public int uncaughtExceptionLimit = 5;
@@ -135,6 +139,8 @@ public class MySQLTAEWorkerOptions extends AbstractOptions {
 	
 	@ParametersDelegate
 	public ExplicitLogFileLoggingOptions logOptions = new ExplicitLogFileLoggingOptions();
+
+	
 	
 	
 }

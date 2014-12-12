@@ -230,7 +230,7 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			{
 				if(stmt != null) stmt.close();
 				if(conn != null) conn.close();
-				conn.close();
+				
 			}
 			
 		}catch(SQLException e)
@@ -251,18 +251,18 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 		
 		try {
 			
-			PreparedStatement stmt = null;
-			try {
-				Connection conn = getConnection();
-				stmt = conn.prepareStatement(sb.toString());
-				stmt.setString(1, runConfigUUID);
-				executePS(stmt);
-				//conn.commit();
-				conn.close();
-			} finally
+			
+			try (Connection conn = getConnection())
 			{
-				if(stmt != null) stmt.close();
-			}
+				
+				try(PreparedStatement stmt = conn.prepareStatement(sb.toString()))
+				{
+					stmt.setString(1, runConfigUUID);
+					executePS(stmt);
+				}
+			}	
+				
+			
 		}catch(SQLException e)
 		{
 			log.error("Failed writing abort to database, something very bad is happening");
@@ -521,7 +521,6 @@ public class MySQLPersistenceWorker extends MySQLPersistence {
 			try(PreparedStatement stmt = conn.prepareStatement(sb.toString()))
 			{
 				super.executePS(stmt);
-				stmt.close();
 			}
 			
 		} catch (SQLException e) {
