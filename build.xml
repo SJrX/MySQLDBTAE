@@ -228,32 +228,6 @@
 					<arg value="--file-to-write"/>
 					<arg value="dist/${ant.project.name}-plugin/"/>	
 		</java>
-		
-		
-		
-		
-		<echo file="dist/${ant.project.name}-plugin/README">**********************************
-MySQL Target Algorithm Evaluator Plugin Readme
-**********************************
-To use the MySQLDB TAE in another AEATK project you should copy it's contents (not the folder) 
-into the ROOT or lib folder of the other project.  This is recommended because this folder
-does not contain all the necessary jars and so the ./mysql-worker and ./dzq scripts won't work 
-without them. 
-
-Finally note that you should not mix and match AEATK versions between master and slave,
-and between this plugin and your AEATK project.
-</echo>
-<echo file="dist/README">**********************************
-MySQL Target Algorithm Evaluator Plugin Readme
-**********************************
-To use the MySQLDB TAE in another AEATK project you should copy the mysqldbtae-plugin folder contents (not the folder) 
-into the ROOT or lib folder of the other project.  This is recommended because this folder
-does not contain all the necessary jars and so the ./mysql-worker and ./dzq scripts won't work 
-without them. 
-
-Finally note that you should not mix and match AEATK versions between master and slave,
-and between this plugin and your AEATK project.
-</echo>
 			
 	</target>			
 	<target name="zip" depends="archive" description="Makes tarball for this release">

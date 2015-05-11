@@ -53,7 +53,7 @@ The MySQL Target Algorithm Evaluator is an implementation of AEATK's \texttt{Tar
 
 \subsection{License}
 
-The MySQL Target Algorithm Evaluator is free for non-commercial usage. Please contact Frank Hutter \texttt{hutter@cs.ubc.ca} to discuss commercial licensing opportunities.
+The MySQL Target Algorithm Evaluator has been released under the AGPLv3 license. Please contact Frank Hutter \texttt{hutter@cs.ubc.ca} to discuss other licensing opportunities.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Usage}
@@ -785,7 +785,7 @@ This section outlines random thoughts, musings, ideas that people who have to in
 
 \item The use of \texttt{GET\_LOCK()} prior to retrieving the runs on a worker is unfortunately due to a mysterious performance issue that I could not solve. Essentially randomly sporadic freeze occurs that causes database performance to tank. For more details see: \url{http://forums.mysql.com/read.php?24,607838,607838\#msg-607838}. 
 
-\item I would personally recommend avoiding adding more complicated logic to the retrieval of runs from the database by the worker. For instance more priority levels, or a more complicated ordering mechanisms would make the queries much more expensive. Presently it is believed that the SELECT query can be answered by only an index lookup only. One rule in MySQL, is that you can only have column in an \texttt{ORDER BY} clause for an index to work, and we use it for FIFO ordering of runs.
+\item I would personally recommend avoiding adding more complicated logic to the retrieval of runs from the database by the worker. For instance more priority levels, or a more complicated ordering mechanisms would make the queries much more expensive. Presently it is believed that the SELECT query can be answered by only an index lookup only. One rule in MySQL, is that you can only have one column in an \texttt{ORDER BY} clause for an index to work efficiently, and we use it for FIFO ordering of runs.
 
 \item I have no idea why I didn't put most things in the \texttt{RunToken} instead of in the Map for \texttt{MySQLPersistenceClient}, it does make zero sense.
 
