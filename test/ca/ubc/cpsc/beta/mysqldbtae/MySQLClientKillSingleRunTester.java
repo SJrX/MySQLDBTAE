@@ -49,7 +49,7 @@ public class MySQLClientKillSingleRunTester {
 	
 	private static AlgorithmExecutionConfiguration execConfig;
 
-	private static  ParameterConfigurationSpace configSpace;
+	private static ParameterConfigurationSpace configSpace;
 	
 	private static MySQLOptions mysqlConfig;
 	

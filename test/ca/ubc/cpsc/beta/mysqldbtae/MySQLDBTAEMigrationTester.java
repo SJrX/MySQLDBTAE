@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
@@ -114,8 +115,10 @@ public class MySQLDBTAEMigrationTester {
 		}
 	}*/
 	@Test
+
 	public void testMigration() throws IOException, PropertyVetoException, SQLException
 	{
+		fail("Hmmmmm");
 
 			rand = new MersenneTwister(10_10_1986);
 
